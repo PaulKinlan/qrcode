@@ -176,7 +176,8 @@
     };
 
     cameraToggleInput.addEventListener('change', function() {
-      if(cameraToggle.checked === true) {
+      // this is the input element, not the control
+      if(this.checked === true) {
         getCamera(cameras[1]);
       } 
       else {

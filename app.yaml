@@ -25,11 +25,8 @@ handlers:
   http_headers:
     Access-Control-Allow-Origin: "*"
 
-
-
-
-
 skip_files:
-  app/*
-  jsqrcode/*
-  node_modules/*
+- ^.tmp/.*
+- ^app/.*
+- ^jsqrcode/.*
+- ^node_modules/.*

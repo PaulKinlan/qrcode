@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "name": "Web Starter Kit",
+  "name": "Capture QR Code",
   "launch_path": "/index.html",
-  "description": "A front-end template that helps you build fast, modern mobile web apps.",
+  "description": "QR Code Capture tool",
   "icons": {
     "128": "/images/touch/icon-128x128.png"
   },
@@ -18,8 +18,8 @@
   },
   "locales": {
     "en": {
-      "name": "Web Starter Kit",
-      "description": "A front-end template that helps you build fast, modern mobile web apps."
+      "name": "Capture QR Code",
+      "description": "QR Code Capture tool"
     }
   }
 }

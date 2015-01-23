@@ -21,16 +21,60 @@
 
   // Your custom JavaScript goes here
 
+  var QRCodeCamera = function(element) {
+    // Controls the Camera and the QRCode Module
+
+    var cameraManager = new CameraManager('camera');
+    var qrCodeManager = new QRCodeManager('qrcode');
+
+    cameraManager.onframe = function() {
+      // There is a frame in the camera, what should we do with it?
+      var detectedQRCode = qrCodeManager.detectQRCode();
+      if(detectedQRCode !== undefined) {
+        qrCodeManager.showDialog(detectedQRCode);
+      }
+    };
+  };
+
+  var QRCodeManager = function(element) {
+    var root = document.getElementById(element);
+    var qrcodeData = root.querySelector(".QRCodeSuccessDialog-data");
+    var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
+
+    this.detectQRCode = function() {
+      // Given a frame, get the QR Code.
+
+      //  This messaging is a little bit fake as it is all based off canvas.
+      try {
+        return qrcode.decode();
+      }
+      catch(ex) {
+      }
+
+      return;
+    };
+
+    this.showDialog = function(url) {
+      root.style.display = 'block';
+      qrcodeData.innerText = url;
+      qrcodeNavigate.href = url;
+    }
+
+  };
+
   var CameraManager = function(element) {
     // The camera gets a video stream, and adds it to a canvas.
     // The canvas is analysed but also displayed to the user.
     // The video is never show
+
+    var self = this;
 
     var cameraRoot = document.getElementById(element);
     var cameraVideo = cameraRoot.querySelector('.Camera-video');
     var cameraCanvas = cameraRoot.querySelector('.Camera-display');
     var cameraToggle = cameraRoot.querySelector('.Camera-toggle');
     var cameraToggleInput = cameraToggle.querySelector('.Camera-toggle-input');
+
     var canvas = cameraCanvas.getContext('2d');
 
     var cameras = [];
@@ -38,7 +82,6 @@
     var captureFrame = function() {
 
       // Work out which part of the video to capture and apply to canvas.
-
       cameraCanvas.width = window.innerWidth;
       cameraCanvas.height = window.innerHeight; 
 
@@ -69,7 +112,10 @@
 
       canvas.drawImage(cameraVideo, sx / scaleFactor, sy/ scaleFactor, sWidth/ scaleFactor, sHeight/ scaleFactor, dx, dy, dWidth, dHeight);
 
-      requestAnimationFrame(captureFrame);
+      // A frame has been captured.
+      if(self.onframe) self.onframe();
+
+      requestAnimationFrame(captureFrame.bind(self));
     };
 
     var getCamera = function(videoSource) {
@@ -82,7 +128,7 @@
       gUM.call(navigator, { video: { optional: [{sourceId: videoSource}] } }, function(localStream) {
         
         cameraVideo.onloadeddata = function() {
-          requestAnimationFrame(captureFrame);
+          requestAnimationFrame(captureFrame.bind(self));
         };
 
         cameraVideo.src = window.URL.createObjectURL(localStream);
@@ -121,9 +167,7 @@
     getSources(function() { getCamera(); });
   };
 
-  var cameraManager;
-
   window.addEventListener('load', function() {
-    cameraManager = new CameraManager('camera');
+    var camera = new QRCodeCamera();
   });
 })();

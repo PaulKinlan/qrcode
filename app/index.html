@@ -5,20 +5,20 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="description" content="A front-end template that helps you build fast, modern mobile web apps.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Web Starter Kit</title>
+    <title>Capture QR Code</title>
 
     <!-- Add to homescreen -->
     <link rel="manifest" href="manifest.json">
 
     <!-- Fallback to homescreen for Chrome <39 on Android -->
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Web Starter Kit">
+    <meta name="application-name" content="Capture QR Code">
     <link rel="icon" sizes="192x192" href="images/touch/chrome-touch-icon-192x192.png">
 
     <!-- Add to homescreen for Safari on iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Web Starter Kit">
+    <meta name="apple-mobile-web-app-title" content="Capture QR Code">
     <link rel="apple-touch-icon" href="images/touch/apple-touch-icon.png">
 
     <!-- Tile icon for Win8 (144x144 + tile color) -->
@@ -45,10 +45,24 @@
             <span class="wsk-switch__label">Camera</span>
           </label>
           <video autoplay class="Camera-video"></video>
-          <canvas class="Camera-display"></canvas>
+          <canvas id="qr-canvas" class="Camera-display"></canvas>
+        </div>
+     
+
+        <div id="qrcode" class="wsk-card wsk-shadow--z3 QRCodeSuccessDialog">
+          <div class="wsk-card--heading">
+             <span class="wsk-card--heading-text">QR Code found</span>
+          </div>
+          <div class="wsk-card--lower QRCodeSuccessDialog-data" >
+          </div>
+          <div class="wsk-card--bottom">
+             <a href="" class="QRCodeSuccessDialog-navigate">Navigate</a>
+          </div>
         </div>
       </div>
     </div>
+
+    
 
     <!-- build:js(app/) ../../scripts/main.min.js -->
     <script src="styleguide/wskComponentHandler.js"></script>
@@ -56,6 +70,28 @@
     <script src="styleguide/layout/layout.js"></script>
     <script src="styleguide/switch/switch.js"></script>
     <script src="styleguide/ripple/ripple.js"></script>
+    <!-- endbuild -->
+
+    <!-- build:js(app/) ../../scripts/qrcode.js -->
+
+    <script type="text/javascript" src="scripts/jsqrcode/grid.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/version.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/detector.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/formatinf.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/errorlevel.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/bitmat.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/datablock.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/bmparser.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/datamask.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/rsdecoder.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/gf256poly.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/gf256.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/decoder.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/qrcode.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/findpat.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/alignpat.js"></script>
+    <script type="text/javascript" src="scripts/jsqrcode/databr.js"></script>
+
     <!-- endbuild -->
 
     <!-- Google Analytics: change UA-XXXXX-X to be your site's ID -->

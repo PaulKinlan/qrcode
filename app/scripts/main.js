@@ -40,13 +40,18 @@
     var root = document.getElementById(element);
     var qrcodeData = root.querySelector(".QRCodeSuccessDialog-data");
     var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
+    var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
+
+    var self = this;
+
+    this.currentUrl = undefined;
 
     this.detectQRCode = function() {
       // Given a frame, get the QR Code.
 
       //  This messaging is a little bit fake as it is all based off canvas.
       try {
-        return qrcode.decode();
+        this.currentUrl = qrcode.decode();
       }
       catch(ex) {
       }
@@ -56,9 +61,24 @@
 
     this.showDialog = function(url) {
       root.style.display = 'block';
-      qrcodeData.innerText = url;
-      qrcodeNavigate.href = url;
-    }
+      qrcodeData.innerText = this.currentUrl;
+    };
+
+    this.closeDialog = function() {
+      root.style.display = 'none';
+      self.qrcodeNavigate = "";
+      qrcodeData.innerText = "";
+    };
+
+    qrcodeIgnore.addEventListener("click", function() {
+      self.closeDialog();
+    }.bind(this));
+
+    qrcodeNavigate.addEventListener("click", function() {
+      // I really want this to be a link.
+      // window.open(this.currentUrl);
+      this.closeDialog();
+    }.bind(this));
 
   };
 

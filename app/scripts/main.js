@@ -31,7 +31,7 @@
       // There is a frame in the camera, what should we do with it?
       var detectedQRCode = qrCodeManager.detectQRCode();
       if(detectedQRCode !== undefined) {
-        qrCodeManager.showDialog(detectedQRCode);
+        qrCodeManager.showDialog();
       }
     };
   };
@@ -51,7 +51,8 @@
 
       //  This messaging is a little bit fake as it is all based off canvas.
       try {
-        this.currentUrl = qrcode.decode();
+        self.currentUrl = qrcode.decode();
+        return self.currentUrl;
       }
       catch(ex) {
       }
@@ -59,9 +60,9 @@
       return;
     };
 
-    this.showDialog = function(url) {
+    this.showDialog = function() {
       root.style.display = 'block';
-      qrcodeData.innerText = this.currentUrl;
+      qrcodeData.innerText = self.currentUrl;
     };
 
     this.closeDialog = function() {
@@ -76,7 +77,7 @@
 
     qrcodeNavigate.addEventListener("click", function() {
       // I really want this to be a link.
-      // window.open(this.currentUrl);
+      window.location = this.currentUrl;
       this.closeDialog();
     }.bind(this));
 

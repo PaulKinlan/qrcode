@@ -119,8 +119,10 @@
     var captureFrame = function() {
 
       // Work out which part of the video to capture and apply to canvas.
-      cameraCanvas.width = window.innerWidth;
-      cameraCanvas.height = window.innerHeight; 
+      var dWidth = cameraCanvas.width = window.innerWidth;
+      var dHeight = cameraCanvas.height = window.innerHeight; 
+      var dx = 0;
+      var dy = 0;
 
       var sx = 0;
       var sy = 0;
@@ -130,24 +132,19 @@
       // Make the video coordinate space the same as the window. 
       // size in the longest dimension.
       // Then center and clip. and map back to correct space.
-      var scaleX = (window.innerWidth / cameraVideo.videoWidth);
-      var scaleY = (window.innerHeight / cameraVideo.videoHeight);
+      var scaleX = (dWidth / cameraVideo.videoWidth);
+      var scaleY = (dHeight / cameraVideo.videoHeight);
       var scaleFactor = Math.max(scaleX, scaleY);
 
       // Trim the left
-      sx = ((cameraVideo.videoWidth * scaleFactor) / 2) - (window.innerWidth / 2);
-      sy = ((cameraVideo.videoHeight * scaleFactor) / 2) - (window.innerHeight / 2);
+      sx = ((cameraVideo.videoWidth * scaleFactor) / 2) - (dWidth/ 2);
+      sy = ((cameraVideo.videoHeight * scaleFactor) / 2) - (dHeight / 2);
      
       // Trim the right.
       sWidth = (cameraVideo.videoWidth * scaleFactor) - sx * 2;
       sHeight = (cameraVideo.videoHeight * scaleFactor) - sy * 2;
 
-      var dx = 0;
-      var dy = 0;
-      var dHeight = window.innerHeight;
-      var dWidth = window.innerWidth;
-
-      canvas.drawImage(cameraVideo, sx / scaleFactor, sy/ scaleFactor, sWidth/ scaleFactor, sHeight/ scaleFactor, dx, dy, dWidth, dHeight);
+      canvas.drawImage(cameraVideo, sx /scaleFactor, sy/scaleFactor, sWidth/scaleFactor, sHeight/scaleFactor, dx, dy, dWidth, dHeight);
 
       // A frame has been captured.
       if(self.onframe) self.onframe();

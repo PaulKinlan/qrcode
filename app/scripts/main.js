@@ -26,43 +26,51 @@
 
     var cameraManager = new CameraManager('camera');
     var qrCodeManager = new QRCodeManager('qrcode');
+    var processingFrame = false;
 
     cameraManager.onframe = function() {
       // There is a frame in the camera, what should we do with it?
-      var detectedQRCode = qrCodeManager.detectQRCode();
-      if(detectedQRCode !== undefined) {
-        qrCodeManager.showDialog();
+      if(processingFrame == false) {
+        processingFrame = true;
+        var imageData = cameraManager.getImageData();
+        var detectedQRCode = qrCodeManager.detectQRCode(imageData, function(url) {
+          if(url !== undefined) {
+            qrCodeManager.showDialog(url);
+          }
+          processingFrame = false;
+        });
       }
     };
   };
 
   var QRCodeManager = function(element) {
     var root = document.getElementById(element);
+    var cavnas = document.getElementById("qr-canvas");
     var qrcodeData = root.querySelector(".QRCodeSuccessDialog-data");
     var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
+
+    var client = new QRClient();
 
     var self = this;
 
     this.currentUrl = undefined;
 
-    this.detectQRCode = function() {
-      // Given a frame, get the QR Code.
 
-      //  This messaging is a little bit fake as it is all based off canvas.
-      try {
-        self.currentUrl = qrcode.decode();
-        return self.currentUrl;
-      }
-      catch(ex) {
-      }
+    this.detectQRCode = function(imageData, callback) {
+      callback = callback || function() {};
 
-      return;
+      client.decode(imageData, function(result) {
+        if(result !== undefined) {
+          self.currentUrl = result;
+        }
+        callback(result);
+      });
     };
 
-    this.showDialog = function() {
+    this.showDialog = function(url) {
       root.style.display = 'block';
-      qrcodeData.innerText = self.currentUrl;
+      qrcodeData.innerText = url;
     };
 
     this.closeDialog = function() {
@@ -99,6 +107,14 @@
     var canvas = cameraCanvas.getContext('2d');
 
     var cameras = [];
+
+    this.getImageData = function() {
+      return { 
+        width: cameraCanvas.width,
+        height: cameraCanvas.height,
+        imageData: canvas.getImageData(0, 0, cameraCanvas.width, cameraCanvas.height)
+      }
+    };
 
     var captureFrame = function() {
 

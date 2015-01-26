@@ -60,6 +60,13 @@ gulp.task('copy', function() {
     .pipe($.size({title: 'copy'}));
 });
 
+// Copy All Filescopy-workerscripts At The Root Level (app)
+gulp.task('copy-workerscripts', function() {
+  return gulp.src('app/scripts/jsqrcode/*.js')
+    .pipe(gulp.dest('dist/scripts/jsqrcode/'))
+    .pipe($.size({title: 'copy-workerscripts'}));
+});
+
 // Copy image files from the Styleguide
 gulp.task('styleguide-images', function() {
   return gulp.src('app/styleguide/**/*.{svg,png,jpg}')
@@ -110,24 +117,7 @@ gulp.task('styles', function() {
 // Concatenate And Minify JavaScript
 gulp.task('scripts', function() {
   var sources = ['app/scripts/*.js',
-    'app/scripts/jsqrcode/grid.js',
-    'app/scripts/jsqrcode/version.js',
-    'app/scripts/jsqrcode/detector.js',
-    'app/scripts/jsqrcode/formatinf.js',
-    'app/scripts/jsqrcode/errorlevel.js',
-    'app/scripts/jsqrcode/bitmat.js',
-    'app/scripts/jsqrcode/datablock.js',
-    'app/scripts/jsqrcode/bmparser.js',
-    'app/scripts/jsqrcode/datamask.js',
-    'app/scripts/jsqrcode/rsdecoder.js',
-    'app/scripts/jsqrcode/gf256poly.js',
-    'app/scripts/jsqrcode/gf256.js',
-    'app/scripts/jsqrcode/decoder.js',
-    'app/scripts/jsqrcode/qrcode.js',
-    'app/scripts/jsqrcode/findpat.js',
-    'app/scripts/jsqrcode/alignpat.js',
-    'app/scripts/jsqrcode/databr.js',
-      'app/styleguide/wskComponentHandler.js', 'app/styleguide/**/*.js'];
+    'app/styleguide/wskComponentHandler.js', 'app/styleguide/**/*.js'];
   return gulp.src(sources)
     .pipe($.concat('main.min.js'))
     .pipe($.uglify({preserveComments: 'some'}))
@@ -204,7 +194,7 @@ gulp.task('serve:dist', ['default'], function() {
 
 // Build Production Files, the Default Task
 gulp.task('default', ['clean'], function(cb) {
-  runSequence('styles', ['html', 'scripts', 'images', 'styleguide-images', 'fonts', 'copy'], cb);
+  runSequence('styles', ['html', 'scripts', 'images', 'styleguide-images', 'fonts', 'copy', 'copy-workerscripts'], cb);
 });
 
 // Run PageSpeed Insights

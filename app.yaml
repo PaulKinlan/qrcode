@@ -11,17 +11,20 @@ handlers:
   mime_type: application/json
   static_files: dist/manifest.json
   upload: dist/manifest.json
+  secure: always
   http_headers:
     Access-Control-Allow-Origin: "*"
 
 - url: /
   mime_type: text/html
   static_files: dist/index.html
+  secure: always
   upload: dist/index.html
 
 - url: /(.+)
   static_files: dist/\1
   upload: dist/(.+)
+  secure: always
   http_headers:
     Access-Control-Allow-Origin: "*"
 

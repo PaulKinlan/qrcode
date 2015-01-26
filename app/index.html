@@ -76,6 +76,14 @@
     <script src="scripts/qrclient.js"></script>
     <!-- endbuild -->
 
+    <script>
+    if('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(function() { console.log("Service Worker Registered"); });
+    }
+
+    </script>
+
 
     <!-- Google Analytics: change UA-XXXXX-X to be your site's ID -->
     <script>

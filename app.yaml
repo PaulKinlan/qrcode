@@ -4,9 +4,9 @@ runtime: python27
 api_version: 1
 threadsafe: true
 
+default_expiration: "10s"
+
 handlers:
-
-
 - url: /manifest.json
   mime_type: application/json
   static_files: dist/manifest.json

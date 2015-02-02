@@ -28,7 +28,6 @@ main {
 html, body {
   color: $text-color-secondary;
   height: 100%;
-  background-color: #263238;
 }
 
 h1, h2, h3, h4, h5 {
@@ -60,9 +59,33 @@ h1, h2, h3, h4, h5 {
     right: 0;
     background-color: transparent;
     border-style: solid;
-    border-color: rgba(51, 114, 223, 0.3);
+    border-color: rgba(0, 0, 0, 0.3);
   }
 
+  .Camera-overlay:before {
+    content:'';
+    top: 0;
+    left: 0;
+    position: absolute;
+  }
+
+  .Camera-overlay:after {
+    content:'';
+    right: 0;
+    bottom: 0;
+    position: absolute;
+  }
+
+  .Camera-instructions {
+    position: absolute;
+    bottom: 20px;
+    background-color: #323232;
+    font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    color: white;
+    padding: 18px;
+    border-radius: 2px;
+    margin: 20px;
+  }
 
   .QRCodeSuccessDialog {
     height: auto !important;

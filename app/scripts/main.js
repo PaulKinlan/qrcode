@@ -45,7 +45,8 @@
 
   var QRCodeManager = function(element) {
     var root = document.getElementById(element);
-    var cavnas = document.getElementById("qr-canvas");
+    var canvas = document.getElementById("qr-canvas");
+    //var canvas = document.getElementById("full-canvas");
     var qrcodeData = root.querySelector(".QRCodeSuccessDialog-data");
     var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
@@ -102,39 +103,76 @@
     var cameraVideo = cameraRoot.querySelector('.Camera-video');
     var cameraCanvas = cameraRoot.querySelector('.Camera-display');
     var cameraToggle = cameraRoot.querySelector('.Camera-toggle');
+    var cameraOverlay = cameraRoot.querySelector('.Camera-overlay');
     var cameraToggleInput = cameraToggle.querySelector('.Camera-toggle-input');
 
     var canvas = cameraCanvas.getContext('2d');
 
+    // Variables
+    var dWidth;
+    var dHeight; 
+    var dx = 0;
+    var dy = 0;
+
+    var sx = 0;
+    var sy = 0;
+    var sHeight;
+    var sWidth;
+    var scaleX;
+    var scaleY;
+    var scaleFactor = 1;
+
+    //
+
     var cameras = [];
+    var coordinatesHaveChanged = false;
+    var prevCoordinates = 0;
+
+    var overlayCoords = {x:0, y: 0, width: cameraCanvas.width, height: cameraCanvas.height };
 
     this.getImageData = function() {
-      return { 
-        width: cameraCanvas.width,
-        height: cameraCanvas.height,
-        imageData: canvas.getImageData(0, 0, cameraCanvas.width, cameraCanvas.height)
-      }
+      // Only get the image data for what we will send to the detector.
+      return canvas.getImageData(overlayCoords.x, overlayCoords.y, overlayCoords.width, overlayCoords.height);
     };
 
-    var captureFrame = function() {
+    var drawOverlay = function(width, height) {
 
-      // Work out which part of the video to capture and apply to canvas.
-      var dWidth = cameraCanvas.width = window.innerWidth;
-      var dHeight = cameraCanvas.height = window.innerHeight; 
-      var dx = 0;
-      var dy = 0;
+      var minLength = Math.min(width, height);
 
-      var sx = 0;
-      var sy = 0;
-      var sHeight;
-      var sWidth;
+      var boxHeightSize = (height + 64 - minLength) / 2;
+      var boxWidthSize = (width + 64 - minLength) / 2;
+
+      if(coordinatesHaveChanged) {
+
+        cameraOverlay.style.borderTopWidth = boxHeightSize + "px";
+        cameraOverlay.style.borderLeftWidth = boxWidthSize + "px";
+        cameraOverlay.style.borderRightWidth = boxWidthSize + "px";
+        cameraOverlay.style.borderBottomWidth = boxHeightSize + "px";
+
+        overlayCoords.x = boxWidthSize;
+        overlayCoords.y = boxHeightSize
+        overlayCoords.width = cameraCanvas.width - (boxWidthSize * 2);
+        overlayCoords.height = cameraCanvas.height - (boxHeightSize * 2);
+
+      }
+     
+    };
+
+    var setupVariables = function() {
+      dWidth = cameraCanvas.width = window.innerWidth;
+      dHeight = cameraCanvas.height = window.innerHeight; 
+      dx = 0;
+      dy = 0;
+
+      sx = 0;
+      sy = 0;
 
       // Make the video coordinate space the same as the window. 
       // size in the longest dimension.
       // Then center and clip. and map back to correct space.
-      var scaleX = (dWidth / cameraVideo.videoWidth);
-      var scaleY = (dHeight / cameraVideo.videoHeight);
-      var scaleFactor = Math.max(scaleX, scaleY);
+      scaleX = (dWidth / cameraVideo.videoWidth);
+      scaleY = (dHeight / cameraVideo.videoHeight);
+      scaleFactor = Math.max(scaleX, scaleY);
 
       // Trim the left
       sx = ((cameraVideo.videoWidth * scaleFactor) / 2) - (dWidth/ 2);
@@ -144,10 +182,19 @@
       sWidth = (cameraVideo.videoWidth * scaleFactor) - sx * 2;
       sHeight = (cameraVideo.videoHeight * scaleFactor) - sy * 2;
 
+    };
+
+    var captureFrame = function() {
+
+      // Work out which part of the video to capture and apply to canvas.
       canvas.drawImage(cameraVideo, sx /scaleFactor, sy/scaleFactor, sWidth/scaleFactor, sHeight/scaleFactor, dx, dy, dWidth, dHeight);
+
+      drawOverlay(dWidth, dHeight, scaleFactor);
 
       // A frame has been captured.
       if(self.onframe) self.onframe();
+
+      coordinatesHaveChanged = false;
 
       requestAnimationFrame(captureFrame.bind(self));
     };
@@ -162,6 +209,8 @@
       gUM.call(navigator, { video: { optional: [{sourceId: videoSource}] } }, function(localStream) {
         
         cameraVideo.onloadeddata = function() {
+          coordinatesHaveChanged = true;
+          setupVariables();
           requestAnimationFrame(captureFrame.bind(self));
         };
 
@@ -198,8 +247,15 @@
       }
     });
 
+    window.addEventListener('resize', function() {
+      coordinatesHaveChanged = true;
+      setupVariables();
+    }.bind(this));
+
     // Init
+    setupVariables();
     getSources(function() { getCamera(); });
+
   };
 
   window.addEventListener('load', function() {

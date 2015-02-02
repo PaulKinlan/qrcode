@@ -1,4 +1,4 @@
- var QRClient = function() {
+var QRClient = function() {
  	var worker = new Worker('/scripts/jsqrcode/qrworker.js');
  	var currentCallback;
  	

@@ -21,7 +21,9 @@ self.onmessage = function(e) {
   var data = e.data;
 
   try {
-    var result = qrcode.decode(data.width, data.height, data.imageData);
+    var width = data.width;
+    var height = data.height;
+    var result = qrcode.decode(width, height, data);
     postMessage(result);
   } 
   catch(e) {

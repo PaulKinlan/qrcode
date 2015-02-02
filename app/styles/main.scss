@@ -51,6 +51,18 @@ h1, h2, h3, h4, h5 {
   	height: 100%;
   }
 
+  .Camera-overlay {
+    transition: all 300ms ease-in-out;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-color: transparent;
+    border-style: solid;
+    border-color: rgba(51, 114, 223, 0.3);
+  }
+
 
   .QRCodeSuccessDialog {
     height: auto !important;

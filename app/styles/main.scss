@@ -58,7 +58,7 @@ h1, h2, h3, h4, h5 {
     display: inline-block;
     position: absolute;
     top: 0;
-    left: -100px;
+    bottom: -100px;
   }
 
   .Camera-toggle-input + label {
@@ -106,7 +106,7 @@ h1, h2, h3, h4, h5 {
     right: 0;
     background-color: transparent;
     border-style: solid;
-    border-color: rgba(0, 0, 0, 0.3);
+    border-color: rgba(0, 0, 0, 0.5);
     pointer-events: none;
     z-index: 20;
   }

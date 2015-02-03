@@ -12,6 +12,7 @@
  */
 
 @import "../styleguide/layout/layout";
+@import "../styleguide/icon-toggle/icon-toggle";
 @import "../styleguide/switch/switch";
 @import "../styleguide/card/card";
 @import "../styleguide/shadow/shadow";
@@ -43,11 +44,51 @@ h1, h2, h3, h4, h5 {
   .Camera-toggle {
     position: absolute;
     margin: 1em;
+    bottom: 0;
+    right: 0;
+    background-color: #0288D1;
+    z-index: 50;
+  }
+
+  .Camera-toggle-input {
+    display: inline-block;
+    position: absolute;
+    top: 0;
+    left: -100px;
+  }
+
+  .Camera-toggle-input + label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #0288D1;
+  }
+
+  .Camera-toggle-input + label .front {
+     display:inline-block;
+  }
+
+  .Camera-toggle-input + label .rear {
+     display: none;
+  }
+
+  .Camera-toggle-input:checked + label .front {
+    display: none !important;
+  }
+
+  .Camera-toggle-input:checked + label .rear {
+    display: inline-block !important;
   }
 
   .Camera-display {
   	width: 100%;
   	height: 100%;
+    pointer-events: none;
   }
 
   .Camera-overlay {
@@ -60,6 +101,8 @@ h1, h2, h3, h4, h5 {
     background-color: transparent;
     border-style: solid;
     border-color: rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    z-index: 20;
   }
 
   .Camera-overlay:before {
@@ -78,13 +121,13 @@ h1, h2, h3, h4, h5 {
 
   .Camera-instructions {
     position: absolute;
-    bottom: 20px;
+    bottom: 0;
     background-color: #323232;
     font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
     color: white;
     padding: 18px;
     border-radius: 2px;
-    margin: 20px;
+    margin: 1em;
   }
 
   .QRCodeSuccessDialog {

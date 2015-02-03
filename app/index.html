@@ -23,9 +23,9 @@
 
     <!-- Tile icon for Win8 (144x144 + tile color) -->
     <meta name="msapplication-TileImage" content="images/touch/ms-touch-icon-144x144-precomposed.png">
-    <meta name="msapplication-TileColor" content="#3372DF">
+    <meta name="msapplication-TileColor" content="#212121">
 
-    <meta name="theme-color" content="#3372DF">
+    <meta name="theme-color" content="#212121">
 
     <!-- SEO: If your mobile URL is different from the desktop URL, add a canonical link to the desktop page https://developers.google.com/webmasters/smartphone-sites/feature-phones -->
     <!--
@@ -40,14 +40,17 @@
     <div class="wsk-layout wsk-js-layout">
       <div class="wsk-layout__content">
         <div id="camera" class="Camera">
-          <label class="wsk-switch wsk-js-switch wsk-js-ripple-effect Camera-toggle" for="switch-1">
-            <input type="checkbox" id="switch-1" class="wsk-switch__input Camera-toggle-input" />
-            <span class="wsk-switch__label">Camera</span>
-          </label>
           <video autoplay class="Camera-video"></video>
           <div class="Camera-overlay"></div>
           <canvas id="qr-canvas" class="Camera-display"></canvas>
           <div class="Camera-instructions">Point at a QR code</div>
+          <div class="Camera-toggle wsk-button wsk-js-button wsk-button--fab wsk-js-ripple-effect">
+            <input type="checkbox" id="checkbox-1" class="Camera-toggle-input" />
+            <label for="checkbox-1">
+              <img class="front" src="/images/ic_camera_front_24px.svg">
+              <img class="rear" src="/images/ic_camera_rear_24px.svg">
+            </label>
+          </div>
         </div>
      
 
@@ -73,8 +76,10 @@
     <script src="styleguide/wskComponentHandler.js"></script>
     <script src="scripts/main.js"></script>
     <script src="styleguide/layout/layout.js"></script>
-    <script src="styleguide/switch/switch.js"></script>
+    <script src="styleguide/icon-toggle/icon-toggle.js"></script>
     <script src="styleguide/ripple/ripple.js"></script>
+
+    <script src="styleguide/third_party/rAF.js"></script>
     <script src="scripts/qrclient.js"></script>
     <!-- endbuild -->
 

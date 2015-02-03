@@ -104,7 +104,7 @@
     var cameraCanvas = cameraRoot.querySelector('.Camera-display');
     var cameraToggle = cameraRoot.querySelector('.Camera-toggle');
     var cameraOverlay = cameraRoot.querySelector('.Camera-overlay');
-    var cameraToggleInput = cameraToggle.querySelector('.Camera-toggle-input');
+    var cameraToggleInput = cameraRoot.querySelector('.Camera-toggle-input');
 
     var canvas = cameraCanvas.getContext('2d');
 
@@ -122,13 +122,11 @@
     var scaleY;
     var scaleFactor = 1;
 
-    //
-
     var cameras = [];
     var coordinatesHaveChanged = false;
     var prevCoordinates = 0;
 
-    var overlayCoords = {x:0, y: 0, width: cameraCanvas.width, height: cameraCanvas.height };
+    var overlayCoords = { x:0, y: 0, width: cameraCanvas.width, height: cameraCanvas.height };
 
     this.getImageData = function() {
       // Only get the image data for what we will send to the detector.
@@ -181,7 +179,6 @@
       // Trim the right.
       sWidth = (cameraVideo.videoWidth * scaleFactor) - sx * 2;
       sHeight = (cameraVideo.videoHeight * scaleFactor) - sy * 2;
-
     };
 
     var captureFrame = function() {
@@ -206,9 +203,10 @@
       }
 
       var gUM = navigator.getUserMedia || navigator.webkitGetUserMedia || null;
-      gUM.call(navigator, { video: { optional: [{sourceId: videoSource}] } }, function(localStream) {
+      gUM.call(navigator, { video: { optional: [{sourceId: videoSource.id}] } }, function(localStream) {
         
         cameraVideo.onloadeddata = function() {
+
           coordinatesHaveChanged = true;
           setupVariables();
           requestAnimationFrame(captureFrame.bind(self));
@@ -222,15 +220,23 @@
       cb = cb || function() {};
 
       MediaStreamTrack.getSources(function(sources) {
+
         for(var i = 0; i < sources.length; i++) {
           var source = sources[i];
           if(source.kind === 'video') {
-            cameras.push(source.id);
+
+            if(source.facing === 'environment') {
+              // cameras facing the environment are pushed to the front of the page
+              cameras.unshift(source);
+            }
+            else {
+              cameras.push(source);
+            }
           }
         }
 
         if(cameras.length == 1) {
-          cameraToggle.style.display="none";
+          //cameraToggle.style.display="none";
         }
 
         cb();

@@ -125,6 +125,8 @@
     var cameras = [];
     var coordinatesHaveChanged = false;
     var prevCoordinates = 0;
+    // The camera stream.
+    var localStream;
 
     var overlayCoords = { x:0, y: 0, width: cameraCanvas.width, height: cameraCanvas.height };
 
@@ -180,8 +182,6 @@
       sWidth = (cameraVideo.videoWidth * scaleFactor) - sx * 2;
       sHeight = (cameraVideo.videoHeight * scaleFactor) - sy * 2;
 
-      console.log(cameraVideo.videoWidth, (cameraVideo.videoWidth > 0))
-
       return (cameraVideo.videoWidth > 0);
     };
 
@@ -222,7 +222,8 @@
         params = { video: { optional: [{sourceId: videoSource.id}] } };
       }
   
-      gUM.call(navigator, params, function(localStream) {
+      gUM.call(navigator, params, function(theStream) {
+        localStream = theStream;
         
         cameraVideo.onloadeddata = function(e) {
 
@@ -233,6 +234,8 @@
             requestAnimationFrame(captureFrame.bind(self));
           }
           else {
+            // This is just to get around the fact that the videoWidth is not
+            // available in Firefox until sometime after the data has loaded.
             setTimeout(function() {
               setupVariables(e);
               requestAnimationFrame(captureFrame.bind(self));
@@ -293,6 +296,26 @@
       coordinatesHaveChanged = true;
       setupVariables();
     }.bind(this));
+
+    document.addEventListener('visibilitychange', function(e) {
+      if(document.visibilityState === 'hidden') {
+        // Disconnect the camera.
+        if(localStream !== undefined) {
+          localStream.stop();
+          localStream = undefined;
+        }
+      }
+      else {
+        // Page has focus, try and get the cameras again
+        if(cameraToggleInput.checked === true) {
+          getCamera(cameras[1]);
+        } 
+        else {
+          getCamera(cameras[0]);
+        }
+      }
+    });
+
 
     // Init
     getSources(function() { getCamera(); });

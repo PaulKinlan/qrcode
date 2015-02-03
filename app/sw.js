@@ -1,4 +1,4 @@
-// Version 0.9
+// Version 0.10
 
 importScripts('/cache-polyfill.js');
 

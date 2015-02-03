@@ -4,7 +4,7 @@ var QRClient = function() {
  	
  	this.decode = function(imageData, callback) {
  		worker.postMessage(imageData);
-    currentCallback = callback;
+    	currentCallback = callback;
  	};
 
  	worker.onmessage = function(e) {

@@ -156,7 +156,7 @@
      
     };
 
-    var setupVariables = function() {
+    var setupVariables = function(e) {
       dWidth = cameraCanvas.width = window.innerWidth;
       dHeight = cameraCanvas.height = window.innerHeight; 
       dx = 0;
@@ -179,6 +179,10 @@
       // Trim the right.
       sWidth = (cameraVideo.videoWidth * scaleFactor) - sx * 2;
       sHeight = (cameraVideo.videoHeight * scaleFactor) - sy * 2;
+
+      console.log(cameraVideo.videoWidth, (cameraVideo.videoWidth > 0))
+
+      return (cameraVideo.videoWidth > 0);
     };
 
     var captureFrame = function() {
@@ -198,49 +202,81 @@
 
     var getCamera = function(videoSource) {
 
-      if(videoSource === undefined) {
-        videoSource = cameras[0];
-      }
+      var gUM = (navigator.getUserMedia ||
+                       navigator.webkitGetUserMedia ||
+                       navigator.mozGetUserMedia ||
+                       navigator.msGetUserMedia || null);
 
-      var gUM = navigator.getUserMedia || navigator.webkitGetUserMedia || null;
-      gUM.call(navigator, { video: { optional: [{sourceId: videoSource.id}] } }, function(localStream) {
+      var params;
+
+      if(videoSource === undefined) {
+
+        if(cameras.length === 0) {
+          params = { video: true };
+        }
+        else {
+          params = { video: { optional: [{sourceId: cameras[0].id}] } };
+        }
+      }
+      else {
+        params = { video: { optional: [{sourceId: videoSource.id}] } };
+      }
+  
+      gUM.call(navigator, params, function(localStream) {
         
-        cameraVideo.onloadeddata = function() {
+        cameraVideo.onloadeddata = function(e) {
 
           coordinatesHaveChanged = true;
-          setupVariables();
-          requestAnimationFrame(captureFrame.bind(self));
+          
+          var isSetup = setupVariables(e);
+          if(isSetup) {
+            requestAnimationFrame(captureFrame.bind(self));
+          }
+          else {
+            setTimeout(function() {
+              setupVariables(e);
+              requestAnimationFrame(captureFrame.bind(self));
+            }, 100);
+          }
         };
 
         cameraVideo.src = window.URL.createObjectURL(localStream);
+        cameraVideo.load();
+        cameraVideo.play();
       }, function(error) {});
     };
 
     var getSources = function(cb) {
       cb = cb || function() {};
 
-      MediaStreamTrack.getSources(function(sources) {
+      if('getSources' in MediaStreamTrack) {
+        MediaStreamTrack.getSources(function(sources) {
 
-        for(var i = 0; i < sources.length; i++) {
-          var source = sources[i];
-          if(source.kind === 'video') {
+          for(var i = 0; i < sources.length; i++) {
+            var source = sources[i];
+            if(source.kind === 'video') {
 
-            if(source.facing === 'environment') {
-              // cameras facing the environment are pushed to the front of the page
-              cameras.unshift(source);
-            }
-            else {
-              cameras.push(source);
+              if(source.facing === 'environment') {
+                // cameras facing the environment are pushed to the front of the page
+                cameras.unshift(source);
+              }
+              else {
+                cameras.push(source);
+              }
             }
           }
-        }
 
-        if(cameras.length == 1) {
-          //cameraToggle.style.display="none";
-        }
+          if(cameras.length == 1) {
+            cameraToggle.style.display="none";
+          }
 
+          cb();
+        });
+      }
+      else {
+        // We can't pick the correct camera
         cb();
-      });
+      }
     };
 
     cameraToggleInput.addEventListener('change', function() {
@@ -259,7 +295,6 @@
     }.bind(this));
 
     // Init
-    setupVariables();
     getSources(function() { getCamera(); });
 
   };

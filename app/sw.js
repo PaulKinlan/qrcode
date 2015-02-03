@@ -1,4 +1,4 @@
-// Version 0.8
+// Version 0.9
 
 importScripts('/cache-polyfill.js');
 
@@ -8,6 +8,8 @@ self.addEventListener('install', function(e) {
       return cache.addAll([
         '/',
         '/cache-polyfill.js',
+        '/images/ic_camera_front_24px.svg',
+        '/images/ic_camera_rear_24px.svg',
         '/styles/main.css',
         '/scripts/main.min.js',
         '/scripts/jsqrcode/qrworker.js',
@@ -34,10 +36,10 @@ self.addEventListener('install', function(e) {
 });
 
 self.addEventListener('fetch', function(event) {
-  /*var url = event.request.url;
+  var url = event.request.url;
   event.respondWith(
     caches.match(event.request).then(function(response) {
       return response || fetch(event.request.url);
     })
-  );*/
+  );
 });

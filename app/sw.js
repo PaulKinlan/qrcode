@@ -37,9 +37,13 @@ self.addEventListener('install', function(e) {
 
 self.addEventListener('fetch', function(event) {
   var url = event.request.url;
-  event.respondWith(
+
+  if(url !== "https://www.google-analytics.com/analytics.js") {
+    event.respondWith(
     caches.match(event.request).then(function(response) {
       return response || fetch(event.request.url);
     })
   );
+  }
+  
 });

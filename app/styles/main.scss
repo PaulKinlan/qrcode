@@ -1,22 +1,12 @@
 /*
- * Web Starter Kit
- *
- * Multi-screen layout styles for your page. Brought to you by the
- * Web Starter Kit team.
- *
- */
-
-/*
  * Visual Style Guide styles
  * Remove if you prefer to use a CSS library, like Bootstrap
  */
 
-@import "../styleguide/layout/layout";
-@import "../styleguide/icon-toggle/icon-toggle";
-@import "../styleguide/switch/switch";
-@import "../styleguide/card/card";
-@import "../styleguide/shadow/shadow";
-@import "../styleguide/button/button";
+@import "styles/layout/layout";
+@import "styles/card/card";
+@import "styles/shadow/shadow";
+@import "styles/button/button";
 
 body {
   margin: 0px;

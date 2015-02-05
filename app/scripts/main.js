@@ -1,7 +1,7 @@
 /*!
  *
- *  Web Starter Kit
- *  Copyright 2014 Google Inc. All rights reserved.
+ *  QR Code scanner.
+ *  Copyright 2015 Google Inc. All rights reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@
  */
 (function() {
   'use strict';
-
-  // Your custom JavaScript goes here
 
   var QRCodeCamera = function(element) {
     // Controls the Camera and the QRCode Module
@@ -46,7 +44,6 @@
   var QRCodeManager = function(element) {
     var root = document.getElementById(element);
     var canvas = document.getElementById("qr-canvas");
-    //var canvas = document.getElementById("full-canvas");
     var qrcodeData = root.querySelector(".QRCodeSuccessDialog-data");
     var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
@@ -315,7 +312,6 @@
         }
       }
     });
-
 
     // Init
     getSources(function() { getCamera(); });

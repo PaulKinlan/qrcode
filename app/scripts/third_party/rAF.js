@@ -1,6 +1,6 @@
 // From: http://www.paulirish.com/2011/requestanimationframe-for-smart-animating/
 // shim layer with setTimeout fallback
-window.requestAnimFrame = (function() {
+window.requestAnimationFrame = (function() {
   'use strict';
   return window.requestAnimationFrame ||
     window.webkitRequestAnimationFrame ||

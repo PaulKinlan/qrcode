@@ -197,7 +197,9 @@
       requestAnimationFrame(captureFrame.bind(self));
     };
 
-    var getCamera = function(videoSource) {
+    var getCamera = function(videoSource, cb) {
+
+      cb = cb || function() {};
 
       var gUM = (navigator.getUserMedia ||
                        navigator.webkitGetUserMedia ||
@@ -206,14 +208,9 @@
 
       var params;
 
-      if(videoSource === undefined) {
-
-        if(cameras.length === 0) {
-          params = { video: true };
-        }
-        else {
-          params = { video: { optional: [{sourceId: cameras[0].id}] } };
-        }
+      if(videoSource === undefined && cameras.length == 0) {
+        // Because we have no source information, have to assume it user facing.
+        params = { video: true }; 
       }
       else {
         params = { video: { optional: [{sourceId: videoSource.id}] } };
@@ -238,6 +235,16 @@
               requestAnimationFrame(captureFrame.bind(self));
             }, 100);
           }
+
+          // The video is ready, and the camerea captured
+          if(videoSource === undefined) {
+            // There is no meta data about the camera, assume user facing.
+            videoSource = { 
+              'facing': 'user'
+            };
+          }
+
+          cb(videoSource);
         };
 
         cameraVideo.src = window.URL.createObjectURL(localStream);
@@ -274,19 +281,28 @@
         });
       }
       else {
-        // We can't pick the correct camera
+        // We can't pick the correct camera because the API doesn't support it.
         cb();
       }
     };
 
+    var toggleFacingState = function(camera) {
+      var facing = camera.facing ? camera.facing : 'user';
+      cameraRoot.classList.remove('Camera--facing-environment');
+      cameraRoot.classList.remove('Camera--facing-user');
+      cameraRoot.classList.add('Camera--facing-' + facing);
+    };
+
     cameraToggleInput.addEventListener('change', function() {
       // this is the input element, not the control
+      var cameraIdx = 0;
+
       if(this.checked === true) {
-        getCamera(cameras[1]);
-      } 
-      else {
-        getCamera(cameras[0]);
+        cameraIdx = 1;
       }
+
+      getCamera(cameras[cameraIdx], toggleFacingState);
+
     });
 
     window.addEventListener('resize', function() {
@@ -303,18 +319,21 @@
         }
       }
       else {
-        // Page has focus, try and get the cameras again
-        if(cameraToggleInput.checked === true) {
-          getCamera(cameras[1]);
-        } 
-        else {
-          getCamera(cameras[0]);
+        var cameraIdx = 0;
+
+        if(this.checked === true) {
+          cameraIdx = 1;
         }
+
+        getCamera(cameras[cameraIdx], toggleFacingState);
       }
     });
 
     // Init
-    getSources(function() { getCamera(); });
+    getSources(function() { 
+      // On first run, select the first camera.
+      getCamera(cameras[0], toggleFacingState);
+    });
 
   };
 

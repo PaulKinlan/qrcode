@@ -31,108 +31,121 @@ h1, h2, h3, h4, h5 {
 
 .wsk-layout__content {
 
-  .Camera-video {
-  	display:none;
-  }
+  .Camera {
 
-  .Camera-toggle {
-    position: absolute;
-    margin: 1em;
-    bottom: 0;
-    right: 0;
-    background-color: #0288D1;
-    z-index: 50;
-  }
+    &.Camera--facing-user {
+      .Camera-display {
+        transform: scale(-1, 1);
+      }
+    }
 
-  .Camera-toggle-input {
-    display: inline-block;
-    position: absolute;
-    top: 0;
-    bottom: -100px;
-  }
+    &.Camera--facing-environment {
+    
+    }
 
-  .Camera-toggle-input + label {
-    position: absolute;
-    top: 0;
-    left: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    background-color: #0288D1;
-    outline: none;
-    -webkit-tap-highlight-color: transparent;
-  }
+    .Camera-video {
+    	display:none;
+    }
 
-  .Camera-toggle-input + label .front {
-     display:inline-block;
-  }
+    .Camera-toggle {
+      position: absolute;
+      margin: 1em;
+      bottom: 0;
+      right: 0;
+      background-color: #0288D1;
+      z-index: 50;
+    }
 
-  .Camera-toggle-input + label .rear {
-     display: none;
-  }
+    .Camera-toggle-input {
+      display: inline-block;
+      position: absolute;
+      top: 0;
+      bottom: -100px;
+    }
 
-  .Camera-toggle-input:checked + label .front {
-    display: none !important;
-  }
+    .Camera-toggle-input + label {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      background-color: #0288D1;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-  .Camera-toggle-input:checked + label .rear {
-    display: inline-block !important;
-  }
+    .Camera-toggle-input + label .front {
+       display:inline-block;
+    }
 
-  .Camera-display {
-    position: absolute;
-  	width: 100%;
-  	height: 100%;
-    pointer-events: none;
-  }
+    .Camera-toggle-input + label .rear {
+       display: none;
+    }
 
-  .Camera-overlay {
-    transition: all 300ms ease-in-out;
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    background-color: transparent;
-    border-style: solid;
-    border-color: rgba(0, 0, 0, 0.5);
-    pointer-events: none;
-    z-index: 20;
-  }
+    .Camera-toggle-input:checked + label .front {
+      display: none !important;
+    }
 
-  .Camera-overlay:before {
-    content:'';
-    top: 0;
-    left: 0;
-    position: absolute;
-    border-top: solid rgba(255,255,255, 0.7) 2px;
-    border-left: solid rgba(255,255,255, 0.7) 2px;
-    width: 10%;
-    height: 10%;
-  }
+    .Camera-toggle-input:checked + label .rear {
+      display: inline-block !important;
+    }
 
-  .Camera-overlay:after {
-    content:'';
-    right: 0;
-    bottom: 0;
-    position: absolute;
-    border-bottom: solid rgba(255,255,255, 0.7) 2px;
-    border-right: solid rgba(255,255,255, 0.7) 2px;
-    width: 10%;
-    height: 10%;
-  }
+    .Camera-display {
+      position: absolute;
+    	width: 100%;
+    	height: 100%;
+      pointer-events: none;
+    }
 
-  .Camera-instructions {
-    position: absolute;
-    bottom: 0;
-    background-color: #323232;
-    font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
-    color: white;
-    padding: 18px;
-    border-radius: 2px;
-    margin: 1em;
+    .Camera-overlay {
+      transition: all 300ms ease-in-out;
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background-color: transparent;
+      border-style: solid;
+      border-color: rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .Camera-overlay:before {
+      content:'';
+      top: 0;
+      left: 0;
+      position: absolute;
+      border-top: solid rgba(255,255,255, 0.7) 2px;
+      border-left: solid rgba(255,255,255, 0.7) 2px;
+      width: 10%;
+      height: 10%;
+    }
+
+    .Camera-overlay:after {
+      content:'';
+      right: 0;
+      bottom: 0;
+      position: absolute;
+      border-bottom: solid rgba(255,255,255, 0.7) 2px;
+      border-right: solid rgba(255,255,255, 0.7) 2px;
+      width: 10%;
+      height: 10%;
+    }
+
+    .Camera-instructions {
+      position: absolute;
+      bottom: 0;
+      background-color: #323232;
+      font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+      color: white;
+      padding: 18px;
+      border-radius: 2px;
+      margin: 1em;
+    }
   }
 
   .QRCodeSuccessDialog {

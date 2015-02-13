@@ -24,20 +24,18 @@
 
     var cameraManager = new CameraManager('camera');
     var qrCodeManager = new QRCodeManager('qrcode');
-    var processingFrame = false;
+
 
     cameraManager.onframe = function() {
       // There is a frame in the camera, what should we do with it?
-      if(processingFrame == false) {
-        processingFrame = true;
-        var imageData = cameraManager.getImageData();
-        var detectedQRCode = qrCodeManager.detectQRCode(imageData, function(url) {
-          if(url !== undefined) {
-            qrCodeManager.showDialog(url);
-          }
-          processingFrame = false;
-        });
-      }
+ 
+      var imageData = cameraManager.getImageData();
+      var detectedQRCode = qrCodeManager.detectQRCode(imageData, function(url) {
+        if(url !== undefined) {
+          qrCodeManager.showDialog(url);
+        }
+      });
+    
     };
   };
 
@@ -223,15 +221,15 @@
           
           var isSetup = setupVariables(e);
           if(isSetup) {
-            setInterval(captureFrame.bind(self), 8);
+            setInterval(captureFrame.bind(self), 4);
           }
           else {
             // This is just to get around the fact that the videoWidth is not
             // available in Firefox until sometime after the data has loaded.
             setTimeout(function() {
               setupVariables(e);
-              
-              setInterval(captureFrame.bind(self), 8);
+
+              setInterval(captureFrame.bind(self), 4);
             }, 100);
           }
 

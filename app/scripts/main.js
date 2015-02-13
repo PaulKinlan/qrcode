@@ -193,8 +193,6 @@
       if(self.onframe) self.onframe();
 
       coordinatesHaveChanged = false;
-
-      requestAnimationFrame(captureFrame.bind(self));
     };
 
     var getCamera = function(videoSource, cb) {
@@ -225,14 +223,15 @@
           
           var isSetup = setupVariables(e);
           if(isSetup) {
-            requestAnimationFrame(captureFrame.bind(self));
+            setInterval(captureFrame.bind(self), 8);
           }
           else {
             // This is just to get around the fact that the videoWidth is not
             // available in Firefox until sometime after the data has loaded.
             setTimeout(function() {
               setupVariables(e);
-              requestAnimationFrame(captureFrame.bind(self));
+              
+              setInterval(captureFrame.bind(self), 8);
             }, 100);
           }
 

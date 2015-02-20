@@ -11,9 +11,7 @@ before_install:
   - $HOME/google-cloud-sdk/bin/gcloud components update app -q
   - $HOME/google-cloud-sdk/bin/gcloud config set project $PROJECT_ID
   - $HOME/google-cloud-sdk/bin/gcloud auth activate-service-account $SRV_ACCOUNT --key-file $PROJECT_ID.p12
-
-  - gem install sass
-  - npm install
+  - npm install --global gulp && npm install
   
 env:
   global:

@@ -1,6 +1,12 @@
 language: node_js
 node_js:
   - '0.10'
+
+cache:
+  directories:
+    - vendor/bundle
+    - node_modules
+
 before_install:
   - sudo pip install PyOpenSSL
   - openssl aes-256-cbc -K $encrypted_61236829dce9_key -iv $encrypted_61236829dce9_iv -in $PROJECT_ID.p12.enc -out $PROJECT_ID.p12 -d

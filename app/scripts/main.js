@@ -233,7 +233,7 @@
             setTimeout(function() {
               setupVariables(e);
               requestAnimationFrame(captureFrame.bind(self));
-            }, 100);
+            }, 500);
           }
 
           // The video is ready, and the camerea captured

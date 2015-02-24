@@ -2,18 +2,18 @@
 {
   "name": "QR Snapper",
   "description": "Capture QR Codes",
-  "version": 1,
+  "version": "1.01",
   "manifest_version": 2,
-  "icons": [
+  "icons": {
     "128": "images/touch/icon-128x128.png",
     "152": "images/touch/apple-touch-icon.png",
     "144": "images/touch/ms-touch-icon-144x144-precomposed.png",
     "192": "images/touch/chrome-touch-icon-192x192.png"
-  ],
+  },
   "app": {
     "launch": {
-      "web_url":  "/index.html?cws=1"
+      "web_url":  "https://qrsnapper.appspot.com/index.html?cws=1"
     }
-  }
+  },
   "offline_enabled": true
 }

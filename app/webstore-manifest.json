@@ -2,7 +2,7 @@
 {
   "name": "QR Snapper",
   "description": "Capture QR Codes",
-  "version": "1.01",
+  "version": "1.0.1",
   "manifest_version": 2,
   "icons": {
     "128": "images/touch/icon-128x128.png",

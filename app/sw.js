@@ -7,6 +7,7 @@ self.addEventListener('install', function(e) {
     caches.open('qrsnapper').then(function(cache) {
       return cache.addAll([
         '/',
+        '/index.html?homescreen=1',
         '/cache-polyfill.js',
         '/images/ic_camera_front_24px.svg',
         '/images/ic_camera_rear_24px.svg',

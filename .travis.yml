@@ -9,7 +9,7 @@ cache:
 
 before_install:
   - sudo pip install PyOpenSSL
-  - openssl aes-256-cbc -K $encrypted_61236829dce9_key -iv $encrypted_61236829dce9_iv -in $PROJECT_ID.p12.enc -out $PROJECT_ID.p12 -d
+  - openssl aes-256-cbc -K $encrypted_61236829dce9_key -iv $encrypted_61236829dce9_iv -in qrsnapper-fbf37bcadbd6.json.enc -out qrsnapper-fbf37bcadbd6.json -d
   - curl https://sdk.cloud.google.com | bash
   - $HOME/google-cloud-sdk/bin/gcloud components update app -q
   - $HOME/google-cloud-sdk/bin/gcloud config set project $PROJECT_ID

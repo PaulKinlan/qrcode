@@ -9,11 +9,11 @@ cache:
 
 before_install:
   - sudo pip install PyOpenSSL
-  - openssl aes-256-cbc -K $encrypted_61236829dce9_key -iv $encrypted_61236829dce9_iv -in qrsnapper-fbf37bcadbd6.json.enc -out qrsnapper-fbf37bcadbd6.json -d
+  - openssl aes-256-cbc -K $encrypted_61236829dce9_key -iv $encrypted_61236829dce9_iv -in qrsnapper.json.enc -out qrsnapper.json -d
   - curl https://sdk.cloud.google.com | bash
   - $HOME/google-cloud-sdk/bin/gcloud components update app -q
   - $HOME/google-cloud-sdk/bin/gcloud config set project $PROJECT_ID
-  - $HOME/google-cloud-sdk/bin/gcloud auth activate-service-account $SRV_ACCOUNT --key-file $PROJECT_ID.p12
+  - $HOME/google-cloud-sdk/bin/gcloud auth activate-service-account $SRV_ACCOUNT --key-file $PROJECT_ID.json
   - npm install --global gulp && npm install
   
 env:

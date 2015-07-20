@@ -1,4 +1,4 @@
-// Version 0.14
+// Version 0.15
 
 importScripts('/cache-polyfill.js');
 
@@ -38,12 +38,9 @@ self.addEventListener('install', function(e) {
 self.addEventListener('fetch', function(event) {
   var url = event.request.url;
 
-  if(url !== "https://www.google-analytics.com/analytics.js") {
-    event.respondWith(
+  event.respondWith(
     caches.match(event.request).then(function(response) {
-      return response || fetch(event.request.url);
+      return response || fetch(event.request);
     })
   );
-  }
-  
 });

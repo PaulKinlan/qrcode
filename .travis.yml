@@ -24,7 +24,7 @@ env:
   - SRV_ACCOUNT=972466464352-3jqc7trki71pfa25atovoq6meh31fmve@developer.gserviceaccount.com
   
 after_success:
- - $HOME/google-cloud-sdk/bin/gcloud preview app deploy --version $TRAVIS_BRANCH ./app.yaml
+ - $HOME/google-cloud-sdk/bin/gcloud app deploy --version $TRAVIS_BRANCH ./app.yaml
 
 # branch whitelist
 branches:

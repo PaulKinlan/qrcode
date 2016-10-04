@@ -13,7 +13,7 @@ before_install:
   - curl https://sdk.cloud.google.com | bash
   - $HOME/google-cloud-sdk/bin/gcloud components update app -q
   - $HOME/google-cloud-sdk/bin/gcloud config set project $PROJECT_ID
-  - $HOME/google-cloud-sdk/bin/gcloud auth activate-service-account $SRV_ACCOUNT --key-file $PROJECT_ID.json
+  - $HOME/google-cloud-sdk/bin/gcloud auth activate-service-account $SRV_ACCOUNT --key-file qrsnapper-d4b905ab556f.json
   - npm install --global gulp && npm install
   
 env:

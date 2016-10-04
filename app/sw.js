@@ -1,46 +1,53 @@
-// Version 0.15
+const dataStoreVersion = "0.1";
+importScripts('/scripts/router.js');
+importScripts('/scripts/filemanifest.js');
 
-importScripts('/cache-polyfill.js');
+/*
+  Escape hatch. ABORT ABORT. Any URL with a kill-sw=true at the end of the query string.
+*/
+router.get(/\?kill-sw=true/, function() {
+  self.registration.unregister();
+
+  caches.keys().then(cacheKeys => Promise.all(cacheKeys.map(key => caches.delete(key)))); 
+}, {urlMatchProperty: "search"});
+
+/*
+  Manage all the request for this origin in a cache only manner.
+*/
+router.get(`${self.location.origin}`, e => {
+  const request = e.request;
+  const url = new URL(e.request.url);
+ 
+  e.respondWith(caches.open(dataStoreVersion).then(cache => {
+    // Always return from the cache.
+    return cache.match(request, {ignoreSearch: true}).then(response => {
+      // Return the cache or the fetch if not there.
+      return response;
+    });
+  }));
+}, {urlMatchProperty: "origin"});
+
+/*
+  Handle requests to Google Analytics seperately
+*/
+router.get(/http[s]*:\/\/www.google-analytics.com/, (e)=>{
+  console.log('Analytics request', e);
+}, {urlMatchProperty: "origin"});
+
+router.get(/.*/, e => {
+  /* this just shows that the origin filter above works and all other requests 
+     are handled by this */
+  console.log("Foreign Request", e.request)
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(self.clients.claim());
+});
 
 self.addEventListener('install', function(e) {
   e.waitUntil(
-    caches.open('qrsnapper').then(function(cache) {
-      return cache.addAll([
-        '/',
-        '/cache-polyfill.js',
-        '/images/ic_camera_front_24px.svg',
-        '/images/ic_camera_rear_24px.svg',
-        '/styles/main.css',
-        '/scripts/main.min.js',
-        '/scripts/jsqrcode/qrworker.js',
-        '/scripts/jsqrcode/grid.js',
-        '/scripts/jsqrcode/version.js',
-        '/scripts/jsqrcode/detector.js',
-        '/scripts/jsqrcode/formatinf.js',
-        '/scripts/jsqrcode/errorlevel.js',
-        '/scripts/jsqrcode/bitmat.js',
-        '/scripts/jsqrcode/datablock.js',
-        '/scripts/jsqrcode/bmparser.js',
-        '/scripts/jsqrcode/datamask.js',
-        '/scripts/jsqrcode/rsdecoder.js',
-        '/scripts/jsqrcode/gf256poly.js',
-        '/scripts/jsqrcode/gf256.js',
-        '/scripts/jsqrcode/decoder.js',
-        '/scripts/jsqrcode/qrcode.js',
-        '/scripts/jsqrcode/findpat.js',
-        '/scripts/jsqrcode/alignpat.js',
-        '/scripts/jsqrcode/databr.js']
-        );
-    })
-  );
-});
-
-self.addEventListener('fetch', function(event) {
-  var url = event.request.url;
-
-  event.respondWith(
-    caches.match(event.request).then(function(response) {
-      return response || fetch(event.request);
+    caches.open(dataStoreVersion).then(function(cache) {
+      return cache.addAll(requiredFiles);
     })
   );
 });

@@ -24,7 +24,7 @@ env:
   - SRV_ACCOUNT=deploy@qrsnapper.iam.gserviceaccount.com
   
 after_success:
- - $HOME/google-cloud-sdk/bin/gcloud app deploy --version $TRAVIS_BRANCH ./app.yaml
+ - $HOME/google-cloud-sdk/bin/gcloud app deploy --version $TRAVIS_BRANCH ./app.yaml --promote
 
 # branch whitelist
 branches:

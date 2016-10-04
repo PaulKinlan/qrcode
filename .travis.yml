@@ -9,7 +9,7 @@ cache:
 
 before_install:
   - sudo pip install PyOpenSSL
-  - openssl aes-256-cbc -K $encrypted_61236829dce9_key -iv $encrypted_61236829dce9_iv -in qrsnapper.json.enc -out qrsnapper.json -d
+  - openssl aes-256-cbc -K $encrypted_61236829dce9_key -iv $encrypted_61236829dce9_iv -in qrsnapper-d4b905ab556f.json.enc -out qrsnapper-d4b905ab556f.json -d
   - curl https://sdk.cloud.google.com | bash
   - $HOME/google-cloud-sdk/bin/gcloud components update app -q
   - $HOME/google-cloud-sdk/bin/gcloud config set project $PROJECT_ID
@@ -21,7 +21,7 @@ env:
   - CLOUDSDK_CORE_DISABLE_PROMPTS=1
   - CLOUDSDK_PYTHON_SITEPACKAGES=1
   - PROJECT_ID=qrsnapper
-  - SRV_ACCOUNT=972466464352-3jqc7trki71pfa25atovoq6meh31fmve@developer.gserviceaccount.com
+  - SRV_ACCOUNT=deploy@qrsnapper.iam.gserviceaccount.com
   
 after_success:
  - $HOME/google-cloud-sdk/bin/gcloud app deploy --version $TRAVIS_BRANCH ./app.yaml

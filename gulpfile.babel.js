@@ -30,7 +30,6 @@ import del from 'del';
 import runSequence from 'run-sequence';
 import browserSync from 'browser-sync';
 import gulpLoadPlugins from 'gulp-load-plugins';
-import {output as pagespeed} from 'psi';
 import pkg from './package.json';
 
 const $ = gulpLoadPlugins();
@@ -59,12 +58,29 @@ gulp.task('images', () =>
 gulp.task('copy', () =>
   gulp.src([
     'app/*',
-    '!app/*.html',
-    'node_modules/apache-server-configs/dist/.htaccess'
+    '!app/*.html'
   ], {
     dot: true
   }).pipe(gulp.dest('dist'))
     .pipe($.size({title: 'copy'}))
+);
+
+gulp.task('copy-qr', () =>
+  gulp.src([
+    'app/scripts/jsqrcode/*'
+  ], {
+    dot: true
+  }).pipe(gulp.dest('dist/scripts/jsqrcode/'))
+    .pipe($.size({title: 'copy-qr'}))
+);
+
+gulp.task('copy-sw', () =>
+  gulp.src([
+    'app/scripts/sw/*'
+  ], {
+    dot: true
+  }).pipe(gulp.dest('dist/scripts/sw/'))
+    .pipe($.size({title: 'copy-sw'}))
 );
 
 // Compile and automatically prefix stylesheets
@@ -108,7 +124,13 @@ gulp.task('scripts', () =>
       // Note: Since we are not using useref in the scripts build pipeline,
       //       you need to explicitly list your scripts here in the right order
       //       to be correctly concatenated
-      './app/scripts/main.js'
+      './app/scripts/wskComponentHandler.js',
+      './app/scripts/main.js',
+      './app/scripts/layout/layout.js',
+      './app/scripts/ripple/ripple.js',
+      './app/scripts/third_party/rAF.js',
+      './app/scripts/qrclient.js',
+
       // Other scripts
     ])
       .pipe($.newer('.tmp/scripts'))
@@ -194,23 +216,10 @@ gulp.task('serve:dist', ['default'], () =>
 gulp.task('default', ['clean'], cb =>
   runSequence(
     'styles',
-    ['html', 'scripts', 'images', 'copy'],
+    ['html', 'scripts', 'images', 'copy', 'copy-qr', 'copy-sw'],
     cb
   )
 );
-
-// Run PageSpeed Insights
-gulp.task('pagespeed', cb =>
-  // Update the below URL to the public URL of your site
-  pagespeed('example.com', {
-    strategy: 'mobile'
-    // By default we use the PageSpeed Insights free (no API key) tier.
-    // Use a Google Developer API key if you have one: http://goo.gl/RkN0vE
-    // key: 'YOUR_API_KEY'
-  }, cb)
-);
-
-
 
 // Load custom tasks from the `tasks` directory
 // Run: `npm install --save-dev require-dir` from the command-line

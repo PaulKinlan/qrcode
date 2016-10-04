@@ -1,4 +1,4 @@
-const requriedFiles = [
+const requiredFiles = [
   '/',
   '/index.html',
   '/index.html?homescreen=1',

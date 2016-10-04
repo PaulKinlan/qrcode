@@ -33,6 +33,8 @@
         var imageData = cameraManager.getImageData();
         var detectedQRCode = qrCodeManager.detectQRCode(imageData, function(url) {
           if(url !== undefined) {
+            if(ga) { ga('send', 'event', 'urlfound'); }
+        
             qrCodeManager.showDialog(url);
           }
           processingFrame = false;

@@ -164,11 +164,13 @@
     });
 
     inputElement.addEventListener('change', function(e) {
+      var objectURL = URL.createObjectURL(e.target.files[0]);
       image.onload = function() {
         this.onframeready(image);
+        URL.revokeObjectURL(objectURL);
       }.bind(this);
 
-      image.src = URL.createObjectURL(e.target.files[0]);
+      image.src = objectURL;
       
     }.bind(this));
 

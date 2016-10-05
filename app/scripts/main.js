@@ -191,7 +191,7 @@
 
     this.stop = function() {
       if(stream) {
-        stream.getTracks().forEach(t => t.stop() );
+        stream.getTracks().forEach(function(t) { t.stop(); } );
       }
     };
 

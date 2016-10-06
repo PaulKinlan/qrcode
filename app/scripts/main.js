@@ -198,7 +198,8 @@
     this.getDimensions = function() {
       return {
         width: image.naturalWidth,
-        height: image.naturalHeight
+        height: image.naturalHeight,
+        shouldLayout: false
       };
     };
   };
@@ -221,7 +222,8 @@
     this.getDimensions = function() {
       return {
         width: videoElement.videoWidth,
-        height: videoElement.videoHeight
+        height: videoElement.videoHeight,
+        shouldLayout: true
       };
     };
 
@@ -382,11 +384,11 @@
     };
 
     var setupVariables = function(e) {
+      var sourceDimensions = sourceManager.getDimensions();
 
-      if(cameraCanvas.width == window.innerWidth)
+      if(cameraCanvas.width == window.innerWidth && sourceDimensions.shouldLayout)
         return;
 
-      var sourceDimensions = sourceManager.getDimensions();
       var sourceHeight = sourceDimensions.height;
       var sourceWidth = sourceDimensions.width;
 

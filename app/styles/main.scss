@@ -77,7 +77,7 @@ h1, h2, h3, h4, h5 {
           display: flex;
           align-items: center;
           justify-content: center;
-          cursor: pointer; 
+          cursor: pointer;
           margin: 10vw;
         }
       }
@@ -96,7 +96,7 @@ h1, h2, h3, h4, h5 {
       }
 
       &.Camera--facing-environment {
-      
+
       }
 
       .Camera-video {
@@ -215,5 +215,9 @@ h1, h2, h3, h4, h5 {
     left: 0;
     right: 0;
     z-index: 100;
+
+    .QRCodeSuccessDialog-share.hidden {
+      display: none;
+    }
   }
 }

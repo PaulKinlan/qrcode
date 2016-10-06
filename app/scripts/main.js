@@ -55,6 +55,10 @@
 
     this.currentUrl = undefined;
 
+    if(navigator.share) {
+      // Sharing is supported so let's make the UI visible
+      qrcodeShare.classList.remove('hidden');
+    }
 
     this.detectQRCode = function(imageData, callback) {
       callback = callback || function() {};
@@ -89,9 +93,9 @@
           text: this.currentUrl,
           url: this.currentUrl
         }).then(function() {
-          this.closeDialog();
+          self.closeDialog();
         }).catch(function() {
-          this.closeDialog();
+          self.closeDialog();
         })
       }
 

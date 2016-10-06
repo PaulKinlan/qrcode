@@ -47,6 +47,7 @@
     var qrcodeData = root.querySelector(".QRCodeSuccessDialog-data");
     var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
+    var qrcodeShare = root.querySelector(".QRCodeSuccessDialog-share");
 
     var client = new QRClient();
 
@@ -78,8 +79,24 @@
     };
 
     qrcodeIgnore.addEventListener("click", function() {
-      self.closeDialog();
+      this.closeDialog();
     }.bind(this));
+
+    qrcodeShare.addEventListener("click", function() {
+      if(navigator.share) {
+        navigator.share({
+          title: this.currentUrl,
+          text: this.currentUrl,
+          url: this.currentUrl
+        }).then(function() {
+          this.closeDialog();
+        }).catch(function() {
+          this.closeDialog();
+        })
+      }
+
+    }.bind(this));
+
 
     qrcodeNavigate.addEventListener("click", function() {
       // I really want this to be a link.
@@ -171,7 +188,7 @@
       }.bind(this);
 
       image.src = objectURL;
-      
+
     }.bind(this));
 
     this.getDimensions = function() {
@@ -238,28 +255,28 @@
 
       if(videoSource === undefined && cameras.length == 0) {
         // Because we have no source information, have to assume it user facing.
-        params = { video: true, audio: false }; 
+        params = { video: true, audio: false };
       }
       else {
         params = { video: { optional: [{sourceId: videoSource.id}] }, audio: false };
       }
-  
+
       gUM.call(navigator, params, function(cameraStream) {
         stream = cameraStream;
-        
+
         videoElement.onloadeddata = function(e) {
 
-          var onframe = function() { 
+          var onframe = function() {
             self.onframeready(videoElement);
             requestAnimationFrame(onframe);
           };
 
           requestAnimationFrame(onframe);
-        
+
           // The video is ready, and the camera captured
           if(videoSource === undefined) {
             // There is no meta data about the camera, assume user facing.
-            videoSource = { 
+            videoSource = {
               'facing': 'user'
             };
           }
@@ -293,7 +310,7 @@
     if(gUM === null) {
       cameraRoot = root.querySelector('.CameraFallback');
       sourceManager = new CameraFallbackManager(cameraRoot);
-    } 
+    }
     else {
       cameraRoot = root.querySelector('.CameraRealtime');
       sourceManager = new WebCamManager(cameraRoot);
@@ -307,7 +324,7 @@
 
     // Variables
     var dWidth;
-    var dHeight; 
+    var dHeight;
     var dx = 0;
     var dy = 0;
 
@@ -322,7 +339,7 @@
     var cameras = [];
     var coordinatesHaveChanged = true;
     var prevCoordinates = 0;
-  
+
     var overlayCoords = { x:0, y: 0, width: cameraCanvas.width, height: cameraCanvas.height };
 
     sourceManager.onframeready = function(frameData) {
@@ -334,7 +351,7 @@
 
       // A frame has been captured.
       var imageData = canvas.getImageData(overlayCoords.x, overlayCoords.y, overlayCoords.width, overlayCoords.height);
-      
+
       if(self.onframe) self.onframe(imageData);
 
       coordinatesHaveChanged = false;
@@ -364,20 +381,20 @@
 
       if(cameraCanvas.width == window.innerWidth)
         return;
-      
+
       var sourceDimensions = sourceManager.getDimensions();
       var sourceHeight = sourceDimensions.height;
       var sourceWidth = sourceDimensions.width;
 
       dWidth = cameraCanvas.width = window.innerWidth;
-      dHeight = cameraCanvas.height = window.innerHeight; 
+      dHeight = cameraCanvas.height = window.innerHeight;
       dx = 0;
       dy = 0;
 
       sx = 0;
       sy = 0;
 
-      // Make the video coordinate space the same as the window. 
+      // Make the video coordinate space the same as the window.
       // size in the longest dimension.
       // Then center and clip. and map back to correct space.
       scaleX = (dWidth / sourceDimensions.width);
@@ -387,7 +404,7 @@
       // Trim the left
       sx = ((sourceWidth * scaleFactor) / 2) - (dWidth/ 2);
       sy = ((sourceHeight * scaleFactor) / 2) - (dHeight / 2);
-     
+
       // Trim the right.
       sWidth = (sourceWidth * scaleFactor) - sx * 2;
       sHeight = (sourceHeight * scaleFactor) - sy * 2;

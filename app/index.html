@@ -26,7 +26,7 @@
     <meta name="msapplication-TileColor" content="#212121">
 
     <meta name="theme-color" content="#212121">
-    
+
     <link rel="stylesheet" href="/styles/main.css">
   </head>
   <body>
@@ -34,19 +34,27 @@
     <div class="wsk-layout wsk-js-layout">
       <div class="wsk-layout__content">
         <div id="camera" class="Camera">
-          <video class="Camera-video"></video>
-          <div class="Camera-overlay"></div>
           <canvas id="qr-canvas" class="Camera-display"></canvas>
-          <div class="Camera-instructions">Point at a QR code</div>
-          <div class="Camera-toggle wsk-button wsk-js-button wsk-button--fab">
-            <input type="checkbox" id="checkbox-1" class="Camera-toggle-input" />
-            <label for="checkbox-1">
-              <img class="front" src="/images/ic_camera_front_24px.svg">
-              <img class="rear" src="/images/ic_camera_rear_24px.svg">
-            </label>
+          <div class="CameraRealtime hidden">
+            <video class="Camera-video" muted autoplay></video>
+            <div class="Camera-instructions">Point at a QR code</div>
+            <div class="Camera-toggle wsk-button wsk-js-button wsk-button--fab">
+              <input type="checkbox" id="checkbox-1" class="Camera-toggle-input" />
+              <label for="checkbox-1">
+                <img class="front" src="/images/ic_camera_front_24px.svg">
+                <img class="rear" src="/images/ic_camera_rear_24px.svg">
+              </label>
+            </div>
+          </div>
+          <div class="Camera-overlay"></div>
+          <div id="camera-fallback" class="CameraFallback hidden">
+            <form method="post" action="/scan-image" class="CameraFallback-form">
+              <input type="file" accept="image/*" capture="camera" id="qrcode-input" name="qrcode" class="CameraFallback-input">
+              <label for="qrcode-input"><img src="/images/ic_file_upload_24px.svg"></label>
+              <img class="CameraFallback-image">
+            </form>
           </div>
         </div>
-     
         <div id="qrcode" class="wsk-card wsk-shadow--z3 QRCodeSuccessDialog">
           <div class="wsk-card--heading">
              <span class="wsk-card--heading-text">QR Code found</span>
@@ -57,6 +65,7 @@
             <div>
               <button class="wsk-button wsk-js-button QRCodeSuccessDialog-navigate">Open</buton>
               <button class="wsk-button wsk-js-button QRCodeSuccessDialog-ignore">Ignore</button>
+              <button class="wsk-button wsk-js-button QRCodeSuccessDialog-share hidden">Share</button>
             </div>
           </div>
         </div>
@@ -71,7 +80,6 @@
         .then(function() { console.log("Service Worker Registered"); });
     }
     </script>
-
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

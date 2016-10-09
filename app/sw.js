@@ -1,4 +1,4 @@
-const dataStoreVersion = "0.1";
+const dataStoreVersion = "0.1.1";
 importScripts('/scripts/sw/router.js');
 importScripts('/scripts/sw/fileManifest.js');
 
@@ -8,7 +8,7 @@ importScripts('/scripts/sw/fileManifest.js');
 router.get(/\?kill-sw=true/, function() {
   self.registration.unregister();
 
-  caches.keys().then(cacheKeys => Promise.all(cacheKeys.map(key => caches.delete(key)))); 
+  caches.keys().then(cacheKeys => Promise.all(cacheKeys.map(key => caches.delete(key))));
 }, {urlMatchProperty: "search"});
 
 /*
@@ -17,7 +17,7 @@ router.get(/\?kill-sw=true/, function() {
 router.get(`${self.location.origin}`, e => {
   const request = e.request;
   const url = new URL(e.request.url);
- 
+
   e.respondWith(caches.open(dataStoreVersion).then(cache => {
     // Always return from the cache.
     return cache.match(request, {ignoreSearch: true}).then(response => {
@@ -35,7 +35,7 @@ router.get(/http[s]*:\/\/www.google-analytics.com/, (e)=>{
 }, {urlMatchProperty: "origin"});
 
 router.get(/.*/, e => {
-  /* this just shows that the origin filter above works and all other requests 
+  /* this just shows that the origin filter above works and all other requests
      are handled by this */
   console.log("Foreign Request", e.request)
 });

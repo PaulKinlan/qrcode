@@ -22,6 +22,7 @@ main {
 
 html, body {
   color: $text-color-secondary;
+  background-color: nth($palette-secondary, 9);
   height: 100%;
 }
 
@@ -33,71 +34,127 @@ h1, h2, h3, h4, h5 {
 
   .Camera {
 
-    &.Camera--facing-user {
-      .Camera-display {
-        transform: scale(-1, 1);
+    .CameraFallback {
+
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+
+
+      &.hidden {
+        visibility: hidden;
+      }
+
+      form {
+        display: flex;
+        height: 100%;
+        align-items: flex-end;
+        justify-content: flex-end;
+      }
+
+      .CameraFallback-input {
+        width: 0.1px;
+        height: 0.1px;
+        opacity: 0;
+        overflow: hidden;
+        position: absolute;
+        z-index: -1;
+        visibility: hidden;
+
+        & + label {
+          img {
+            opacity: 0.8;
+            width: 50%;
+          }
+
+          background-color: nth($palette-blue, 10);
+          border-radius: 50% 50%;
+          width: 20vmin;
+          height: 20vmin;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          margin: 10vw;
+        }
       }
     }
 
-    &.Camera--facing-environment {
-    
-    }
+    .CameraRealtime {
 
-    .Camera-video {
-    	display:none;
-    }
+      &.hidden {
+        visibility: hidden;
+      }
 
-    .Camera-toggle {
-      position: absolute;
-      margin: 1em;
-      bottom: 0;
-      right: 0;
-      background-color: #0288D1;
-      z-index: 50;
-    }
+      &.Camera--facing-user {
+        .Camera-display {
+          transform: scale(-1, 1);
+        }
+      }
 
-    .Camera-toggle-input {
-      display: inline-block;
-      position: absolute;
-      top: 0;
-      bottom: -100px;
-    }
+      &.Camera--facing-environment {
 
-    .Camera-toggle-input + label {
-      position: absolute;
-      top: 0;
-      left: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      background-color: #0288D1;
-      outline: none;
-      -webkit-tap-highlight-color: transparent;
-    }
+      }
 
-    .Camera-toggle-input + label .front {
-       display:inline-block;
-    }
+      .Camera-video {
+        display:none;
+      }
 
-    .Camera-toggle-input + label .rear {
-       display: none;
-    }
+      .Camera-toggle {
+        position: absolute;
+        margin: 1em;
+        bottom: 0;
+        right: 0;
+        background-color: #0288D1;
+        z-index: 50;
+      }
 
-    .Camera-toggle-input:checked + label .front {
-      display: none !important;
-    }
+      .Camera-toggle-input {
+        display: inline-block;
+        position: absolute;
+        top: 0;
+        bottom: -100px;
+      }
 
-    .Camera-toggle-input:checked + label .rear {
-      display: inline-block !important;
-    }
+      .Camera-toggle-input + label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        background-color: #0288D1;
+        outline: none;
+        -webkit-tap-highlight-color: transparent;
+      }
 
-    .Camera-display {
-      position: absolute;
-    	width: 100%;
-    	height: 100%;
-      pointer-events: none;
+      .Camera-toggle-input + label .front {
+        display:inline-block;
+      }
+
+      .Camera-toggle-input + label .rear {
+        display: none;
+      }
+
+      .Camera-toggle-input:checked + label .front {
+        display: none !important;
+      }
+
+      .Camera-toggle-input:checked + label .rear {
+        display: inline-block !important;
+      }
+
+      .Camera-display {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
     }
 
     .Camera-overlay {
@@ -158,5 +215,9 @@ h1, h2, h3, h4, h5 {
     left: 0;
     right: 0;
     z-index: 100;
+
+    .QRCodeSuccessDialog-share.hidden {
+      display: none;
+    }
   }
 }

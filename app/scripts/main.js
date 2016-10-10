@@ -43,6 +43,61 @@
     };
   };
 
+  var QRCodeCallbackController = function(element) {
+    var callbackName = element.querySelector(".QRCodeSuccessDialogCallback-name");
+    var callbackDomain = element.querySelector(".QRCodeSuccessDialogCallback-domain");
+    var callbackUrl;
+    var qrcodeUrl;
+    var validCallbackUrl = false;
+
+    this.setQrCode = function(qrcode) {
+      qrcodeUrl = qrcode;
+    } 
+
+    var init = function() {
+      callbackUrl = getCallbackURL();
+      validCallbackUrl = validateCallbackURL();
+
+      if(callbackUrl) {
+        element.addEventListener('click', function() {
+          // Maybe we should warn if the callback URL doesn't is invalid
+          callbackUrl.searchParams.set('qrcode', qrcodeUrl);
+          location = callbackUrl;
+        });
+
+        element.classList.remove('hidden');
+        if(validCallbackUrl == false) {
+          callbackDomain.classList.add('invalid');
+        }
+        callbackDomain.innerText = callbackUrl.origin;
+      }
+    };
+
+    var validateCallbackURL = function() {
+      if(document.referrer === "") return false;
+    
+      var referrer = new URL(document.referrer);
+      
+      return (callbackUrl !== undefined 
+        && referrer.origin == callbackUrl.origin
+        && referrer.scheme !== 'https');
+    };
+
+    var getCallbackURL = function() {
+      var url = new URL(window.location);
+      if('searchParams' in url && url.searchParams.has('x-callback-url')) {
+        // If the API is not supported, we should shim it.  But right now
+        // let's just get it working
+        return new URL(url.searchParams.get('x-callback-url'));
+      }
+      else {
+        return null;
+      }
+    };
+
+    init();
+  }
+
   var QRCodeManager = function(element) {
     var root = document.getElementById(element);
     var canvas = document.getElementById("qr-canvas");
@@ -50,8 +105,10 @@
     var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
     var qrcodeShare = root.querySelector(".QRCodeSuccessDialog-share");
-
+    var qrcodeCallback = root.querySelector(".QRCodeSuccessDialog-callback");
+ 
     var client = new QRClient();
+    var callbackController = new QRCodeCallbackController(qrcodeCallback);
 
     var self = this;
 
@@ -76,6 +133,7 @@
     this.showDialog = function(url) {
       root.style.display = 'block';
       qrcodeData.innerText = url;
+      callbackController.setQrCode(url);
     };
 
     this.closeDialog = function() {

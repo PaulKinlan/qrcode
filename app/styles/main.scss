@@ -219,5 +219,22 @@ h1, h2, h3, h4, h5 {
     .QRCodeSuccessDialog-share.hidden {
       display: none;
     }
+
+    .QRCodeSuccessDialog-callback {
+      &.hidden {
+        display: none;
+      }
+
+      .QRCodeSuccessDialogCallback-domain {
+        font-style: italic;
+        text-transform: lowercase;
+        font-size: x-small;
+        color: nth($palette-grey, 9);
+
+        &.invalid {
+           color: nth($palette-red, 10);
+        }
+      }
+    }
   }
 }

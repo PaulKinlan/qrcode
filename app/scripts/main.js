@@ -174,7 +174,29 @@
     var cameraToggleInput = cameraRoot.querySelector('.Camera-toggle-input');
     var cameraToggle = cameraRoot.querySelector('.Camera-toggle');
     var cameraVideo = cameraRoot.querySelector('.Camera-video');
+    var videoRect = cameraVideo.getBoundingClientRect();
+    var videoElementScale = ( window.innerHeight / videoRect.height);
 
+    cameraVideo.addEventListener('loadeddata', function() {
+      var height = window.innerHeight;
+      var width = window.innerWidth;
+
+      var heightRatio = cameraVideo.videoHeight / height;
+      var widthRatio = cameraVideo.videoWidth / width;
+
+      var scaleFactor = 1; 
+
+      // if the video is physcially smaller than the screen
+      if(height > cameraVideo.height && width > cameraVideo.width) {
+        scaleFactor = 1 / Math.min(heightRatio, widthRatio);;
+      }
+      else {
+        scaleFactor = 1 / Math.max(heightRatio, widthRatio);
+      }
+
+      cameraVideo.style.transform = 'translate(-50%, -50%) scale(' + scaleFactor + ')';
+    });
+   
     var source = new CameraSource(cameraVideo);
 
     this.getDimensions = function() {
@@ -330,7 +352,7 @@
       gUM.call(navigator, params, function(cameraStream) {
         stream = cameraStream;
 
-        videoElement.onloadeddata = function(e) {
+        videoElement.addEventListener('loadeddata', function(e) {
 
           var onframe = function() {
             self.onframeready(videoElement);
@@ -346,7 +368,7 @@
               'facing': 'user'
             };
           }
-        };
+        });
 
         videoElement.srcObject = stream;
         videoElement.load();
@@ -361,12 +383,14 @@
     // The canvas is analysed but also displayed to the user.
     // The video is never show
     var self = this;
+    var debug = false;
     var gUM = (navigator.getUserMedia ||
                        navigator.webkitGetUserMedia ||
                        navigator.mozGetUserMedia ||
                        navigator.msGetUserMedia || null);
 
     if(location.hash == "#nogum") gUM = null;
+    if(location.hash == "#canvasdebug") debug = true;
 
     var root = document.getElementById(element);
     var cameraRoot;
@@ -382,6 +406,10 @@
       sourceManager = new WebCamManager(cameraRoot);
     }
 
+    if(debug) {
+      root.classList.add('debug');
+    }
+
     cameraRoot.classList.remove('hidden');
 
     var cameraCanvas = root.querySelector('.Camera-display');
@@ -389,6 +417,8 @@
     var canvas = cameraCanvas.getContext('2d');
 
     // Variables
+    var wHeight;
+    var wWidth;
     var dWidth;
     var dHeight;
     var dx = 0;
@@ -411,33 +441,51 @@
     sourceManager.onframeready = function(frameData) {
       setupVariables();
       // Work out which part of the video to capture and apply to canvas.
-      canvas.drawImage(frameData, sx/scaleFactor, sy/scaleFactor, sWidth/scaleFactor, sHeight/scaleFactor, dx, dy, dWidth, dHeight);
+      canvas.drawImage(frameData, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
 
-      drawOverlay(dWidth, dHeight, scaleFactor);
+      drawOverlay(wWidth, wHeight);
 
       // A frame has been captured.
-      var imageData = canvas.getImageData(overlayCoords.x, overlayCoords.y, overlayCoords.width, overlayCoords.height);
+      var imageData = canvas.getImageData(0, 0, dWidth, dHeight);
 
       if(self.onframe) self.onframe(imageData);
 
       coordinatesHaveChanged = false;
     };
 
-    var drawOverlay = function(width, height) {
+    var getOverlayDimensions = function(width, height) {
       var minLength = Math.min(width, height);
-      var boxHeightSize = (height + 64 - minLength) / 2;
-      var boxWidthSize = (width + 64 - minLength) / 2;
+      var paddingHeight = (height + 64 - minLength) / 2;
+      var paddingWidth = (width + 64 - minLength) / 2;
+
+      return {
+        minLength: minLength,
+        width: minLength - 64,
+        height: minLength - 64,
+        paddingHeight: paddingHeight, 
+        paddingWidth: paddingWidth 
+      };
+    }
+
+    var drawOverlay = function(width, height) {
+
+      var overalyDimensions = getOverlayDimensions(width, height);
+
+      var boxHeightSize = height / 2;
+      var boxWidthSize = width / 2;
+      var boxPaddingHeightSize = overalyDimensions.paddingHeight;
+      var boxPaddingWidthSize = overalyDimensions.paddingWidth;
 
       if(coordinatesHaveChanged) {
-        cameraOverlay.style.borderTopWidth = boxHeightSize + "px";
-        cameraOverlay.style.borderLeftWidth = boxWidthSize + "px";
-        cameraOverlay.style.borderRightWidth = boxWidthSize + "px";
-        cameraOverlay.style.borderBottomWidth = boxHeightSize + "px";
+        cameraOverlay.style.borderTopWidth = boxPaddingHeightSize + "px";
+        cameraOverlay.style.borderLeftWidth = boxPaddingWidthSize + "px";
+        cameraOverlay.style.borderRightWidth = boxPaddingWidthSize + "px";
+        cameraOverlay.style.borderBottomWidth = boxPaddingHeightSize + "px";
 
         overlayCoords.x = boxWidthSize;
-        overlayCoords.y = boxHeightSize
-        overlayCoords.width = cameraCanvas.width - (boxWidthSize * 2);
-        overlayCoords.height = cameraCanvas.height - (boxHeightSize * 2);
+        overlayCoords.y = boxHeightSize;
+        overlayCoords.width = width;
+        overlayCoords.height = height;
 
         coordinatesHaveChanged = false;
       }
@@ -449,31 +497,41 @@
       if(cameraCanvas.width == window.innerWidth && sourceDimensions.shouldLayout)
         return;
 
+      wHeight = window.innerHeight;
+      wWidth = window.innerWidth;
+
+      // Video source size
       var sourceHeight = sourceDimensions.height;
       var sourceWidth = sourceDimensions.width;
 
-      dWidth = cameraCanvas.width = window.innerWidth;
-      dHeight = cameraCanvas.height = window.innerHeight;
+      // Target size in device co-ordinats
+      var overlaySize = getOverlayDimensions(wWidth, wHeight);
+
+      // The mapping value from window to source scale
+      scaleX = (sourceWidth / wWidth );
+      scaleY = (sourceHeight / wWidth);
+      scaleFactor = Math.max(scaleX, scaleY);
+
+      // The canvas should be the same size as the video mapping 1:1
+      dHeight = dWidth = overlaySize.width / scaleFactor ;
+      
+      // The width of the canvas should be the size of the overlay in video size.
+      cameraCanvas.width =  dWidth;
+      cameraCanvas.height = dWidth;
+
       dx = 0;
       dy = 0;
 
       sx = 0;
       sy = 0;
 
-      // Make the video coordinate space the same as the window.
-      // size in the longest dimension.
-      // Then center and clip. and map back to correct space.
-      scaleX = (dWidth / sourceDimensions.width);
-      scaleY = (dHeight / sourceHeight);
-      scaleFactor = Math.max(scaleX, scaleY);
-
       // Trim the left
-      sx = ((sourceWidth * scaleFactor) / 2) - (dWidth/ 2);
-      sy = ((sourceHeight * scaleFactor) / 2) - (dHeight / 2);
+      sx = (sourceWidth / 2) - (dWidth / 2)
+      sy = (sourceHeight / 2) - (dWidth / 2)
 
       // Trim the right.
-      sWidth = (sourceWidth * scaleFactor) - sx * 2;
-      sHeight = (sourceHeight * scaleFactor) - sy * 2;
+      sWidth = dWidth;
+      sHeight = dWidth;
 
       return (sourceWidth > 0);
     };

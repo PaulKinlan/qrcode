@@ -256,7 +256,7 @@
   var CameraFallbackManager = function(element) {
     var uploadForm = element.querySelector('.CameraFallback-form');
     var inputElement = element.querySelector('.CameraFallback-input');
-    var image = new Image();
+    var image = element.querySelector('.CameraFallback-image');
 
     this.onframeready = function() {};
 
@@ -269,6 +269,24 @@
     inputElement.addEventListener('change', function(e) {
       var objectURL = URL.createObjectURL(e.target.files[0]);
       image.onload = function() {
+        var height = window.innerHeight;
+        var width = window.innerWidth;
+
+        var heightRatio = image.naturalHeight / height;
+        var widthRatio = image.naturalWidth / width;
+
+        var scaleFactor = 1; 
+
+        // if the video is physcially smaller than the screen
+        if(height > image.naturalHeight && width > image.naturalWidth) {
+          scaleFactor = 1 / Math.min(heightRatio, widthRatio);
+        }
+        else {
+          scaleFactor = 1 / Math.max(heightRatio, widthRatio);
+        }
+
+        image.style.transform = 'translate(-50%, -50%) scale(' + scaleFactor + ')';
+    
         this.onframeready(image);
         URL.revokeObjectURL(objectURL);
       }.bind(this);

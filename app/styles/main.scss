@@ -47,6 +47,14 @@ h1, h2, h3, h4, h5 {
 
     .CameraFallback {
 
+      .CameraFallback-image {
+        position: absolute;
+        transform-origin: 50% 50%;
+        top: 50%;
+        left: 50%;
+        pointer-events: none;
+      }
+
       position: absolute;
       top: 0;
       bottom: 0;
@@ -95,10 +103,6 @@ h1, h2, h3, h4, h5 {
     }
 
     .Camera-display {
-        //position: absolute;
-        //width: 100%;
-        //height: 100%;
-        //pointer-events: none;
         display: none;
       }
 
@@ -119,7 +123,6 @@ h1, h2, h3, h4, h5 {
       }
 
       .Camera-video {
-        //display:none;
         position: absolute;
         transform-origin: 50% 50%;
         top: 50%;

@@ -312,7 +312,30 @@
     this.getCameras = function(cb) {
       cb = cb || function() {};
 
-      if('getSources' in MediaStreamTrack) {
+      if('enumerateDevices' in navigator.mediaDevices) {
+         navigator.mediaDevices.enumerateDevices()
+          .then(function(sources) {
+            return sources.filter(function(source) { 
+              return source.kind == 'videoinput' 
+            });
+          })
+          .then(function(sources) {
+            sources.forEach(function(source) {
+              if(source.label.indexOf('facing back') >= 0) {
+                // move front facing to the front.
+                cameras.unshift(source);
+              }
+              else {
+                cameras.push(source);
+              }
+            });
+
+            cb(cameras);
+
+            return cameras;
+          });
+      }
+      else if('getSources' in MediaStreamTrack) {
         MediaStreamTrack.getSources(function(sources) {
 
           for(var i = 0; i < sources.length; i++) {
@@ -346,7 +369,7 @@
         params = { video: true, audio: false };
       }
       else {
-        params = { video: { optional: [{sourceId: videoSource.id}] }, audio: false };
+        params = { video: { optional: [{sourceId: videoSource.deviceId || videoSource.id}] }, audio: false };
       }
 
       gUM.call(navigator, params, function(cameraStream) {

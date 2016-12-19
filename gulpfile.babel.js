@@ -124,11 +124,7 @@ gulp.task('scripts', () =>
       // Note: Since we are not using useref in the scripts build pipeline,
       //       you need to explicitly list your scripts here in the right order
       //       to be correctly concatenated
-      './app/scripts/wskComponentHandler.js',
       './app/scripts/main.js',
-      './app/scripts/layout/layout.js',
-      './app/scripts/ripple/ripple.js',
-      './app/scripts/third_party/rAF.js',
       './app/scripts/qrclient.js',
 
       // Other scripts

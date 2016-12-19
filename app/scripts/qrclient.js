@@ -12,7 +12,12 @@ var QRClient = function() {
       barcodeDetector.detect(context.canvas)
       .then(barcodes => {
         // return the first barcode.
-        callback(barcodes[0].rawValue);   
+        if(barcodes.length > 0) {
+          callback(barcodes[0].rawValue);
+        }
+        else {
+          callback();
+        }   
       })
       .catch(err => console.log(err));
     }

@@ -1,5 +1,6 @@
 const requiredFiles = [
   '/',
+  '/manifest.json',
   '/index.html',
   '/index.html?homescreen=1',
   '/images/ic_camera_front_24px.svg',

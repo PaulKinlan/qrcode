@@ -1,15 +1,32 @@
 var QRClient = function() {
- 	var worker = new Worker('/scripts/jsqrcode/qrworker.js');
- 	var currentCallback;
- 	
- 	this.decode = function(imageData, callback) {
- 		worker.postMessage(imageData);
-    	currentCallback = callback;
- 	};
+  var worker = new Worker('/scripts/jsqrcode/qrworker.js');
+  var barcodeDetector;
+  if(BarcodeDetector)
+    barcodeDetector = new BarcodeDetector();
+    
+  var currentCallback;
 
- 	worker.onmessage = function(e) {
- 		if(currentCallback) {
- 			currentCallback(e.data);
- 		}
- 	};
+  this.decode = function(context, callback) {
+    // Temporary hack because 
+    if(barcodeDetector) {
+      barcodeDetector.detect(context.canvas)
+      .then(barcodes => {
+        // return the first barcode.
+        callback(barcodes[0].rawValue);   
+      })
+      .catch(err => console.log(err));
+    }
+    else {
+      // A frame has been captured.
+      var imageData = context.getImageData(0, 0, dWidth, dHeight);
+      worker.postMessage(imageData);
+        currentCallback = callback;
+    }
+  };
+
+  worker.onmessage = function(e) {
+    if(currentCallback) {
+      currentCallback(e.data);
+    }
+  };
  };

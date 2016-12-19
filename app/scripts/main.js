@@ -27,11 +27,11 @@
     var qrCodeManager = new QRCodeManager('qrcode');
     var processingFrame = false;
 
-    cameraManager.onframe = function(imageData) {
+    cameraManager.onframe = function(canvas) {
       // There is a frame in the camera, what should we do with it?
       if(processingFrame == false) {
         processingFrame = true;
-        var detectedQRCode = qrCodeManager.detectQRCode(imageData, function(url) {
+        var detectedQRCode = qrCodeManager.detectQRCode(canvas, function(url) {
           if(url !== undefined) {
             if(ga) { ga('send', 'event', 'urlfound'); }
         
@@ -119,10 +119,10 @@
       qrcodeShare.classList.remove('hidden');
     }
 
-    this.detectQRCode = function(imageData, callback) {
+    this.detectQRCode = function(canvas, callback) {
       callback = callback || function() {};
 
-      client.decode(imageData, function(result) {
+      client.decode(canvas, function(result) {
         if(result !== undefined) {
           self.currentUrl = result;
         }
@@ -468,10 +468,7 @@
 
       drawOverlay(wWidth, wHeight);
 
-      // A frame has been captured.
-      var imageData = canvas.getImageData(0, 0, dWidth, dHeight);
-
-      if(self.onframe) self.onframe(imageData);
+      if(self.onframe) self.onframe(canvas);
 
       coordinatesHaveChanged = false;
     };

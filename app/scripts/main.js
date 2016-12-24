@@ -119,10 +119,10 @@
       qrcodeShare.classList.remove('hidden');
     }
 
-    this.detectQRCode = function(canvas, callback) {
+    this.detectQRCode = function(context, callback) {
       callback = callback || function() {};
 
-      client.decode(canvas, function(result) {
+      client.decode(context, function(result) {
         if(result !== undefined) {
           self.currentUrl = result;
         }
@@ -187,7 +187,7 @@
       var scaleFactor = 1; 
 
       // if the video is physcially smaller than the screen
-      if(height > cameraVideo.height && width > cameraVideo.width) {
+      if(height > cameraVideo.videoHeight && width > cameraVideo.videoWidth) {
         scaleFactor = 1 / Math.min(heightRatio, widthRatio);;
       }
       else {
@@ -506,7 +506,6 @@
         overlayCoords.y = boxHeightSize;
         overlayCoords.width = width;
         overlayCoords.height = height;
-
         coordinatesHaveChanged = false;
       }
     };
@@ -529,8 +528,17 @@
 
       // The mapping value from window to source scale
       scaleX = (sourceWidth / wWidth );
-      scaleY = (sourceHeight / wWidth);
-      scaleFactor = Math.max(scaleX, scaleY);
+      scaleY = (sourceHeight / wHeight);
+      
+      var scaleFactor = 1; 
+
+      // if the video is physcially smaller than the screen
+      if(wHeight > sourceHeight && wWidth > sourceWidth) {
+        scaleFactor = 1 / Math.min(scaleY, scaleX);
+      }
+      else {
+        scaleFactor = 1 / Math.max(scaleY, scaleX);
+      }
 
       // The canvas should be the same size as the video mapping 1:1
       dHeight = dWidth = overlaySize.width / scaleFactor ;
@@ -546,12 +554,12 @@
       sy = 0;
 
       // Trim the left
-      sx = (sourceWidth / 2) - (dWidth / 2)
-      sy = (sourceHeight / 2) - (dWidth / 2)
+      sx = ((sourceWidth / 2) - (dWidth / 2));
+      sy = ((sourceHeight / 2) - (dHeight / 2));
 
       // Trim the right.
       sWidth = dWidth;
-      sHeight = dWidth;
+      sHeight = dHeight;
 
       return (sourceWidth > 0);
     };

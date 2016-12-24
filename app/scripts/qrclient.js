@@ -7,22 +7,22 @@ var QRClient = function() {
 
   this.decode = function(context, callback) {
     // Temporary hack because 
-    if(BarcodeDetector) {
+    if(BarcodeDetector && location.hash === "#canvasdebug") {
       barcodeDetector = new BarcodeDetector();
-      // barcodeDetector.detect(context.canvas)
-      // .then(barcodes => {
-      //   // return the first barcode.
-      //   if(barcodes.length > 0) {
-      //     callback(barcodes[0].rawValue);
-      //   }
-      //   else {
-      //     callback();
-      //   }   
-      // })
-      // .catch(err => { 
-      //   callback();
-      //   console.error(err)
-      // });
+      barcodeDetector.detect(context.canvas)
+      .then(barcodes => {
+        // return the first barcode.
+        if(barcodes.length > 0) {
+          callback(barcodes[0].rawValue);
+        }
+        else {
+          callback();
+        }   
+      })
+      .catch(err => { 
+        callback();
+        console.error(err)
+      });
     }
     else {
       // A frame has been captured.

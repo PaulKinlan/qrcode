@@ -27,11 +27,11 @@
     var qrCodeManager = new QRCodeManager('qrcode');
     var processingFrame = false;
 
-    cameraManager.onframe = function(canvas) {
+    cameraManager.onframe = function(context) {
       // There is a frame in the camera, what should we do with it?
       if(processingFrame == false) {
         processingFrame = true;
-        var detectedQRCode = qrCodeManager.detectQRCode(canvas, function(url) {
+        var detectedQRCode = qrCodeManager.detectQRCode(context, function(url) {
           if(url !== undefined) {
             if(ga) { ga('send', 'event', 'urlfound'); }
         
@@ -437,7 +437,7 @@
 
     var cameraCanvas = root.querySelector('.Camera-display');
     var cameraOverlay = root.querySelector('.Camera-overlay');
-    var canvas = cameraCanvas.getContext('2d');
+    var context = cameraCanvas.getContext('2d');
 
     // Variables
     var wHeight;
@@ -464,11 +464,11 @@
     sourceManager.onframeready = function(frameData) {
       setupVariables();
       // Work out which part of the video to capture and apply to canvas.
-      canvas.drawImage(frameData, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+      context.drawImage(frameData, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
 
       drawOverlay(wWidth, wHeight);
 
-      if(self.onframe) self.onframe(canvas);
+      if(self.onframe) self.onframe(context);
 
       coordinatesHaveChanged = false;
     };

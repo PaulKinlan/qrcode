@@ -1,4 +1,4 @@
-const dataStoreVersion = "0.1.2";
+const dataStoreVersion = "0.1.4";
 importScripts('/scripts/sw/router.js');
 importScripts('/scripts/sw/fileManifest.js');
 
@@ -18,13 +18,11 @@ router.get(`${self.location.origin}`, e => {
   const request = e.request;
   const url = new URL(e.request.url);
 
-  e.respondWith(caches.open(dataStoreVersion).then(cache => {
-    // Always return from the cache.
-    return cache.match(request, {ignoreSearch: true}).then(response => {
-      // Return the cache or the fetch if not there.
-      return response;
-    });
-  }));
+  e.respondWith(
+    caches.match(e.request).then(response => {
+      return response || fetch(e.request);
+    })
+  );
 }, {urlMatchProperty: "origin"});
 
 /*

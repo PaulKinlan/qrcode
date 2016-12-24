@@ -19,7 +19,10 @@ var QRClient = function() {
           callback();
         }   
       })
-      .catch(err => console.log(err));
+      .catch(err => { 
+        callback();
+        console.log(err)
+      });
     }
     else {
       // A frame has been captured.

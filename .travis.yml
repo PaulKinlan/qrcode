@@ -37,3 +37,6 @@ branches:
 
 script:
   - gulp
+
+notifications:
+  webhooks: https://webpush.rocks/send-raw?processor=travis&id=https://fcm.googleapis.com/fcm/send/cC8zEklLFpQ:APA91bE7HDYW0TC_FOOavRO1feULYpzo317iidDUKrdVu0AYdtM0WBIi1z0sUBpkIdfv1lEtttzACObOPIg2xpZ0nYBbu7to0t_mh5fDIpg5LzEM2a4ymEB7xo3ER3b5wkxvLoBEN5Gi

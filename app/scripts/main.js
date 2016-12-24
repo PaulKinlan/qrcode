@@ -188,10 +188,10 @@
 
       // if the video is physcially smaller than the screen
       if(height > cameraVideo.videoHeight && width > cameraVideo.videoWidth) {
-        scaleFactor = 1 / Math.min(heightRatio, widthRatio);;
+        scaleFactor = 1 / Math.max(heightRatio, widthRatio);
       }
       else {
-        scaleFactor = 1 / Math.max(heightRatio, widthRatio);
+        scaleFactor = 1 / Math.min(heightRatio, widthRatio);
       }
 
       cameraVideo.style.transform = 'translate(-50%, -50%) scale(' + scaleFactor + ')';
@@ -530,14 +530,12 @@
       scaleX = (sourceWidth / wWidth );
       scaleY = (sourceHeight / wHeight);
       
-      var scaleFactor = 1; 
-
       // if the video is physcially smaller than the screen
       if(wHeight > sourceHeight && wWidth > sourceWidth) {
-        scaleFactor = 1 / Math.min(scaleY, scaleX);
+        scaleFactor = 1 / Math.max(scaleY, scaleX);
       }
       else {
-        scaleFactor = 1 / Math.max(scaleY, scaleX);
+        scaleFactor = 1 / Math.min(scaleY, scaleX);
       }
 
       // The canvas should be the same size as the video mapping 1:1

@@ -1,6 +1,7 @@
 {
   "name": "Capture QR Code",
   "short_name": "Capture QR Code",
+  "description": "Capture QR Codes in real time",
   "icons": [{
         "src": "images/touch/icon-128x128.png",
         "sizes": "128x128"
@@ -15,5 +16,7 @@
         "sizes": "192x192"
       }],
   "start_url": "/index.html?homescreen=1",
-  "display": "standalone"
+  "display": "standalone",
+  "theme_color": "#212121",
+  "background_color": "#212121"
 }

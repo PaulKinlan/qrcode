@@ -1,7 +1,7 @@
 {
   "name": "Capture QR Code",
   "short_name": "Capture QR Code",
-  "description": "Capture QR Codes in real time",
+  "description": "Capture QR Codes in real tim with this simple app",
   "icons": [{
         "src": "images/touch/icon-128x128.png",
         "sizes": "128x128"

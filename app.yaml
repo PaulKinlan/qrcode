@@ -18,6 +18,8 @@ handlers:
   static_files: dist/index.html
   secure: always
   upload: dist/index.html
+  http_headers:
+    Content-Security-Policy: script-src 'self' 'unsafe-inline' data: https://www.google-analytics.com
 
 - url: /(.+)
   static_files: dist/\1

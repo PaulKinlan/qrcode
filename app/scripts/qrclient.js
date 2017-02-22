@@ -2,12 +2,12 @@ var QRClient = function() {
   var worker = new Worker('/scripts/jsqrcode/qrworker.js');
   var barcodeDetector;
 
-    
+
   var currentCallback;
 
   this.decode = function(context, callback) {
-    // Temporary hack because 
-    if(BarcodeDetector && location.hash === "#canvasdebug") {
+    // Temporary hack because
+    if(window.BarcodeDetector && location.hash === "#canvasdebug") {
       barcodeDetector = new BarcodeDetector();
       barcodeDetector.detect(context.canvas)
       .then(barcodes => {
@@ -17,9 +17,9 @@ var QRClient = function() {
         }
         else {
           callback();
-        }   
+        }
       })
-      .catch(err => { 
+      .catch(err => {
         callback();
         console.error(err)
       });

@@ -34,7 +34,6 @@
         var detectedQRCode = qrCodeManager.detectQRCode(context, function(url) {
           if(url !== undefined) {
             if(ga) { ga('send', 'event', 'urlfound'); }
-        
             qrCodeManager.showDialog(url);
           }
           processingFrame = false;
@@ -48,37 +47,37 @@
     var callbackDomain = element.querySelector(".QRCodeSuccessDialogCallback-domain");
     var callbackUrl;
     var qrcodeUrl;
-    var validCallbackUrl = false;
+    var isValidCallbackUrl = false;
 
-    this.setQrCode = function(qrcode) {
-      qrcodeUrl = qrcode;
-    } 
+    this.setQrCode = function(normalizedUrl) {
+      qrcodeUrl = normalizedUrl;
+    };
 
     var init = function() {
       callbackUrl = getCallbackURL();
-      validCallbackUrl = validateCallbackURL();
+      isValidCallbackUrl = validateCallbackURL(callbackUrl);
 
       if(callbackUrl) {
         element.addEventListener('click', function() {
-          // Maybe we should warn if the callback URL doesn't is invalid
+          // Maybe we should warn if the callback URL is invalid
           callbackUrl.searchParams.set('qrcode', qrcodeUrl);
           location = callbackUrl;
         });
 
         element.classList.remove('hidden');
-        if(validCallbackUrl == false) {
+        if(isValidCallbackUrl == false) {
           callbackDomain.classList.add('invalid');
         }
         callbackDomain.innerText = callbackUrl.origin;
       }
     };
 
-    var validateCallbackURL = function() {
+    var validateCallbackURL = function(callbackUrl) {
       if(document.referrer === "") return false;
-    
+
       var referrer = new URL(document.referrer);
-      
-      return (callbackUrl !== undefined 
+
+      return (callbackUrl !== undefined
         && referrer.origin == callbackUrl.origin
         && referrer.scheme !== 'https');
     };
@@ -98,6 +97,17 @@
     init();
   }
 
+  var normalizeUrl = function(url) {
+    // Remove leading/trailing white space from protocol, normalize casing, etc.
+    var normalized;
+    try {
+      normalized = new URL(url);
+    } catch (exception) {
+      return;
+    }
+    return normalized;
+  };
+
   var QRCodeManager = function(element) {
     var root = document.getElementById(element);
     var canvas = document.getElementById("qr-canvas");
@@ -106,7 +116,7 @@
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
     var qrcodeShare = root.querySelector(".QRCodeSuccessDialog-share");
     var qrcodeCallback = root.querySelector(".QRCodeSuccessDialog-callback");
- 
+
     var client = new QRClient();
     var callbackController = new QRCodeCallbackController(qrcodeCallback);
 
@@ -123,17 +133,19 @@
       callback = callback || function() {};
 
       client.decode(context, function(result) {
+        var normalizedUrl;
         if(result !== undefined) {
-          self.currentUrl = result;
+          normalizedUrl = normalizeUrl(result);
+          self.currentUrl = normalizedUrl;
         }
-        callback(result);
+        callback(normalizedUrl);
       });
     };
 
-    this.showDialog = function(url) {
+    this.showDialog = function(normalizedUrl) {
       root.style.display = 'block';
-      qrcodeData.innerText = url;
-      callbackController.setQrCode(url);
+      qrcodeData.innerText = normalizedUrl;
+      callbackController.setQrCode(normalizedUrl);
     };
 
     this.closeDialog = function() {
@@ -164,6 +176,14 @@
 
     qrcodeNavigate.addEventListener("click", function() {
       // I really want this to be a link.
+
+      // Prevent XSS.
+      // Note: there's no need to check for `jAvAsCrIpT:` etc. as
+      // `normalizeUrl` already took care of that.
+      if (this.currentUrl.protocol === "javascript:") {
+        console.log("XSS prevented!");
+        return;
+      }
       window.location = this.currentUrl;
       this.closeDialog();
     }.bind(this));
@@ -184,7 +204,7 @@
       var heightRatio = cameraVideo.videoHeight / height;
       var widthRatio = cameraVideo.videoWidth / width;
 
-      var scaleFactor = 1; 
+      var scaleFactor = 1;
 
       // if the video is physcially smaller than the screen
       if(height > cameraVideo.videoHeight && width > cameraVideo.videoWidth) {
@@ -196,7 +216,7 @@
 
       cameraVideo.style.transform = 'translate(-50%, -50%) scale(' + scaleFactor + ')';
     });
-   
+
     var source = new CameraSource(cameraVideo);
 
     this.getDimensions = function() {
@@ -315,8 +335,8 @@
       if('enumerateDevices' in navigator.mediaDevices) {
          navigator.mediaDevices.enumerateDevices()
           .then(function(sources) {
-            return sources.filter(function(source) { 
-              return source.kind == 'videoinput' 
+            return sources.filter(function(source) {
+              return source.kind == 'videoinput'
             });
           })
           .then(function(sources) {
@@ -482,8 +502,8 @@
         minLength: minLength,
         width: minLength - 64,
         height: minLength - 64,
-        paddingHeight: paddingHeight, 
-        paddingWidth: paddingWidth 
+        paddingHeight: paddingHeight,
+        paddingWidth: paddingWidth
       };
     }
 
@@ -529,7 +549,7 @@
       // The mapping value from window to source scale
       scaleX = (sourceWidth / wWidth );
       scaleY = (sourceHeight / wHeight);
-      
+
       // if the video is physcially smaller than the screen
       if(wHeight > sourceHeight && wWidth > sourceWidth) {
         scaleFactor = 1 / Math.max(scaleY, scaleX);
@@ -540,7 +560,7 @@
 
       // The canvas should be the same size as the video mapping 1:1
       dHeight = dWidth = overlaySize.width / scaleFactor ;
-      
+
       // The width of the canvas should be the size of the overlay in video size.
       cameraCanvas.width =  dWidth;
       cameraCanvas.height = dWidth;

@@ -7,7 +7,7 @@ var QRClient = function() {
 
   this.decode = function(context, callback) {
     // Temporary hack because
-    if(window.BarcodeDetector && location.hash === "#canvasdebug") {
+    if('BarcodeDetector' in window) {
       barcodeDetector = new BarcodeDetector();
       barcodeDetector.detect(context.canvas)
       .then(barcodes => {

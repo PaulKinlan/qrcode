@@ -89,9 +89,6 @@
         // let's just get it working
         return new URL(url.searchParams.get('x-callback-url'));
       }
-      else {
-        return null;
-      }
     };
 
     init();

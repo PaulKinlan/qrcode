@@ -308,9 +308,9 @@
     var cameras = [];
     var self = this;
     var gUM = (navigator.getUserMedia ||
-                       navigator.webkitGetUserMedia ||
-                       navigator.mozGetUserMedia ||
-                       navigator.msGetUserMedia || null);
+               navigator.webkitGetUserMedia ||
+               navigator.mozGetUserMedia ||
+               navigator.msGetUserMedia || null);
 
     this.stop = function() {
       if(stream) {
@@ -389,7 +389,7 @@
         params = { video: true, audio: false };
       }
       else {
-        params = { video: { optional: [{sourceId: videoSource.deviceId || videoSource.id}] }, audio: false };
+        params = { video: { deviceId: { exact: videoSource.deviceId || videoSource.id } }, audio: false };
       }
 
       gUM.call(navigator, params, function(cameraStream) {

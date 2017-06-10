@@ -2,7 +2,6 @@ var QRClient = function() {
   var worker = new Worker('/scripts/jsqrcode/qrworker.js');
   var barcodeDetector;
 
-
   var currentCallback;
 
   this.decode = function(context, callback) {
@@ -26,10 +25,16 @@ var QRClient = function() {
     }
     else {
       // A frame has been captured.
-      var canvas = context.canvas;
-      var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      worker.postMessage(imageData);
-        currentCallback = callback;
+      try {
+        var canvas = context.canvas;
+        var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        worker.postMessage(imageData);
+      }
+      catch(err) {
+        console.error(err);
+      }
+      
+      currentCallback = callback;
     }
   };
 

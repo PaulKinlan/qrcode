@@ -597,5 +597,5 @@
 })();
 
 window.addEventListener('unhandledrejection', function(event) {
-  console.('Unhandled rejection (promise: ', event.promise, ', reason: ', event.reason, ').');
+  console.error('Unhandled rejection (promise: ', event.promise, ', reason: ', event.reason, ').');
 });

@@ -350,6 +350,9 @@
             cb(cameras);
 
             return cameras;
+          })
+          .catch(error => {
+            console.error("Enumeration Error", error); 
           });
       }
       else if('getSources' in MediaStreamTrack) {
@@ -412,7 +415,10 @@
 
         videoElement.srcObject = stream;
         videoElement.load();
-        videoElement.play();
+        videoElement.play()
+          .catch(error => {
+            console.error("Auto Play Error", error);
+          });
       }, console.error);
     };
   };

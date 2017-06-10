@@ -589,3 +589,9 @@
     var camera = new QRCodeCamera();
   });
 })();
+
+
+
+window.addEventListener('unhandledrejection', function(event) {
+  console.error('Unhandled rejection (promise: ', event.promise, ', reason: ', event.reason, ').');
+});

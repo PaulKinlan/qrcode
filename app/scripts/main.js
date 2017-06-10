@@ -413,7 +413,7 @@
         videoElement.srcObject = stream;
         videoElement.load();
         videoElement.play();
-      }, function(error) {});
+      }, console.error);
     };
   };
 
@@ -590,8 +590,6 @@
   });
 })();
 
-
-
 window.addEventListener('unhandledrejection', function(event) {
-  console.error('Unhandled rejection (promise: ', event.promise, ', reason: ', event.reason, ').');
+  console.('Unhandled rejection (promise: ', event.promise, ', reason: ', event.reason, ').');
 });

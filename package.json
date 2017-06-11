@@ -14,7 +14,6 @@
     "gulp-imagemin": "^2.0.0",
     "gulp-load-plugins": "^1.0.0",
     "gulp-newer": "^1.0.0",
-    "gulp-sass": "^2.0.0",
     "gulp-size": "^2.0.0",
     "gulp-uglify": "^1.0.1",
     "gulp-useref": "^3.0.0",

@@ -17,12 +17,7 @@
  *
  */
 
-'use strict';
-
-// This gulpfile makes use of new JavaScript features.
-// Babel handles this without us having to do anything. It just works.
-// You can read more about the new JavaScript features here:
-// https://babeljs.io/docs/learn-es2015/
+'use strict'; 
 
 import path from 'path';
 import gulp from 'gulp';
@@ -89,17 +84,14 @@ gulp.task('styles', () => {
 
   // For best performance, don't add Sass partials to `gulp.src`
   return gulp.src([
-    'app/styles/**/*.scss',
     'app/styles/**/*.css'
   ])
-    .pipe($.newer('.tmp/styles'))
-    .pipe($.sass({
-      precision: 10
-    }).on('error', $.sass.logError))
+    //.pipe($.newer('.tmp/styles'))
     .pipe($.autoprefixer(AUTOPREFIXER_BROWSERS))
     .pipe(gulp.dest('.tmp/styles'))
+    .pipe($.concat('app.css'))
     // Concatenate and minify styles
-    .pipe($.if('*.css', $.cssnano()))
+    .pipe($.cssnano())
     .pipe($.size({title: 'styles'}))
     .pipe(gulp.dest('dist/styles'));
 });
@@ -152,7 +144,7 @@ gulp.task('html', () => {
     .pipe(gulp.dest('dist'));
 });
 
-// Clean output directory
+// Clean output directory 
 gulp.task('clean', () => del(['.tmp', 'dist/*', '!dist/.git'], {dot: true}));
 
 gulp.task('webserver', function() {

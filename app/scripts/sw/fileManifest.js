@@ -6,7 +6,7 @@ const requiredFiles = [
   '/images/ic_camera_front_24px.svg',
   '/images/ic_camera_rear_24px.svg',
   '/images/ic_file_upload_24px.svg',
-  '/styles/main.css',
+  '/styles/app.css',
   '/scripts/main.min.js',
   '/scripts/jsqrcode/qrworker.js',
   '/scripts/jsqrcode/grid.js',

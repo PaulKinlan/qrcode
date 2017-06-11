@@ -1,0 +1,30 @@
+.QRCodeSuccessDialog {
+    height: auto !important;
+    display: none;
+    position: absolute !important;
+    margin: 2em auto;
+    width: 80%;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+}
+ 
+.QRCodeSuccessDialog .QRCodeSuccessDialog-share.hidden {
+  display: none;
+}
+
+.QRCodeSuccessDialog .QRCodeSuccessDialog-callback.hidden {
+  display: none;
+}
+
+.QRCodeSuccessDialog .QRCodeSuccessDialog-callback .QRCodeSuccessDialogCallback-domain {
+  font-style: italic;
+  text-transform: lowercase;
+  font-size: x-small;
+  color: #424242;
+}
+
+.QRCodeSuccessDialog .QRCodeSuccessDialog-callback .QRCodeSuccessDialogCallback-domain.invalid {
+   color: #b71c1c;
+}

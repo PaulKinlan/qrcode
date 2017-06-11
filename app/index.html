@@ -31,18 +31,18 @@
     <meta http-equiv="origin-trial" data-feature="Web Share" data-expires="2017-02-15" content="Amv7HxQkW6MkAPzGJIwpZuHGzgT/7lRCi3Ke0BkHLKDbJ08CSSgRfibg8mSGIOSvtAu6MigW7sZHp1xIj2BM1QwAAABXeyJvcmlnaW4iOiJodHRwczovL3Fyc25hcHBlci5hcHBzcG90LmNvbTo0NDMiLCJmZWF0dXJlIjoiV2ViU2hhcmUiLCJleHBpcnkiOjE0ODcxNjg2MjV9">
 
     <meta name="theme-color" content="#212121">
-    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/app.css">
   </head>
   <body>
 
-    <div class="wsk-layout wsk-js-layout">
+    <div class="wsk-layout">
       <div class="wsk-layout__content">
         <div id="camera" class="Camera">
           <canvas id="qr-canvas" class="Camera-display"></canvas>
           <div class="CameraRealtime hidden">
             <video class="Camera-video" muted autoplay playsinline></video>
             <div class="Camera-instructions">Point at a QR code</div>
-            <div class="Camera-toggle wsk-button wsk-js-button wsk-button--fab">
+            <div class="Camera-toggle wsk-button wsk-button--fab">
               <input type="checkbox" id="checkbox-1" class="Camera-toggle-input" />
               <label for="checkbox-1">
                 <img class="front" src="/images/ic_camera_front_24px.svg">
@@ -67,13 +67,13 @@
           </div>
           <div class="wsk-card--bottom">
             <div>
-              <button class="wsk-button wsk-js-button QRCodeSuccessDialog-navigate">Open</button>
-              <button class="wsk-button wsk-js-button QRCodeSuccessDialog-callback hidden">
+              <button class="wsk-button QRCodeSuccessDialog-navigate">Open</button>
+              <button class="wsk-button QRCodeSuccessDialog-callback hidden">
                 <div class="QRCodeSuccessDialogCallback-name">Return</div>
                 <div class="QRCodeSuccessDialogCallback-domain"></div>
               </button>
-              <button class="wsk-button wsk-js-button QRCodeSuccessDialog-ignore">Ignore</button>
-              <button class="wsk-button wsk-js-button QRCodeSuccessDialog-share hidden">Share</button>
+              <button class="wsk-button QRCodeSuccessDialog-ignore">Ignore</button>
+              <button class="wsk-button QRCodeSuccessDialog-share hidden">Share</button>
             </div>
           </div>
         </div>

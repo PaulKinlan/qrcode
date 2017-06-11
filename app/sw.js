@@ -32,12 +32,6 @@ router.get(/http[s]*:\/\/www.google-analytics.com/, (e)=>{
   console.log('Analytics request', e);
 }, {urlMatchProperty: "origin"});
 
-router.get(/.*/, e => {
-  /* this just shows that the origin filter above works and all other requests
-     are handled by this */
-  console.log("Foreign Request", e.request)
-});
-
 self.addEventListener('activate', function(event) {
   event.waitUntil(self.clients.claim());
 });

@@ -23,7 +23,6 @@
     // Controls the Camera and the QRCode Module
 
     var cameraManager = new CameraManager('camera');
-
     var qrCodeManager = new QRCodeManager('qrcode');
     var processingFrame = false;
 
@@ -305,6 +304,7 @@
 
   var CameraSource = function(videoElement) {
     var stream;
+    var animationFrameId;
     var cameras = [];
     var self = this;
     var gUM = (navigator.getUserMedia ||
@@ -318,7 +318,7 @@
       }
     };
 
-    this.getDimensions = function() {
+    this.getDimensions = function() {      
       return {
         width: videoElement.videoWidth,
         height: videoElement.videoHeight,
@@ -383,6 +383,9 @@
     this.setCamera = function(idx) {
       var params;
       var videoSource = cameras[idx];
+      
+      //Cancel any pending frame analysis
+      cancelAnimationFrame(animationFrameId);
 
       if(videoSource === undefined && cameras.length == 0) {
         // Because we have no source information, have to assume it user facing.
@@ -396,21 +399,12 @@
         stream = cameraStream;
 
         videoElement.addEventListener('loadeddata', function(e) {
-
           var onframe = function() {
-            self.onframeready(videoElement);
-            requestAnimationFrame(onframe);
+            if(videoElement.videoWidth > 0) self.onframeready(videoElement);
+            animationFrameId = requestAnimationFrame(onframe);
           };
 
-          requestAnimationFrame(onframe);
-
-          // The video is ready, and the camera captured
-          if(videoSource === undefined) {
-            // There is no meta data about the camera, assume user facing.
-            videoSource = {
-              'facing': 'user'
-            };
-          }
+          animationFrameId = requestAnimationFrame(onframe);
         });
 
         videoElement.srcObject = stream;
@@ -483,7 +477,7 @@
     var prevCoordinates = 0;
 
     var overlayCoords = { x:0, y: 0, width: cameraCanvas.width, height: cameraCanvas.height };
-
+    
     sourceManager.onframeready = function(frameData) {
       setupVariables();
       // Work out which part of the video to capture and apply to canvas.
@@ -565,6 +559,7 @@
       dHeight = dWidth = overlaySize.width / scaleFactor ;
 
       // The width of the canvas should be the size of the overlay in video size.
+      if(dWidth == 0) debugger;
       cameraCanvas.width =  dWidth;
       cameraCanvas.height = dWidth;
 

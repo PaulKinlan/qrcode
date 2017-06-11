@@ -1,12 +1,13 @@
 var QRClient = function() {
   var worker = new Worker('/scripts/jsqrcode/qrworker.js');
   var barcodeDetector;
+  var barcodeDetectorErrored = false;
 
   var currentCallback;
 
   this.decode = function(context, callback) {
     // Temporary hack because
-    if('BarcodeDetector' in window) {
+    if('BarcodeDetector' in window && !barcodeDetectorErrored) {
       barcodeDetector = new BarcodeDetector();
       barcodeDetector.detect(context.canvas)
       .then(barcodes => {
@@ -19,6 +20,8 @@ var QRClient = function() {
         }
       })
       .catch(err => {
+        // don't use the detector... it is erroring.
+        barcodeDetectorErrored = true;
         callback();
         console.error(err)
       });

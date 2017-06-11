@@ -28,20 +28,10 @@ import path from 'path';
 import gulp from 'gulp';
 import del from 'del';
 import runSequence from 'run-sequence';
-import browserSync from 'browser-sync';
 import gulpLoadPlugins from 'gulp-load-plugins';
 import pkg from './package.json';
 
 const $ = gulpLoadPlugins();
-const reload = browserSync.reload;
-
-// Lint JavaScript
-gulp.task('lint', () =>
-  gulp.src('app/scripts/**/*.js')
-    .pipe($.eslint())
-    .pipe($.eslint.format())
-    .pipe($.if(!browserSync.active, $.eslint.failOnError()))
-);
 
 // Optimize images
 gulp.task('images', () =>
@@ -103,7 +93,6 @@ gulp.task('styles', () => {
     'app/styles/**/*.css'
   ])
     .pipe($.newer('.tmp/styles'))
-    .pipe($.sourcemaps.init())
     .pipe($.sass({
       precision: 10
     }).on('error', $.sass.logError))
@@ -112,7 +101,6 @@ gulp.task('styles', () => {
     // Concatenate and minify styles
     .pipe($.if('*.css', $.cssnano()))
     .pipe($.size({title: 'styles'}))
-    .pipe($.sourcemaps.write('./'))
     .pipe(gulp.dest('dist/styles'));
 });
 
@@ -130,15 +118,12 @@ gulp.task('scripts', () =>
       // Other scripts
     ])
       .pipe($.newer('.tmp/scripts'))
-      .pipe($.sourcemaps.init())
       .pipe($.babel())
-      .pipe($.sourcemaps.write())
       .pipe(gulp.dest('.tmp/scripts'))
       .pipe($.concat('main.min.js'))
       //.pipe($.uglify({preserveComments: 'some'}))
       // Output files
       .pipe($.size({title: 'scripts'}))
-      .pipe($.sourcemaps.write('.'))
       .pipe(gulp.dest('dist/scripts'))
 );
 
@@ -170,32 +155,14 @@ gulp.task('html', () => {
 // Clean output directory
 gulp.task('clean', () => del(['.tmp', 'dist/*', '!dist/.git'], {dot: true}));
 
-// Watch files for changes & reload
-gulp.task('serve', ['default'], () => {
-  browserSync({
-    notify: false,
-    open: false,
-    // Customize the Browsersync console logging prefix
-    logPrefix: 'WSK',
-    server: ['.tmp', 'app'],
-    port: 3000
-  });
+gulp.task('webserver', function() {
+  gulp.src('dist')
+    .pipe($.webserver({
+      port: '8080',
+      directoryListing: false
+    }));
 });
 
-// Build and serve the output from the dist build
-gulp.task('serve:dist', ['default'], () =>
-  browserSync({
-    notify: false,
-    open: false,
-    logPrefix: 'WSK',
-    // Run as an https by uncommenting 'https: true'
-    // Note: this uses an unsigned certificate which on first access
-    //       will present a certificate warning in the browser.
-    // https: true,
-    server: 'dist',
-    port: 3001
-  })
-);
 
 // Build production files, the default task
 gulp.task('default', ['clean'], cb =>
@@ -205,7 +172,3 @@ gulp.task('default', ['clean'], cb =>
     cb
   )
 );
-
-// Load custom tasks from the `tasks` directory
-// Run: `npm install --save-dev require-dir` from the command-line
-// try { require('require-dir')('tasks'); } catch (err) { console.error(err); }

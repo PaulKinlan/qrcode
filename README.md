@@ -4,8 +4,7 @@ QR Snapper
 A simple, small, progressive web app that takes accesses the user's camera
 and looks for QR Codes.
 
-The QR Code library is XXX and has been ported to work inside a WebWorker
-for performance.
+The QR Code library is a port of [JSQRCode](https://github.com/LazarSoft/jsqrcode) and has been ported to work inside a WebWorker for performance.
 
 
 Building yourself

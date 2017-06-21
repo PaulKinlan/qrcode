@@ -185,27 +185,40 @@
   };
 
   var WebCamManager = function(cameraRoot) {
+    var width, height;
     var cameraToggleInput = cameraRoot.querySelector('.Camera-toggle-input');
     var cameraToggle = cameraRoot.querySelector('.Camera-toggle');
     var cameraVideo = cameraRoot.querySelector('.Camera-video');
 
-    cameraVideo.addEventListener('loadeddata', function() {
-      var height = window.innerHeight;
-      var width = window.innerWidth;
+    this.resize = function(w, h) {
+      if (w && h) {
+        height = h;
+        width = w;
+      }
 
-      var heightRatio = cameraVideo.videoHeight / height;
-      var widthRatio = cameraVideo.videoWidth / width;
+      var videoDimensions = this.getDimensions();
+      var heightRatio = videoDimensions.height / height;
+      var widthRatio = videoDimensions.width / width;
 
       var scaleFactor = 1 / Math.min(heightRatio, widthRatio);
+      scaleFactor = Number.isFinite(scaleFactor)? scaleFactor : 1;
 
       cameraVideo.style.transform = 'translate(-50%, -50%) scale(' + scaleFactor + ')';
-    });
+    };
 
     var source = new CameraSource(cameraVideo);
 
     this.getDimensions = function() {
       return source.getDimensions();
     };
+
+    // this method can be overwritten from outside
+    this.onDimensionsChanged = function(){};
+
+    source.onDimensionsChanged = function() {
+      this.onDimensionsChanged();
+      this.resize();
+    }.bind(this);
 
     source.getCameras(function(cameras) {
       if(cameras.length <= 1) {
@@ -255,7 +268,11 @@
     var inputElement = element.querySelector('.CameraFallback-input');
     var image = new Image();
 
+    // these methods can be overwritten from outside
     this.onframeready = function() {};
+    this.onDimensionsChanged = function(){};
+
+    this.resize = function() {}; // nothing to do on resize
 
     // We don't need to upload anything.
     uploadForm.addEventListener('submit', function(e) {
@@ -266,6 +283,7 @@
     inputElement.addEventListener('change', function(e) {
       var objectURL = URL.createObjectURL(e.target.files[0]);
       image.onload = function() {
+        this.onDimensionsChanged();
         this.onframeready(image);
         URL.revokeObjectURL(objectURL);
       }.bind(this);
@@ -277,8 +295,7 @@
     this.getDimensions = function() {
       return {
         width: image.naturalWidth,
-        height: image.naturalHeight,
-        shouldLayout: false
+        height: image.naturalHeight
       };
     };
   };
@@ -302,10 +319,12 @@
     this.getDimensions = function() {      
       return {
         width: videoElement.videoWidth,
-        height: videoElement.videoHeight,
-        shouldLayout: true
+        height: videoElement.videoHeight
       };
     };
+
+    // this method can be overwritten from outside
+    this.onDimensionsChanged = function(){};
 
     this.getCameras = function(cb) {
       cb = cb || function() {};
@@ -384,6 +403,8 @@
             animationFrameId = requestAnimationFrame(onframe);
           };
 
+          self.onDimensionsChanged();
+
           animationFrameId = requestAnimationFrame(onframe);
         });
 
@@ -435,33 +456,22 @@
     var cameraOverlay = root.querySelector('.Camera-overlay');
     var context = cameraCanvas.getContext('2d');
 
-    // Variables
-    var wHeight;
-    var wWidth;
+    // destination position
     var dWidth;
     var dHeight;
-    var dx = 0;
-    var dy = 0;
-
+    // source position
     var sx = 0;
     var sy = 0;
     var sHeight;
     var sWidth;
 
     var cameras = [];
-    var coordinatesHaveChanged = true;
     var prevCoordinates = 0;
     
     sourceManager.onframeready = function(frameData) {
-      setupVariables();
       // Work out which part of the video to capture and apply to canvas.
-      context.drawImage(frameData, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
-
-      drawOverlay(wWidth, wHeight);
-
+      context.drawImage(frameData, sx, sy, sWidth, sHeight, 0, 0, dWidth, dHeight);
       if(self.onframe) self.onframe(context);
-
-      coordinatesHaveChanged = false;
     };
 
     var getOverlayDimensions = function(width, height) {
@@ -478,47 +488,35 @@
       };
     };
 
-    var drawOverlay = function(width, height) {
-
-      var overalyDimensions = getOverlayDimensions(width, height);
-
-      var boxHeightSize = height / 2;
-      var boxWidthSize = width / 2;
-      var boxPaddingHeightSize = overalyDimensions.paddingHeight;
-      var boxPaddingWidthSize = overalyDimensions.paddingWidth;
-
-      if(coordinatesHaveChanged) {
-        cameraOverlay.style.borderTopWidth = boxPaddingHeightSize + "px";
-        cameraOverlay.style.borderLeftWidth = boxPaddingWidthSize + "px";
-        cameraOverlay.style.borderRightWidth = boxPaddingWidthSize + "px";
-        cameraOverlay.style.borderBottomWidth = boxPaddingHeightSize + "px";
-
-        coordinatesHaveChanged = false;
-      }
+    var drawOverlay = function(overlayDimensions) {
+      var boxPaddingHeightSize = overlayDimensions.paddingHeight;
+      var boxPaddingWidthSize = overlayDimensions.paddingWidth;
+      cameraOverlay.style.borderTopWidth = boxPaddingHeightSize + "px";
+      cameraOverlay.style.borderLeftWidth = boxPaddingWidthSize + "px";
+      cameraOverlay.style.borderRightWidth = boxPaddingWidthSize + "px";
+      cameraOverlay.style.borderBottomWidth = boxPaddingHeightSize + "px";
     };
 
-    var setupVariables = function() {
+    this.resize = function(containerWidth, containerHeight) {
       var sourceDimensions = sourceManager.getDimensions();
 
-      if(cameraCanvas.width == window.innerWidth && sourceDimensions.shouldLayout)
-        return;
-
-      wHeight = window.innerHeight;
-      wWidth = window.innerWidth;
+      if (!containerWidth || !containerHeight) {
+        containerWidth = root.parentNode.offsetWidth;
+        containerHeight = root.parentNode.offsetHeight;
+      }
 
       // Video source size
       var sourceHeight = sourceDimensions.height;
       var sourceWidth = sourceDimensions.width;
 
       // Target size in device co-ordinats
-      var overlaySize = getOverlayDimensions(wWidth, wHeight);
+      var overlaySize = getOverlayDimensions(containerWidth, containerHeight);
 
-      // The mapping value from window to source scale
-      var scaleX = (sourceWidth / wWidth );
-      var scaleY = (sourceHeight / wHeight);
-
-      // if the video is physcially smaller than the screen
+      // The mapping value from container to source scale
+      var scaleX = (sourceWidth / containerWidth );
+      var scaleY = (sourceHeight / containerHeight);
       var scaleFactor = 1 / Math.min(scaleY, scaleX);
+      scaleFactor = Number.isFinite(scaleFactor)? scaleFactor : 1;
 
       // The canvas should be the same size as the video mapping 1:1
       dHeight = dWidth = overlaySize.width / scaleFactor ;
@@ -528,27 +526,21 @@
       cameraCanvas.width =  dWidth;
       cameraCanvas.height = dWidth;
 
-      dx = 0;
-      dy = 0;
-
-      sx = 0;
-      sy = 0;
-
-      // Trim the left
+      // Trim the left / top
       sx = ((sourceWidth / 2) - (dWidth / 2));
       sy = ((sourceHeight / 2) - (dHeight / 2));
 
-      // Trim the right.
+      // Trim the right / bottom
       sWidth = dWidth;
       sHeight = dHeight;
 
-      return (sourceWidth > 0);
+      drawOverlay(overlaySize);
+      sourceManager.resize(containerWidth, containerHeight);
     };
 
-    window.addEventListener('resize', function(e) {
-      coordinatesHaveChanged = true;
-      setupVariables();
-    }.bind(this));
+    window.addEventListener('resize', this.resize);
+    sourceManager.onDimensionsChanged = this.resize;
+    this.resize();
   };
 
   window.addEventListener('load', function() {

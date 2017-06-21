@@ -30,7 +30,7 @@
       // There is a frame in the camera, what should we do with it?
       if(processingFrame == false) {
         processingFrame = true;
-        var detectedQRCode = qrCodeManager.detectQRCode(context, function(url) {
+        qrCodeManager.detectQRCode(context, function(url) {
           if(url !== undefined) {
             if(ga) { ga('send', 'event', 'urlfound'); }
             qrCodeManager.showDialog(url);
@@ -91,7 +91,7 @@
     };
 
     init();
-  }
+  };
 
   var normalizeUrl = function(url) {
     // Remove leading/trailing white space from protocol, normalize casing, etc.
@@ -106,7 +106,6 @@
 
   var QRCodeManager = function(element) {
     var root = document.getElementById(element);
-    var canvas = document.getElementById("qr-canvas");
     var qrcodeData = root.querySelector(".QRCodeSuccessDialog-data");
     var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
@@ -146,7 +145,6 @@
 
     this.closeDialog = function() {
       root.style.display = 'none';
-      self.qrcodeNavigate = "";
       qrcodeData.innerText = "";
     };
 
@@ -190,8 +188,6 @@
     var cameraToggleInput = cameraRoot.querySelector('.Camera-toggle-input');
     var cameraToggle = cameraRoot.querySelector('.Camera-toggle');
     var cameraVideo = cameraRoot.querySelector('.Camera-video');
-    var videoRect = cameraVideo.getBoundingClientRect();
-    var videoElementScale = ( window.innerHeight / videoRect.height);
 
     cameraVideo.addEventListener('loadeddata', function() {
       var height = window.innerHeight;
@@ -200,15 +196,7 @@
       var heightRatio = cameraVideo.videoHeight / height;
       var widthRatio = cameraVideo.videoWidth / width;
 
-      var scaleFactor = 1;
-
-      // if the video is physcially smaller than the screen
-      if(height > cameraVideo.videoHeight && width > cameraVideo.videoWidth) {
-        scaleFactor = 1 / Math.max(heightRatio, widthRatio);
-      }
-      else {
-        scaleFactor = 1 / Math.min(heightRatio, widthRatio);
-      }
+      var scaleFactor = 1 / Math.min(heightRatio, widthRatio);
 
       cameraVideo.style.transform = 'translate(-50%, -50%) scale(' + scaleFactor + ')';
     });
@@ -220,7 +208,7 @@
     };
 
     source.getCameras(function(cameras) {
-      if(cameras.length == 1) {
+      if(cameras.length <= 1) {
         cameraToggle.style.display="none";
       }
 
@@ -232,13 +220,6 @@
       // The Source has some data, we need to push it the controller.
       this.onframeready(imageData);
     }.bind(this);
-
-    var toggleFacingState = function(camera) {
-      var facing = camera.facing ? camera.facing : 'user';
-      cameraRoot.classList.remove('Camera--facing-environment');
-      cameraRoot.classList.remove('Camera--facing-user');
-      cameraRoot.classList.add('Camera--facing-' + facing);
-    };
 
     cameraToggleInput.addEventListener('change', function(e) {
       // this is the input element, not the control
@@ -260,7 +241,7 @@
       else {
         var cameraIdx = 0;
 
-        if(this.checked === true) {
+        if(cameraToggleInput.checked === true) {
           cameraIdx = 1;
         }
         source.setCamera(cameraIdx);
@@ -328,6 +309,7 @@
 
     this.getCameras = function(cb) {
       cb = cb || function() {};
+      cameras = [];
 
       if('enumerateDevices' in navigator.mediaDevices) {
          navigator.mediaDevices.enumerateDevices()
@@ -348,8 +330,6 @@
             });
 
             cb(cameras);
-
-            return cameras;
           })
           .catch(error => {
             console.error("Enumeration Error", error); 
@@ -421,7 +401,6 @@
   var CameraManager = function(element) {
     // The camera gets a video stream, and adds it to a canvas.
     // The canvas is analysed but also displayed to the user.
-    // The video is never show
     var self = this;
     var debug = false;
     var gUM = (navigator.getUserMedia ||
@@ -468,15 +447,10 @@
     var sy = 0;
     var sHeight;
     var sWidth;
-    var scaleX;
-    var scaleY;
-    var scaleFactor = 1;
 
     var cameras = [];
     var coordinatesHaveChanged = true;
     var prevCoordinates = 0;
-
-    var overlayCoords = { x:0, y: 0, width: cameraCanvas.width, height: cameraCanvas.height };
     
     sourceManager.onframeready = function(frameData) {
       setupVariables();
@@ -502,7 +476,7 @@
         paddingHeight: paddingHeight,
         paddingWidth: paddingWidth
       };
-    }
+    };
 
     var drawOverlay = function(width, height) {
 
@@ -519,15 +493,11 @@
         cameraOverlay.style.borderRightWidth = boxPaddingWidthSize + "px";
         cameraOverlay.style.borderBottomWidth = boxPaddingHeightSize + "px";
 
-        overlayCoords.x = boxWidthSize;
-        overlayCoords.y = boxHeightSize;
-        overlayCoords.width = width;
-        overlayCoords.height = height;
         coordinatesHaveChanged = false;
       }
     };
 
-    var setupVariables = function(e) {
+    var setupVariables = function() {
       var sourceDimensions = sourceManager.getDimensions();
 
       if(cameraCanvas.width == window.innerWidth && sourceDimensions.shouldLayout)
@@ -544,16 +514,11 @@
       var overlaySize = getOverlayDimensions(wWidth, wHeight);
 
       // The mapping value from window to source scale
-      scaleX = (sourceWidth / wWidth );
-      scaleY = (sourceHeight / wHeight);
+      var scaleX = (sourceWidth / wWidth );
+      var scaleY = (sourceHeight / wHeight);
 
       // if the video is physcially smaller than the screen
-      if(wHeight > sourceHeight && wWidth > sourceWidth) {
-        scaleFactor = 1 / Math.max(scaleY, scaleX);
-      }
-      else {
-        scaleFactor = 1 / Math.min(scaleY, scaleX);
-      }
+      var scaleFactor = 1 / Math.min(scaleY, scaleX);
 
       // The canvas should be the same size as the video mapping 1:1
       dHeight = dWidth = overlaySize.width / scaleFactor ;

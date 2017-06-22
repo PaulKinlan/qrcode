@@ -245,21 +245,28 @@
       source.setCamera(cameraIdx);
     });
 
+    this.stop = function() {
+      source.stop();
+    };
+
+    this.start = function() {
+      var cameraIdx = 0;
+      if(cameraToggleInput.checked === true) {
+        cameraIdx = 1;
+      }
+      source.setCamera(cameraIdx);
+    };
+
     // When using the web cam, we need to turn it off when we aren't using it
-    document.addEventListener('visibilitychange', function(e) {
+    document.addEventListener('visibilitychange', function() {
       if(document.visibilityState === 'hidden') {
         // Disconnect the camera.
-        source.stop();
+        this.stop();
       }
       else {
-        var cameraIdx = 0;
-
-        if(cameraToggleInput.checked === true) {
-          cameraIdx = 1;
-        }
-        source.setCamera(cameraIdx);
+        this.start();
       }
-    });
+    }.bind(this));
 
   };
 
@@ -272,7 +279,8 @@
     this.onframeready = function() {};
     this.onDimensionsChanged = function(){};
 
-    this.resize = function() {}; // nothing to do on resize
+    // these methods are noop for the fallback
+    this.resize = function() {};
 
     // We don't need to upload anything.
     uploadForm.addEventListener('submit', function(e) {
@@ -303,14 +311,16 @@
   var CameraSource = function(videoElement) {
     var stream;
     var animationFrameId;
-    var cameras = [];
+    var cameras = null;
     var self = this;
     var gUM = (navigator.getUserMedia ||
                navigator.webkitGetUserMedia ||
                navigator.mozGetUserMedia ||
                navigator.msGetUserMedia || null);
+    var currentCamera = -1;
 
     this.stop = function() {
+      currentCamera = -1;
       if(stream) {
         stream.getTracks().forEach(function(t) { t.stop(); } );
       }
@@ -328,7 +338,6 @@
 
     this.getCameras = function(cb) {
       cb = cb || function() {};
-      cameras = [];
 
       if('enumerateDevices' in navigator.mediaDevices) {
          navigator.mediaDevices.enumerateDevices()
@@ -338,6 +347,7 @@
             });
           })
           .then(function(sources) {
+            cameras = [];
             sources.forEach(function(source) {
               if(source.label.indexOf('facing back') >= 0) {
                 // move front facing to the front.
@@ -356,7 +366,7 @@
       }
       else if('getSources' in MediaStreamTrack) {
         MediaStreamTrack.getSources(function(sources) {
-
+          cameras = [];
           for(var i = 0; i < sources.length; i++) {
             var source = sources[i];
             if(source.kind === 'video') {
@@ -375,11 +385,16 @@
       }
       else {
         // We can't pick the correct camera because the API doesn't support it.
+        cameras = [];
         cb(cameras);
       }
     };
 
     this.setCamera = function(idx) {
+      if (currentCamera === idx || cameras === null) {
+        return;
+      }
+      currentCamera = idx;
       var params;
       var videoSource = cameras[idx];
       
@@ -400,7 +415,10 @@
         videoElement.addEventListener('loadeddata', function(e) {
           var onframe = function() {
             if(videoElement.videoWidth > 0) self.onframeready(videoElement);
-            animationFrameId = requestAnimationFrame(onframe);
+            if (currentCamera !== -1) {
+              // if the camera is still running
+              animationFrameId = requestAnimationFrame(onframe);
+            }
           };
 
           self.onDimensionsChanged();

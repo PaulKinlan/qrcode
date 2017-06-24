@@ -197,19 +197,18 @@
       }
 
       var videoDimensions = this.getDimensions();
-      var heightRatio = videoDimensions.height / height;
-      var widthRatio = videoDimensions.width / width;
-
-      var scaleFactor = 1 / Math.min(heightRatio, widthRatio);
-      scaleFactor = Number.isFinite(scaleFactor)? scaleFactor : 1;
-
-      cameraVideo.style.transform = 'translate(-50%, -50%) scale(' + scaleFactor + ')';
-    };
+      cameraVideo.style.transform = 'translate(-50%, -50%) scale(' + videoDimensions.scaleFactor + ')';
+    }.bind(this);
 
     var source = new CameraSource(cameraVideo);
 
     this.getDimensions = function() {
-      return source.getDimensions();
+      var dimensions = source.getDimensions();
+      var heightRatio = dimensions.height / height;
+      var widthRatio = dimensions.width / width;
+      var scaleFactor = 1 / Math.min(heightRatio, widthRatio);
+      dimensions.scaleFactor = Number.isFinite(scaleFactor)? scaleFactor : 1;
+      return dimensions;
     };
 
     // this method can be overwritten from outside
@@ -303,7 +302,8 @@
     this.getDimensions = function() {
       return {
         width: image.naturalWidth,
-        height: image.naturalHeight
+        height: image.naturalHeight,
+        scaleFactor: 1
       };
     };
   };
@@ -516,12 +516,12 @@
     };
 
     this.resize = function(containerWidth, containerHeight) {
-      var sourceDimensions = sourceManager.getDimensions();
-
       if (!containerWidth || !containerHeight) {
         containerWidth = root.parentNode.offsetWidth;
         containerHeight = root.parentNode.offsetHeight;
       }
+      sourceManager.resize(containerWidth, containerHeight);
+      var sourceDimensions = sourceManager.getDimensions();
 
       // Video source size
       var sourceHeight = sourceDimensions.height;
@@ -530,14 +530,8 @@
       // Target size in device co-ordinats
       var overlaySize = getOverlayDimensions(containerWidth, containerHeight);
 
-      // The mapping value from container to source scale
-      var scaleX = (sourceWidth / containerWidth );
-      var scaleY = (sourceHeight / containerHeight);
-      var scaleFactor = 1 / Math.min(scaleY, scaleX);
-      scaleFactor = Number.isFinite(scaleFactor)? scaleFactor : 1;
-
       // The canvas should be the same size as the video mapping 1:1
-      dHeight = dWidth = overlaySize.width / scaleFactor ;
+      dHeight = dWidth = overlaySize.width / sourceDimensions.scaleFactor ;
 
       // The width of the canvas should be the size of the overlay in video size.
       if(dWidth == 0) debugger;
@@ -553,7 +547,6 @@
       sHeight = dHeight;
 
       drawOverlay(overlaySize);
-      sourceManager.resize(containerWidth, containerHeight);
     };
 
     window.addEventListener('resize', this.resize);

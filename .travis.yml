@@ -12,6 +12,7 @@ deploy:
   provider: gae
   keyfile: qrsnapper-d4b905ab556f.json
   project: qrsnapper
+  on: production
 
 before_install:
   - pip install PyOpenSSL --user

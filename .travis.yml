@@ -13,6 +13,7 @@ deploy:
   keyfile: qrsnapper-d4b905ab556f.json
   project: qrsnapper
   on: production
+  skip_cleanup: true
 
 before_install:
   - pip install PyOpenSSL --user

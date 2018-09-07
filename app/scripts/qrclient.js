@@ -1,49 +1,31 @@
-var QRClient = function() {
-  var worker = new Worker('/scripts/jsqrcode/qrworker.js');
-  var barcodeDetector;
-  var barcodeDetectorErrored = false;
+import  * as Comlink from './comlink.js';
 
-  var currentCallback;
+const QRApi = Comlink.proxy(new Worker('/scripts/qrworker.js')); 
 
-  this.decode = function(context, callback) {
-    // Temporary hack because
-    if('BarcodeDetector' in window && !barcodeDetectorErrored) {
-      barcodeDetector = new BarcodeDetector();
-      barcodeDetector.detect(context.canvas)
-      .then(barcodes => {
-        // return the first barcode.
-        if(barcodes.length > 0) {
-          callback(barcodes[0].rawValue);
-        }
-        else {
-          callback();
-        }
-      })
-      .catch(err => {
-        // don't use the detector... it is erroring.
-        barcodeDetectorErrored = true;
-        callback();
-        console.error(err)
-      });
-    }
-    else {
-      // A frame has been captured.
-      try {
-        var canvas = context.canvas;
-        var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        worker.postMessage(imageData);
-      }
-      catch(err) {
-        console.error(err);
-      }
-      
-      currentCallback = callback;
-    }
-  };
+// Use the native API's
+let nativeDetector = async () => {
+  let barcodeDetector = new BarcodeDetector();
+  let barcodes = await barcodeDetector.detect(context.canvas);
+  // return the first barcode.
+  if (barcodes.length > 0) {
+    return barcodes[0].rawValue;
+  }
+};
 
-  worker.onmessage = function(e) {
-    if(currentCallback) {
-      currentCallback(e.data);
-    }
-  };
- };
+// Use the polyfil
+let workerDetector = async () => {
+  var canvas = context.canvas;
+  var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  return await QRApi.detect(imageData);
+}
+
+let detector = ('BarcodeDetector' in window) ? nativeDetector : workerDetector; 
+
+export const decode = async function (context) {
+  try {
+    return detector();
+  } catch (err) {
+    // There was an error fallback to worker;
+    detector = workerDetector;
+  }
+};

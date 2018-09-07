@@ -14,20 +14,9 @@ importScripts('grid.js',
     'qrcode.js',
     'findpat.js',
     'alignpat.js',
-    'databr.js');
+    'databr.js'
+    );
 
+import * as Comlink from './comlink.js';
 
-self.onmessage = function(e) {
-  var data = e.data;
-
-  try {
-    var width = data.width;
-    var height = data.height;
-    var result = qrcode.decode(width, height, data);
-    postMessage(result);
-  } 
-  catch(e) {
-    postMessage(undefined);
-  }
-
-};
+Comlink.expose({qrcode}, self);

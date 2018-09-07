@@ -16,6 +16,9 @@
  *  limitations under the License
  *
  */
+
+import { decode } from './qrclient.js'
+
 (function() {
   'use strict';
 
@@ -26,17 +29,16 @@
     var qrCodeManager = new QRCodeManager('qrcode');
     var processingFrame = false;
 
-    cameraManager.onframe = function(context) {
+    cameraManager.onframe = async function(context) {
       // There is a frame in the camera, what should we do with it?
       if(processingFrame == false) {
         processingFrame = true;
-        qrCodeManager.detectQRCode(context, function(url) {
-          if(url !== undefined) {
-            if(ga) { ga('send', 'event', 'urlfound'); }
-            qrCodeManager.showDialog(url);
-          }
-          processingFrame = false;
-        });
+        let url = await qrCodeManager.detectQRCode(context);
+        if(url !== undefined) {
+          if(ga) { ga('send', 'event', 'urlfound'); }
+          qrCodeManager.showDialog(url);
+        }
+        processingFrame = false;
       }
     };
   };
@@ -124,17 +126,14 @@
       qrcodeShare.classList.remove('hidden');
     }
 
-    this.detectQRCode = function(context, callback) {
-      callback = callback || function() {};
-
-      client.decode(context, function(result) {
-        var normalizedUrl;
-        if(result !== undefined) {
-          normalizedUrl = normalizeUrl(result);
-          self.currentUrl = normalizedUrl;
-        }
-        callback(normalizedUrl);
-      });
+    this.detectQRCode = async function(context) {
+      let result = await decode(context);
+      let normalizedUrl;
+      if(result !== undefined) {
+        normalizedUrl = normalizeUrl(result);
+        self.currentUrl = normalizedUrl;
+      }
+      return normalizedUrl;
     };
 
     this.showDialog = function(normalizedUrl) {

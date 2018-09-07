@@ -20,7 +20,7 @@ import gulp from 'gulp';
 import del from 'del';
 import runSequence from 'run-sequence';
 import gulpLoadPlugins from 'gulp-load-plugins';
-import { rollup } from 'rollup';
+import rollup from 'rollup';
 import { uglify } from 'rollup-plugin-uglify';
 import { minify } from 'uglify-es';
 import babel from 'rollup-plugin-babel';
@@ -28,24 +28,26 @@ import babel from 'rollup-plugin-babel';
 const $ = gulpLoadPlugins();
 
 // Optimize images
-let images = () =>
+gulp.task('images', () =>
   gulp.src('app/images/**/*')
     .pipe($.cache($.imagemin({
       progressive: true,
       interlaced: true
     })))
     .pipe(gulp.dest('dist/images'))
-    .pipe($.size({title: 'images'}));
+    .pipe($.size({title: 'images'}))
+);
 
 // Copy all files at the root level (app)
-let copy = () =>
+gulp.task('copy', () =>
   gulp.src([
     'app/*',
     '!app/*.html'
   ], {
     dot: true
   }).pipe(gulp.dest('dist'))
-    .pipe($.size({title: 'copy'}));
+    .pipe($.size({title: 'copy'}))
+);
 
 gulp.task('copy-qr', () =>
   gulp.src([
@@ -66,7 +68,7 @@ gulp.task('copy-sw', () =>
 );
 
 // Compile and automatically prefix stylesheets
-let styles = () => {
+gulp.task('styles', () => {
   const AUTOPREFIXER_BROWSERS = [
     'ie >= 10',
     'ie_mob >= 10',
@@ -91,10 +93,21 @@ let styles = () => {
     .pipe($.cssnano())
     .pipe($.size({title: 'styles'}))
     .pipe(gulp.dest('dist/styles'));
-};
+});
+
+gulp.task('scripts', () => rollup({
+  input: 'app/scripts/main.js',
+  output: { 
+      file: 'dist/app/scripts/main.mjs',
+      format: 'es'
+  },
+  plugins: [
+      uglify({}, minify)
+  ]
+}));
 
 // Scan your HTML for assets & optimize them
-let html = () => {
+gulp.task('html', () => {
   return gulp.src('app/**/*.html')
     .pipe($.useref({
       searchPath: '{.tmp,app}',
@@ -116,7 +129,10 @@ let html = () => {
     // Output files
     .pipe($.if('*.html', $.size({title: 'html', showFiles: true})))
     .pipe(gulp.dest('dist'));
-};
+});
+
+// Clean output directory 
+gulp.task('clean', () => del(['.tmp', 'dist/*', '!dist/.git'], {dot: true}));
 
 gulp.task('webserver', function() {
   gulp.src('dist')
@@ -126,33 +142,12 @@ gulp.task('webserver', function() {
     }));
 });
 
-let paths = {
-  scripts: {
-    dest: 'dist/app/scripts/main.mjs'
-  }
-}
 
-
-let clean = () => {
-  return del(['.tmp', 'dist/*', '!dist/.git'], {dot: true});
-};
-
-let scripts = async () => {
-  // Scripts will run rollup on the three output file
-  let main = await rollup({
-        input: 'app/scripts/main.js',
-        output: { 
-          format: 'es',
-          file: 'dist/scripts/main.mjs'
-        },
-        plugins: [
-          uglify({}, minify)
-        ]
-      });
-    console.log(main)
-  return main;
-};
-
-let build = gulp.series(clean, copy, gulp.parallel(scripts, styles, html, images));
-
-gulp.task('default', build);
+// Build production files, the default task
+gulp.task('default', ['clean'], cb =>
+  runSequence(
+    'styles',
+    ['html', 'scripts', 'images', 'copy', 'copy-qr', 'copy-sw'],
+    cb
+  )
+);

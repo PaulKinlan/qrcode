@@ -1,4 +1,4 @@
-const dataStoreVersion = "0.1.7";
+const dataStoreVersion = "0.2.0";
 importScripts('/scripts/sw/router.js');
 importScripts('/scripts/sw/fileManifest.js');
 

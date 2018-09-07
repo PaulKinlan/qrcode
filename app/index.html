@@ -77,7 +77,8 @@
       </div>
     </div>
 
-    <script src="/scripts/main.min.js"></script>
+    <script src="/scripts/main.mjs" as="module"></script>
+    <script src="/scripts/main.min.js" nomodule></script>
 
     <script>
     if('serviceWorker' in navigator) {

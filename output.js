@@ -1,3 +1,16 @@
+'use strict';
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var gulp = _interopDefault(require('gulp'));
+var del = _interopDefault(require('del'));
+require('run-sequence');
+var gulpLoadPlugins = _interopDefault(require('gulp-load-plugins'));
+var rollup = require('rollup');
+var rollupPluginUglify = require('rollup-plugin-uglify');
+var uglifyEs = require('uglify-es');
+require('rollup-plugin-babel');
+
 /**
  *
  *  Web Starter Kit
@@ -16,14 +29,6 @@
  *  limitations under the License
  *
  */
-import gulp from 'gulp';
-import del from 'del';
-import runSequence from 'run-sequence';
-import gulpLoadPlugins from 'gulp-load-plugins';
-import { rollup } from 'rollup';
-import { uglify } from 'rollup-plugin-uglify';
-import { minify } from 'uglify-es';
-import babel from 'rollup-plugin-babel';
 
 const $ = gulpLoadPlugins();
 
@@ -126,12 +131,6 @@ gulp.task('webserver', function() {
     }));
 });
 
-let paths = {
-  scripts: {
-    dest: 'dist/app/scripts/main.mjs'
-  }
-}
-
 
 let clean = () => {
   return del(['.tmp', 'dist/*', '!dist/.git'], {dot: true});
@@ -139,17 +138,17 @@ let clean = () => {
 
 let scripts = async () => {
   // Scripts will run rollup on the three output file
-  let main = await rollup({
+  let main = await rollup.rollup({
         input: 'app/scripts/main.js',
         output: { 
           format: 'es',
           file: 'dist/scripts/main.mjs'
         },
         plugins: [
-          uglify({}, minify)
+          rollupPluginUglify.uglify({}, uglifyEs.minify)
         ]
       });
-    console.log(main)
+    console.log(main);
   return main;
 };
 

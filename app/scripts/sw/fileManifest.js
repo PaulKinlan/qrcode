@@ -8,6 +8,6 @@ export const requiredFiles = [
   '/images/ic_file_upload_24px.svg',
   '/styles/app.css',
   '/scripts/main.js',
-  '/scripts/main.msj',
+  '/scripts/main.mjs',
   '/scripts/qrworker.js'
 ];

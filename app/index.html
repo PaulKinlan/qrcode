@@ -29,6 +29,8 @@
 
     <meta name="theme-color" content="#212121">
     <link rel="stylesheet" href="/styles/app.css">
+    <script src="/scripts/main.mjs" type="module"></script>
+    <script src="/scripts/main.js" defer nomodule></script>
   </head>
   <body>
 
@@ -76,9 +78,6 @@
         </div>
       </div>
     </div>
-
-    <script src="/scripts/main.mjs" as="module"></script>
-    <script src="/scripts/main.min.js" nomodule></script>
 
     <script>
     if('serviceWorker' in navigator) {

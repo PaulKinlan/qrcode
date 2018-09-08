@@ -33,8 +33,8 @@ qrcode.orderBestPatterns=function(patterns)
 			
 			function distance( pattern1,  pattern2)
 			{
-				xDiff = pattern1.X - pattern2.X;
-				yDiff = pattern1.Y - pattern2.Y;
+				let xDiff = pattern1.X - pattern2.X;
+				let yDiff = pattern1.Y - pattern2.Y;
 				return  Math.sqrt( (xDiff * xDiff + yDiff * yDiff));
 			}
 			

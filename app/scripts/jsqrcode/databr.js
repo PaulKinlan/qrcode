@@ -272,9 +272,9 @@ function QRCodeDataBlockReader(blocks,  version,  numErrorCorrectionCode)
 							canvas.println("Guessed mode: " + mode); */
 							throw new Error($1);
 						}
-						dataLength = this.getDataLength(mode);
+						let dataLength = this.getDataLength(mode);
 						if (dataLength < 1)
-							throw "Invalid data length: " + dataLength;
+							throw new Error("Invalid data length: " + dataLength);
 						//canvas.println("length: " + dataLength);
 						switch (mode)
 						{

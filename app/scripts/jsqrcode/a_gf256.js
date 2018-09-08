@@ -111,6 +111,9 @@ function GF256( primitive)
 GF256.QR_CODE_FIELD = new GF256(0x011D);
 GF256.DATA_MATRIX_FIELD = new GF256(0x012D);
 
+let QR_CODE_FIELD = new GF256(0x011D);
+let DATA_MATRIX_FIELD = new GF256(0x012D);
+
 GF256.addOrSubtract=function( a,  b)
 {
 	return a ^ b;

@@ -113,8 +113,6 @@ import { decode } from './qrclient.js'
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
     var qrcodeShare = root.querySelector(".QRCodeSuccessDialog-share");
     var qrcodeCallback = root.querySelector(".QRCodeSuccessDialog-callback");
-
-    var client = new QRClient();
     var callbackController = new QRCodeCallbackController(qrcodeCallback);
 
     var self = this;

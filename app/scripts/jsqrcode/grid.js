@@ -23,7 +23,7 @@
 */
 
 
-GridSampler = {};
+let GridSampler = {};
 
 GridSampler.checkAndNudgePoints=function( image,  points)
 		{

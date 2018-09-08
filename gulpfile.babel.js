@@ -25,6 +25,7 @@ import rollup from 'gulp-better-rollup';
 import { uglify } from 'rollup-plugin-uglify';
 import { minify } from 'uglify-es';
 import babel from 'rollup-plugin-babel';
+import { WSAEDQUOT } from 'constants';
 
 const $ = gulpLoadPlugins();
 
@@ -104,6 +105,7 @@ let html = () => {
 gulp.task('webserver', function() {
   gulp.src('dist')
     .pipe($.webserver({
+      host: '0.0.0.0',
       port: '8080',
       directoryListing: false
     }));

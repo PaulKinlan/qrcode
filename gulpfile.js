@@ -11,6 +11,7 @@ var rollup = _interopDefault(require('gulp-better-rollup'));
 var rollupPluginUglify = require('rollup-plugin-uglify');
 var uglifyEs = require('uglify-es');
 var babel = _interopDefault(require('rollup-plugin-babel'));
+require('constants');
 
 /**
  *
@@ -109,6 +110,7 @@ let html = () => {
 gulp.task('webserver', function() {
   gulp.src('dist')
     .pipe($.webserver({
+      host: '0.0.0.0',
       port: '8080',
       directoryListing: false
     }));
@@ -146,12 +148,13 @@ let worker_prep_lib = () => {
 
 let worker_prep = () => {
   return gulp
-  .src('app/scripts/*.js')
-  .pipe(gulp.dest('.tmp/scripts/'));
+            .src('app/scripts/*.js')
+            .pipe(gulp.dest('.tmp/scripts/'));
 };
 
 let worker = () => {
-  return gulp.src('.tmp/scripts/qrworker.js')
+  return gulp
+    .src('.tmp/scripts/qrworker.js')
     .pipe(
       rollup({
           output: { 

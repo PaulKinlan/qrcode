@@ -20,6 +20,7 @@ import gulp from 'gulp';
 import del from 'del';
 import gulpLoadPlugins from 'gulp-load-plugins';
 import rename from 'gulp-rename';
+import merge from 'gulp-merge';
 import rollup from 'gulp-better-rollup';
 import { uglify } from 'rollup-plugin-uglify';
 import { minify } from 'uglify-es';
@@ -46,24 +47,6 @@ let copy = () =>
     dot: true
   }).pipe(gulp.dest('dist'))
     .pipe($.size({title: 'copy'}));
-
-gulp.task('copy-qr', () =>
-  gulp.src([
-    'app/scripts/jsqrcode/*'
-  ], {
-    dot: true
-  }).pipe(gulp.dest('dist/scripts/jsqrcode/'))
-    .pipe($.size({title: 'copy-qr'}))
-);
-
-gulp.task('copy-sw', () =>
-  gulp.src([
-    'app/scripts/sw/*'
-  ], {
-    dot: true
-  }).pipe(gulp.dest('dist/scripts/sw/'))
-    .pipe($.size({title: 'copy-sw'}))
-);
 
 // Compile and automatically prefix stylesheets
 let styles = () => {
@@ -148,9 +131,23 @@ let sw = () => {
   ).pipe(gulp.dest('dist/'));
 }
 
+let worker_prep_lib = () => {
+  // Get all the QR code libs and put them in a tmp dir
+  return gulp
+            .src('app/scripts/jsqrcode/*.js')
+            .pipe($.concat('qrcode.js'))
+            .pipe(gulp.dest('.tmp/scripts/'));
+}
+
+let worker_prep = () => {
+  return gulp
+            .src('app/scripts/*.js')
+            .pipe(gulp.dest('.tmp/scripts/'));
+}
+
 let worker = () => {
-  // Scripts will run rollup on the three output file
-  return gulp.src('app/scripts/qrworker.js')
+  return gulp
+    .src('.tmp/scripts/qrworker.js')
     .pipe(
       rollup({
           output: { 
@@ -164,7 +161,9 @@ let worker = () => {
             uglify({}, minify)
           ]
         })
-    ).pipe(gulp.dest('dist/scripts/'));
+    )
+    .pipe($.rename('qrworker.js'))
+    .pipe(gulp.dest('dist/scripts/'));
 }
 
 let client_modules = () => {
@@ -203,6 +202,6 @@ let client = () => {
       .pipe(gulp.dest('dist/scripts/'));
 };
 
-let build = gulp.series(clean, copy, gulp.parallel(client, client_modules, sw, worker, styles, html, images));
+let build = gulp.series(clean, copy, gulp.parallel(client, client_modules, sw, gulp.series(worker_prep_lib, worker_prep, worker), styles, html, images));
 
 gulp.task('default', build); 

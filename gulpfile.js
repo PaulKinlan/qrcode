@@ -4,9 +4,9 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 
 var gulp = _interopDefault(require('gulp'));
 var del = _interopDefault(require('del'));
-require('run-sequence');
 var gulpLoadPlugins = _interopDefault(require('gulp-load-plugins'));
 var rename = _interopDefault(require('gulp-rename'));
+require('gulp-merge');
 var rollup = _interopDefault(require('gulp-better-rollup'));
 var rollupPluginUglify = require('rollup-plugin-uglify');
 var uglifyEs = require('uglify-es');
@@ -52,24 +52,6 @@ let copy = () =>
     dot: true
   }).pipe(gulp.dest('dist'))
     .pipe($.size({title: 'copy'}));
-
-gulp.task('copy-qr', () =>
-  gulp.src([
-    'app/scripts/jsqrcode/*'
-  ], {
-    dot: true
-  }).pipe(gulp.dest('dist/scripts/jsqrcode/'))
-    .pipe($.size({title: 'copy-qr'}))
-);
-
-gulp.task('copy-sw', () =>
-  gulp.src([
-    'app/scripts/sw/*'
-  ], {
-    dot: true
-  }).pipe(gulp.dest('dist/scripts/sw/'))
-    .pipe($.size({title: 'copy-sw'}))
-);
 
 // Compile and automatically prefix stylesheets
 let styles = () => {
@@ -154,9 +136,22 @@ let sw = () => {
   ).pipe(gulp.dest('dist/'));
 };
 
+let worker_prep_lib = () => {
+  // Get all the QR code libs and put them in a tmp dir
+  return gulp
+            .src('app/scripts/jsqrcode/*.js')
+            .pipe($.concat('qrcode.js'))
+            .pipe(gulp.dest('.tmp/scripts/'));
+};
+
+let worker_prep = () => {
+  return gulp
+  .src('app/scripts/*.js')
+  .pipe(gulp.dest('.tmp/scripts/'));
+};
+
 let worker = () => {
-  // Scripts will run rollup on the three output file
-  return gulp.src('app/scripts/qrworker.js')
+  return gulp.src('.tmp/scripts/qrworker.js')
     .pipe(
       rollup({
           output: { 
@@ -170,7 +165,9 @@ let worker = () => {
             rollupPluginUglify.uglify({}, uglifyEs.minify)
           ]
         })
-    ).pipe(gulp.dest('dist/scripts/'));
+    )
+    .pipe($.rename('qrworker.js'))
+    .pipe(gulp.dest('dist/scripts/'));
 };
 
 let client_modules = () => {
@@ -209,6 +206,6 @@ let client = () => {
       .pipe(gulp.dest('dist/scripts/'));
 };
 
-let build = gulp.series(clean, copy, gulp.parallel(client, client_modules, sw, worker, styles, html, images));
+let build = gulp.series(clean, copy, gulp.parallel(client, client_modules, sw, gulp.series(worker_prep_lib, worker_prep, worker), styles, html, images));
 
 gulp.task('default', build);

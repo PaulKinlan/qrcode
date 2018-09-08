@@ -260,7 +260,7 @@ function QRCodeDataBlockReader(blocks,  version,  numErrorCorrectionCode)
 							if (output.length > 0)
 								break;
 							else
-								throw "Empty data block";
+								throw new Error("Empty data block");
 						}
 						//if (mode != 1 && mode != 2 && mode != 4 && mode != 8)
 						//	break;
@@ -270,7 +270,7 @@ function QRCodeDataBlockReader(blocks,  version,  numErrorCorrectionCode)
 							/*					canvas.println("Invalid mode: " + mode);
 							mode = guessMode(mode);
 							canvas.println("Guessed mode: " + mode); */
-							throw "Invalid mode: " + mode + " in (block:" + this.blockPointer + " bit:" + this.bitPointer + ")";
+							throw new Error($1);
 						}
 						dataLength = this.getDataLength(mode);
 						if (dataLength < 1)

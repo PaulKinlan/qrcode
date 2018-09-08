@@ -391,7 +391,7 @@ function FinderPatternFinder()
 			if (startSize < 3)
 			{
 				// Couldn't find enough finder patterns
-				throw "Couldn't find enough finder patterns";
+				throw new Error("Couldn't find enough finder patterns");
 			}
 			
 			// Filter outlier possibilities whose module size is too different

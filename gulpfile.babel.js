@@ -18,9 +18,9 @@
  */
 import gulp from 'gulp';
 import del from 'del';
-import runSequence from 'run-sequence';
 import gulpLoadPlugins from 'gulp-load-plugins';
-import { rollup } from 'rollup';
+import rename from 'gulp-rename';
+import rollup from 'gulp-better-rollup';
 import { uglify } from 'rollup-plugin-uglify';
 import { minify } from 'uglify-es';
 import babel from 'rollup-plugin-babel';
@@ -126,33 +126,83 @@ gulp.task('webserver', function() {
     }));
 });
 
-let paths = {
-  scripts: {
-    dest: 'dist/app/scripts/main.mjs'
-  }
-}
-
-
 let clean = () => {
   return del(['.tmp', 'dist/*', '!dist/.git'], {dot: true});
 };
 
-let scripts = async () => {
+let sw = () => {
   // Scripts will run rollup on the three output file
-  let main = await rollup({
-        input: 'app/scripts/main.js',
+  return gulp.src('app/sw.js').pipe(
+    rollup({
         output: { 
-          format: 'es',
-          file: 'dist/scripts/main.mjs'
+          format: 'iife'
         },
         plugins: [
+          babel({
+            babelrc: false,
+            exclude: 'node_modules/**'
+          }),
           uglify({}, minify)
         ]
-      });
-    console.log(main)
-  return main;
+      })
+  ).pipe(gulp.dest('dist/'));
+}
+
+let worker = () => {
+  // Scripts will run rollup on the three output file
+  return gulp.src('app/scripts/qrworker.js')
+    .pipe(
+      rollup({
+          output: { 
+            format: 'iife'
+          },
+          plugins: [
+            babel({
+              babelrc: false,
+              exclude: 'node_modules/**'
+            }),
+            uglify({}, minify)
+          ]
+        })
+    ).pipe(gulp.dest('dist/scripts/'));
+}
+
+let client_modules = () => {
+  // Scripts will run rollup on the three output file
+  return gulp.src('app/scripts/main.js')
+    .pipe(
+      rollup({
+          output: { 
+            format: 'es'
+          },
+          plugins: [
+            uglify({}, minify)
+          ]
+        })
+      )
+    .pipe(rename({extname: ".mjs"}))
+    .pipe(gulp.dest('dist/scripts/'));
 };
 
-let build = gulp.series(clean, copy, gulp.parallel(scripts, styles, html, images));
+let client = () => {
+  // Scripts will run rollup on the three output file
+  return gulp.src('app/scripts/main.js')
+      .pipe(
+        rollup({
+          output: { 
+            format: 'iife'
+          },
+          plugins: [
+            babel({
+              babelrc: false,
+              exclude: 'node_modules/**'
+            }),
+            uglify({}, minify)
+          ]
+        }))
+      .pipe(gulp.dest('dist/scripts/'));
+};
 
-gulp.task('default', build);
+let build = gulp.series(clean, copy, gulp.parallel(client, client_modules, sw, worker, styles, html, images));
+
+gulp.task('default', build); 

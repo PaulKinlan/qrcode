@@ -1,3 +1,17 @@
+'use strict';
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var gulp = _interopDefault(require('gulp'));
+var del = _interopDefault(require('del'));
+require('run-sequence');
+var gulpLoadPlugins = _interopDefault(require('gulp-load-plugins'));
+var rename = _interopDefault(require('gulp-rename'));
+var rollup = _interopDefault(require('gulp-better-rollup'));
+var rollupPluginUglify = require('rollup-plugin-uglify');
+var uglifyEs = require('uglify-es');
+var babel = _interopDefault(require('rollup-plugin-babel'));
+
 /**
  *
  *  Web Starter Kit
@@ -16,38 +30,28 @@
  *  limitations under the License
  *
  */
-import gulp from 'gulp';
-import del from 'del';
-import runSequence from 'run-sequence';
-import gulpLoadPlugins from 'gulp-load-plugins';
-import rollup from 'rollup';
-import { uglify } from 'rollup-plugin-uglify';
-import { minify } from 'uglify-es';
-import babel from 'rollup-plugin-babel';
 
 const $ = gulpLoadPlugins();
 
 // Optimize images
-gulp.task('images', () =>
+let images = () =>
   gulp.src('app/images/**/*')
     .pipe($.cache($.imagemin({
       progressive: true,
       interlaced: true
     })))
     .pipe(gulp.dest('dist/images'))
-    .pipe($.size({title: 'images'}))
-);
+    .pipe($.size({title: 'images'}));
 
 // Copy all files at the root level (app)
-gulp.task('copy', () =>
+let copy = () =>
   gulp.src([
     'app/*',
     '!app/*.html'
   ], {
     dot: true
   }).pipe(gulp.dest('dist'))
-    .pipe($.size({title: 'copy'}))
-);
+    .pipe($.size({title: 'copy'}));
 
 gulp.task('copy-qr', () =>
   gulp.src([
@@ -68,7 +72,7 @@ gulp.task('copy-sw', () =>
 );
 
 // Compile and automatically prefix stylesheets
-gulp.task('styles', () => {
+let styles = () => {
   const AUTOPREFIXER_BROWSERS = [
     'ie >= 10',
     'ie_mob >= 10',
@@ -93,21 +97,10 @@ gulp.task('styles', () => {
     .pipe($.cssnano())
     .pipe($.size({title: 'styles'}))
     .pipe(gulp.dest('dist/styles'));
-});
-
-gulp.task('scripts', () => rollup({
-  input: 'app/scripts/main.js',
-  output: { 
-      file: 'dist/app/scripts/main.mjs',
-      format: 'es'
-  },
-  plugins: [
-      uglify({}, minify)
-  ]
-}));
+};
 
 // Scan your HTML for assets & optimize them
-gulp.task('html', () => {
+let html = () => {
   return gulp.src('app/**/*.html')
     .pipe($.useref({
       searchPath: '{.tmp,app}',
@@ -129,10 +122,7 @@ gulp.task('html', () => {
     // Output files
     .pipe($.if('*.html', $.size({title: 'html', showFiles: true})))
     .pipe(gulp.dest('dist'));
-});
-
-// Clean output directory 
-gulp.task('clean', () => del(['.tmp', 'dist/*', '!dist/.git'], {dot: true}));
+};
 
 gulp.task('webserver', function() {
   gulp.src('dist')
@@ -142,12 +132,83 @@ gulp.task('webserver', function() {
     }));
 });
 
+let clean = () => {
+  return del(['.tmp', 'dist/*', '!dist/.git'], {dot: true});
+};
 
-// Build production files, the default task
-gulp.task('default', ['clean'], cb =>
-  runSequence(
-    'styles',
-    ['html', 'scripts', 'images', 'copy', 'copy-qr', 'copy-sw'],
-    cb
-  )
-);
+let sw = () => {
+  // Scripts will run rollup on the three output file
+  return gulp.src('app/sw.js').pipe(
+    rollup({
+        output: { 
+          format: 'iife'
+        },
+        plugins: [
+          babel({
+            babelrc: false,
+            exclude: 'node_modules/**'
+          }),
+          rollupPluginUglify.uglify({}, uglifyEs.minify)
+        ]
+      })
+  ).pipe(gulp.dest('dist/'));
+};
+
+let worker = () => {
+  // Scripts will run rollup on the three output file
+  return gulp.src('app/scripts/qrworker.js')
+    .pipe(
+      rollup({
+          output: { 
+            format: 'iife'
+          },
+          plugins: [
+            babel({
+              babelrc: false,
+              exclude: 'node_modules/**'
+            }),
+            rollupPluginUglify.uglify({}, uglifyEs.minify)
+          ]
+        })
+    ).pipe(gulp.dest('dist/scripts/'));
+};
+
+let client_modules = () => {
+  // Scripts will run rollup on the three output file
+  return gulp.src('app/scripts/main.js')
+    .pipe(
+      rollup({
+          output: { 
+            format: 'es'
+          },
+          plugins: [
+            rollupPluginUglify.uglify({}, uglifyEs.minify)
+          ]
+        })
+      )
+    .pipe(rename({extname: ".mjs"}))
+    .pipe(gulp.dest('dist/scripts/'));
+};
+
+let client = () => {
+  // Scripts will run rollup on the three output file
+  return gulp.src('app/scripts/main.js')
+      .pipe(
+        rollup({
+          output: { 
+            format: 'iife'
+          },
+          plugins: [
+            babel({
+              babelrc: false,
+              exclude: 'node_modules/**'
+            }),
+            rollupPluginUglify.uglify({}, uglifyEs.minify)
+          ]
+        }))
+      .pipe(gulp.dest('dist/scripts/'));
+};
+
+let build = gulp.series(clean, copy, gulp.parallel(client, client_modules, sw, worker, styles, html, images));
+
+gulp.task('default', build);

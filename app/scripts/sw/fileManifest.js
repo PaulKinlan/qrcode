@@ -1,4 +1,4 @@
-const requiredFiles = [
+export const requiredFiles = [
   '/',
   '/manifest.json',
   '/index.html',

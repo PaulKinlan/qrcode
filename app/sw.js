@@ -1,6 +1,6 @@
 const dataStoreVersion = "0.2.0";
-importScripts('/scripts/sw/router.js');
-importScripts('/scripts/sw/fileManifest.js');
+import {router} from  './scripts/sw/router.js';
+import {requiredFiles} from './scripts/sw/fileManifest.js';
 
 /*
   Escape hatch. ABORT ABORT. Any URL with a kill-sw=true at the end of the query string.

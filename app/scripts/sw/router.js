@@ -81,8 +81,6 @@ const FetchRouter = function() {
   };
 };
 
-const router = new FetchRouter();
-
 self.addEventListener('fetch', function(event) {
   const request = event.request;
   const url = new URL(event.request.url);
@@ -95,8 +93,4 @@ self.addEventListener('fetch', function(event) {
   }
 });
 
-/*
-  thoughts: 
-    want to intercept scheme origin port path
-    want to be able just to manage the requests for path
-*/
+export const router = new FetchRouter();

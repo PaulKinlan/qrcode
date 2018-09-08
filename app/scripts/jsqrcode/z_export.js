@@ -1,2 +1,2 @@
 // Default export
-export default {qrcode}; 
+export {qrcode}; 

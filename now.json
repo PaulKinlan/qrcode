@@ -5,7 +5,6 @@
     "qrsnapper.com"
   ],
   "static": {
-    "public": "./dist", 
     "headers": [
       {
         "source" : "**/*.@(mjs)",

@@ -12,6 +12,7 @@ install:
 - npm install
 script:
 - npx gulp
+- cp now.json dist/
 after_success:
 - (cd dist/ && npx now --token $NOW_TOKEN)
 - (cd dist/ && npx now alias --token $NOW_TOKEN)

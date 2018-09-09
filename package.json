@@ -16,9 +16,10 @@
     "gulp-load-plugins": "^1.0.0",
     "gulp-newer": "^1.0.0",
     "gulp-size": "^2.0.0",
-    "gulp-uglify": "^1.0.1",
+    "gulp-uglify": "^1.5.4",
     "gulp-useref": "^3.0.0",
-    "gulp-webserver": "^0.9.1"
+    "gulp-webserver": "^0.9.1",
+    "rollup-plugin-babel": "^4.0.3"
   },
   "private": true,
   "scripts": {
@@ -28,10 +29,15 @@
     "comlink": "^3.0.3",
     "gulp-merge": "^0.1.1",
     "gulp-rename": "^1.4.0",
+    "gulp-rollup": "^2.16.2",
     "now": "^11.4.1",
     "rollup": "^0.65.2",
-    "rollup-plugin-babel": "^4.0.3",
+    "rollup-plugin-terser": "^2.0.2",
     "rollup-plugin-uglify": "^5.0.2",
-    "uglify-es": "^3.3.9"
+    "rollup-plugin-uglify-es": "0.0.1",
+    "rollup-stream": "^1.24.1",
+    "uglify-es": "^3.3.9",
+    "vinyl-buffer": "^1.0.1",
+    "vinyl-source-stream": "^2.0.0"
   }
 }

@@ -6,12 +6,11 @@ var gulp = _interopDefault(require('gulp'));
 var del = _interopDefault(require('del'));
 var gulpLoadPlugins = _interopDefault(require('gulp-load-plugins'));
 var rename = _interopDefault(require('gulp-rename'));
-require('gulp-merge');
-var rollup = _interopDefault(require('gulp-better-rollup'));
-var rollupPluginUglify = require('rollup-plugin-uglify');
-var uglifyEs = require('uglify-es');
+var rollupStream_ = require('rollup-stream');
+var rollup_ = require('rollup');
+var source = _interopDefault(require('vinyl-source-stream'));
+var rollupPluginTerser = require('rollup-plugin-terser');
 var babel = _interopDefault(require('rollup-plugin-babel'));
-require('constants');
 
 /**
  *
@@ -31,6 +30,9 @@ require('constants');
  *  limitations under the License
  *
  */
+
+const rollupStream = rollupStream_;
+const rollup = rollup_;
 
 const $ = gulpLoadPlugins();
 
@@ -122,20 +124,18 @@ let clean = () => {
 
 let sw = () => {
   // Scripts will run rollup on the three output file
-  return gulp.src('app/sw.js').pipe(
-    rollup({
-        output: { 
-          format: 'iife'
-        },
-        plugins: [
-          babel({
-            babelrc: false,
-            exclude: 'node_modules/**'
-          }),
-          rollupPluginUglify.uglify({}, uglifyEs.minify)
-        ]
-      })
-  ).pipe(gulp.dest('dist/'));
+  return rollupStream({
+    input: 'app/sw.js',
+    rollup: rollup,
+    output: {
+      format: 'iife'
+    },
+    plugins: [
+      rollupPluginTerser.terser()
+    ]
+  })
+  .pipe(source('sw.js'))
+  .pipe(gulp.dest('dist/'));
 };
 
 let worker_prep_lib = () => {
@@ -153,59 +153,61 @@ let worker_prep = () => {
 };
 
 let worker = () => {
-  return gulp
-    .src('.tmp/scripts/qrworker.js')
-    .pipe(
-      rollup({
-          output: { 
-            format: 'iife'
-          },
-          plugins: [
-            babel({
-              babelrc: false,
-              exclude: 'node_modules/**'
-            }),
-            rollupPluginUglify.uglify({}, uglifyEs.minify)
-          ]
-        })
-    )
+  return rollupStream({
+      input: '.tmp/scripts/qrworker.js',
+      rollup: rollup,
+      output: {
+        format: 'iife',
+      },
+      plugins: [
+        babel({
+          babelrc: false,
+          presets: [['@babel/env',{"targets": { "chrome": "52" }}]],
+          exclude: 'node_modules/**'
+        }),
+        rollupPluginTerser.terser()
+      ]
+    })
+    .pipe(source('qrworker.js'))
     .pipe($.rename('qrworker.js'))
     .pipe(gulp.dest('dist/scripts/'));
 };
 
 let client_modules = () => {
   // Scripts will run rollup on the three output file
-  return gulp.src('app/scripts/main.js')
-    .pipe(
-      rollup({
-          output: { 
-            format: 'es'
-          },
-          plugins: [
-            rollupPluginUglify.uglify({}, uglifyEs.minify)
-          ]
-        })
-      )
+  return rollupStream({
+      input: 'app/scripts/main.js',
+      rollup: rollup,
+      output: {
+        format: 'es',
+      },
+      plugins: [
+        rollupPluginTerser.terser()
+      ]
+    })
+    .pipe(source('main.js'))
     .pipe(rename({extname: ".mjs"}))
     .pipe(gulp.dest('dist/scripts/'));
 };
 
 let client = () => {
   // Scripts will run rollup on the three output file
-  return gulp.src('app/scripts/main.js')
-      .pipe(
-        rollup({
-          output: { 
-            format: 'iife'
-          },
-          plugins: [
-            babel({
-              babelrc: false,
-              exclude: 'node_modules/**'
-            }),
-            rollupPluginUglify.uglify({}, uglifyEs.minify)
-          ]
-        }))
+  return rollupStream({
+        input: 'app/scripts/main.js',
+        rollup: rollup,
+        output: {
+          format: 'iife',
+        },
+        plugins: [
+          babel({
+            babelrc: false,
+            presets: ['@babel/env'],
+            exclude: 'node_modules/**'
+          }),
+          rollupPluginTerser.terser()
+        ]
+      })
+      .pipe(source('main.js'))
       .pipe(gulp.dest('dist/scripts/'));
 };
 

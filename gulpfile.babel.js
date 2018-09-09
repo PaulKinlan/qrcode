@@ -1,7 +1,7 @@
 /**
  *
- *  Web Starter Kit
- *  Copyright 2015 Google Inc. All rights reserved.
+ *  QR Snapper
+ *  Copyright 2018 Google Inc. All rights reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,12 +20,14 @@ import gulp from 'gulp';
 import del from 'del';
 import gulpLoadPlugins from 'gulp-load-plugins';
 import rename from 'gulp-rename';
-import merge from 'gulp-merge';
-import rollup from 'gulp-better-rollup';
-import { uglify } from 'rollup-plugin-uglify';
-import { minify } from 'uglify-es';
+import * as rollupStream_ from 'rollup-stream';
+import * as rollup_ from 'rollup';
+import source from 'vinyl-source-stream';
+import { terser } from 'rollup-plugin-terser';
 import babel from 'rollup-plugin-babel';
-import { WSAEDQUOT } from 'constants';
+
+const rollupStream = rollupStream_;
+const rollup = rollup_;
 
 const $ = gulpLoadPlugins();
 
@@ -116,21 +118,19 @@ let clean = () => {
 };
 
 let sw = () => {
-  // Scripts will run rollup on the three output file
-  return gulp.src('app/sw.js').pipe(
-    rollup({
-        output: { 
-          format: 'iife'
-        },
-        plugins: [
-          babel({
-            babelrc: false,
-            exclude: 'node_modules/**'
-          }),
-          uglify({}, minify)
-        ]
-      })
-  ).pipe(gulp.dest('dist/'));
+  // Assume the SW can do everything modern except modules.
+  return rollupStream({
+    input: 'app/sw.js',
+    rollup: rollup,
+    output: {
+      format: 'iife'
+    },
+    plugins: [
+      terser()
+    ]
+  })
+  .pipe(source('sw.js'))
+  .pipe(gulp.dest('dist/'));
 }
 
 let worker_prep_lib = () => {
@@ -148,59 +148,62 @@ let worker_prep = () => {
 }
 
 let worker = () => {
-  return gulp
-    .src('.tmp/scripts/qrworker.js')
-    .pipe(
-      rollup({
-          output: { 
-            format: 'iife'
-          },
-          plugins: [
-            babel({
-              babelrc: false,
-              exclude: 'node_modules/**'
-            }),
-            uglify({}, minify)
-          ]
-        })
-    )
+  // Assume the worker can do everything modern except modules.
+  return rollupStream({
+      input: '.tmp/scripts/qrworker.js',
+      rollup: rollup,
+      output: {
+        format: 'iife',
+      },
+      plugins: [
+        babel({
+          babelrc: false,
+          presets: [['@babel/env',{"targets": { "chrome": "52" }}]],
+          exclude: 'node_modules/**'
+        }),
+        terser()
+      ]
+    })
+    .pipe(source('qrworker.js'))
     .pipe($.rename('qrworker.js'))
     .pipe(gulp.dest('dist/scripts/'));
 }
 
 let client_modules = () => {
-  // Scripts will run rollup on the three output file
-  return gulp.src('app/scripts/main.js')
-    .pipe(
-      rollup({
-          output: { 
-            format: 'es'
-          },
-          plugins: [
-            uglify({}, minify)
-          ]
-        })
-      )
+  // Any browser that can load modules is totes amaze.
+  return rollupStream({
+      input: 'app/scripts/main.js',
+      rollup: rollup,
+      output: {
+        format: 'es',
+      },
+      plugins: [
+        terser()
+      ]
+    })
+    .pipe(source('main.js'))
     .pipe(rename({extname: ".mjs"}))
     .pipe(gulp.dest('dist/scripts/'));
 };
 
 let client = () => {
-  // Scripts will run rollup on the three output file
-  return gulp.src('app/scripts/main.js')
-      .pipe(
-        rollup({
-          output: { 
-            format: 'iife'
-          },
-          plugins: [
-            babel({
-              babelrc: false,
-              exclude: 'node_modules/**'
-            }),
-            uglify({}, minify)
-          ]
-        }))
+  // Create the client JS for browsers that don't support modules. Aim for indexing.
+  return rollupStream({
+        input: 'app/scripts/main.js',
+        rollup: rollup,
+        output: {
+          format: 'iife',
+        },
+        plugins: [
+          babel({
+            babelrc: false,
+            presets: [['@babel/env',{"targets": { "chrome": "41" }}]],
+            exclude: 'node_modules/**'
+          }),
+          terser()
+        ]
+      })
+      .pipe(source('main.js'))
       .pipe(gulp.dest('dist/scripts/'));
 };
 

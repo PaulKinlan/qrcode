@@ -1,0 +1,33 @@
+{
+  "name": "qrsnapper.com",
+  "type": "static",
+  "alias": [
+    "qrsnapper.com"
+  ],
+  "static": {
+    "public": "dist", 
+    "headers": [
+      {
+        "source" : "**/*.@(mjs)",
+        "headers" : [{
+          "key" : "Content-type",
+          "value" : "text/javascript"
+        }]
+      },
+      {
+        "source" : "**/*.@(jpg|jpeg|gif|png)",
+        "headers" : [{
+          "key" : "Cache-Control",
+          "value" : "max-age=7200"
+        }]
+      },
+      {
+        "source" : "**/*.@(js|json)",
+        "headers" : [{
+          "key" : "Cache-Control",
+          "value" : "max-age=7200"
+        }]
+      }
+    ]
+  }
+}

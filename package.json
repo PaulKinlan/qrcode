@@ -1,6 +1,6 @@
 {
   "devDependencies": {
-    "@babel/core": "^7.0.0",
+    "@babel/core": "^7.0.1",
     "@babel/preset-env": "^7.0.0",
     "del": "^2.0.2",
     "gulp": "^4.0.0",
@@ -30,7 +30,7 @@
     "gulp-merge": "^0.1.1",
     "gulp-rename": "^1.4.0",
     "gulp-rollup": "^2.16.2",
-    "now": "^11.4.1",
+    "now": "^11.4.4",
     "rollup": "^0.65.2",
     "rollup-plugin-terser": "^2.0.2",
     "rollup-plugin-uglify": "^5.0.2",

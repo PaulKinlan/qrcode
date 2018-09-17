@@ -15,11 +15,8 @@ router.get(/\?kill-sw=true/, function() {
   Manage all the request for this origin in a cache only manner.
 */
 router.get(`${self.location.origin}`, e => {
-  const request = e.request;
-  const url = new URL(e.request.url);
-
   e.respondWith(
-    caches.match(e.request).then(response => {
+    caches.match(e.request, {ignoreSearch:true}).then(response => {
       return response || fetch(e.request);
     })
   );

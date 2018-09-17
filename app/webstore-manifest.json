@@ -12,7 +12,7 @@
   },
   "app": {
     "launch": {
-      "web_url":  "https://qrsnapper.appspot.com/index.html?cws=1"
+      "web_url":  "https://qrsnapper.com/?cws=1"
     }
   },
   "offline_enabled": true

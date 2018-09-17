@@ -15,7 +15,7 @@
         "src": "images/touch/chrome-touch-icon-192x192.png",
         "sizes": "192x192"
       }],
-  "start_url": "/index.html?homescreen=1",
+  "start_url": "/?homescreen=1",
   "display": "standalone",
   "theme_color": "#212121",
   "background_color": "#212121"

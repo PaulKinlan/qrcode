@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "name": "Capture QR Code",
-  "launch_path": "/index.html",
+  "launch_path": "/",
   "description": "QR Code Capture tool",
   "icons": {
     "128": "/images/touch/icon-128x128.png"

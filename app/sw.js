@@ -22,13 +22,6 @@ router.get(`${self.location.origin}`, e => {
   );
 }, {urlMatchProperty: "origin"});
 
-/*
-  Handle requests to Google Analytics seperately
-*/
-router.get(/http[s]*:\/\/www.google-analytics.com/, (e)=>{
-  console.log('Analytics request', e);
-}, {urlMatchProperty: "origin"});
-
 self.addEventListener('activate', function(event) {
   event.waitUntil(self.clients.claim());
 });

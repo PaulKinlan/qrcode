@@ -20,6 +20,7 @@
       }],
   "start_url": "/?homescreen=1",
   "display": "standalone",
+  "scope": "/",
   "theme_color": "#212121",
   "background_color": "#212121"
 }

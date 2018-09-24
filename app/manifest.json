@@ -4,19 +4,24 @@
   "description": "Capture QR Codes in real time with this simple app",
   "icons": [{
         "src": "/images/touch/icon-1024x1024.png",
-        "sizes": "128x128"
+        "sizes": "128x128",
+        "type": "image/png"
       }, {
         "src": "/images/touch/apple-touch-icon.png",
-        "sizes": "152x152"
+        "sizes": "152x152",
+        "type": "image/png"
       }, {
         "src": "/images/touch/ms-touch-icon-144x144-precomposed.png",
-        "sizes": "144x144"
+        "sizes": "144x144",
+        "type": "image/png"
       }, {
         "src": "/images/touch/icon-1024x1024.png",
-        "sizes": "192x192"
+        "sizes": "192x192",
+        "type": "image/png"
       }, {
         "src": "/images/touch/icon-1024x1024.png",
-        "sizes": "1024x1024"
+        "sizes": "1024x1024",
+        "type": "image/png"
       }],
   "start_url": "/?homescreen=1",
   "display": "standalone",

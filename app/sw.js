@@ -1,4 +1,4 @@
-const dataStoreVersion = "0.2.0";
+const dataStoreVersion = "0.2.1";
 import {router} from  './scripts/sw/router.js';
 import {requiredFiles} from './scripts/sw/fileManifest.js';
 
@@ -16,7 +16,7 @@ router.get(/\?kill-sw=true/, function() {
 */
 router.get(`${self.location.origin}`, e => {
   e.respondWith(
-    caches.match(e.request, {ignoreSearch:true}).then(response => {
+    caches.match(e.request, {ignoreSearch:true, cacheName: dataStoreVersion}).then(response => {
       return response || fetch(e.request);
     })
   );

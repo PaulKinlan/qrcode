@@ -14,6 +14,9 @@
       }, {
         "src": "images/touch/chrome-touch-icon-192x192.png",
         "sizes": "192x192"
+      }, {
+        "src": "images/touch/icon-1024x1024.png",
+        "sizes": "1024x1024"
       }],
   "start_url": "/?homescreen=1",
   "display": "standalone",

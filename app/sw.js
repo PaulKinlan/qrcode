@@ -27,6 +27,8 @@ self.addEventListener('activate', function(event) {
 });
 
 self.addEventListener('install', function(e) {
+  self.skipWaiting();
+
   e.waitUntil(
     caches.open(dataStoreVersion).then(function(cache) {
       return cache.addAll(requiredFiles);

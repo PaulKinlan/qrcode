@@ -1,0 +1,14 @@
+.QRCodeAboutDialog {
+  height: auto !important;
+  display: none;
+  position: absolute !important;
+  margin: auto auto;
+  width: 80%;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100 !important;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  top: 50%;
+}

@@ -13,13 +13,13 @@
 
     <!-- Fallback to homescreen for Chrome <39 on Android -->
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Snap QR Code">
+    <meta name="application-name" content="Capture QR Code">
     <link rel="icon" sizes="192x192" href="/images/touch/chrome-touch-icon-192x192.png">
 
     <!-- Add to homescreen for Safari on iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Capture QR Code">
+    <meta name="apple-mobile-web-app-title" content="Snap QR Code">
     <link rel="apple-touch-icon" href="/images/touch/apple-touch-icon.png">
 
     <!-- Tile icon for Win8 (144x144 + tile color) -->
@@ -61,6 +61,7 @@
             </form>
           </div>
         </div>
+        <!-- QR Code found-->
         <div id="qrcode" class="wsk-card wsk-shadow--z3 QRCodeSuccessDialog">
           <div class="wsk-card--heading">
              <span class="wsk-card--heading-text">QR Code found</span>
@@ -79,13 +80,16 @@
             </div>
           </div>
         </div>
+
         <!-- About Dialog -->
         <div id="about" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog">
           <div class="wsk-card--heading">
               <span class="wsk-card--heading-text">About QR Snapper</span>
           </div>
           <div class="wsk-card--lower QRCodeAboutDialog-data">
-            About.
+            <p>QR Snapper is the simplest to use QR Scanner available on the web.</p>
+            <p>If you would like to learn how it was built, visit <a href="https://paul.kinlan.me/projects/qrsnapper/">Paul Kinlan's site</a>.</p>
+            <p>The code is also available on <a href="https://github.com/PaulKinlan/qrcode/">Github</a>.</p>
           </div>
           <div class="wsk-card--bottom">
             <div>

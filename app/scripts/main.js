@@ -27,6 +27,13 @@ import { decode } from './qrclient.js'
 
     var cameraManager = new CameraManager('camera');
     var qrCodeManager = new QRCodeManager('qrcode');
+    var qrCodeHelpManager = new QRCodeHelpManager('about');
+    var helpButton = document.querySelector('.about');
+
+    helpButton.onclick = function() {
+      qrCodeHelpManager.showDialog();
+    };
+
     var processingFrame = false;
 
     cameraManager.onframe = async function(context) {
@@ -179,6 +186,23 @@ import { decode } from './qrclient.js'
       this.closeDialog();
     }.bind(this));
 
+  };
+
+  let QRCodeHelpManager = function(element) {
+    let root = document.getElementById(element);
+    let qrhelpClose = root.querySelector(".QRCodeAboutDialog-close");
+
+    this.showDialog = function() {
+      root.style.display = 'block';
+    };
+
+    this.closeDialog = function() {
+      root.style.display = 'none';
+    };
+
+    qrhelpClose.addEventListener("click", function() {
+      this.closeDialog();
+    }.bind(this));
   };
 
   var WebCamManager = function(cameraRoot) {
@@ -433,7 +457,6 @@ import { decode } from './qrclient.js'
     };
   };
 
-
   var CameraManager = function(element) {
     // The camera gets a video stream, and adds it to a canvas.
     // The canvas is analysed but also displayed to the user.
@@ -551,9 +574,8 @@ import { decode } from './qrclient.js'
     this.resize();
   };
 
-  window.addEventListener('load', function() {
-    var camera = new QRCodeCamera();
-  });
+  // Start the camera without wating for all resources to load.
+  var camera = new QRCodeCamera();
 })();
 
 window.addEventListener('unhandledrejection', function(event) {

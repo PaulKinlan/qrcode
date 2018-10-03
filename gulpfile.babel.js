@@ -72,7 +72,6 @@ let styles = () => {
     .pipe($.size({title: 'styles'}))
     .pipe(gulp.dest('dist/styles'));
 };
-gulp.task('fix-styles', styles);
 
 // Scan your HTML for assets & optimize them
 let html = () => {

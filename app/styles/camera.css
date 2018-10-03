@@ -27,14 +27,14 @@
   justify-content: flex-end;
 }
 
- .Camera .CameraFallback .CameraFallback-input {
-    width: 0.1px;
-    height: 0.1px;
-    opacity: 0;
-    overflow: hidden;
-    position: absolute;
-    z-index: -1;
-    visibility: hidden;
+.Camera .CameraFallback .CameraFallback-input {
+  width: 0.1px;
+  height: 0.1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
+  visibility: hidden;
 }
 
 .Camera .CameraFallback .CameraFallback-input + label {
@@ -48,8 +48,8 @@
   cursor: pointer;
   margin: 10vw;
 }
-   
-   
+
+
 .Camera .CameraFallback .CameraFallback-input + label img {
   opacity: 0.8;
   width: 50%;

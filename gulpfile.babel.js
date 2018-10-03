@@ -209,4 +209,4 @@ let client = () => {
 
 let build = gulp.series(clean, copy, gulp.parallel(client, client_modules, sw, gulp.series(worker_prep_lib, worker_prep, worker), styles, html, images));
 
-gulp.task('default', build); 
+gulp.task('default', build);

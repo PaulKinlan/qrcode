@@ -24,7 +24,8 @@
   },
   "private": true,
   "scripts": {
-    "start": "gulp && gulp webserver"
+    "start": "gulp && gulp webserver",
+    "start-dev": "gulp webserver-dev"
   },
   "dependencies": {
     "comlink": "^3.0.3",

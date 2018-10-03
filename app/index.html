@@ -99,8 +99,8 @@
     </div>
 
     <script>
-    if('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
         .then(function() { console.log("Service Worker Registered"); });
     }
     </script>

@@ -63,7 +63,7 @@ let styles = () => {
   return gulp.src([
     'app/styles/**/*.css'
   ])
-    //.pipe($.newer('.tmp/styles'))
+    // .pipe($.newer('.tmp/styles'))
     .pipe($.autoprefixer(AUTOPREFIXER_BROWSERS))
     .pipe(gulp.dest('.tmp/styles'))
     .pipe($.concat('app.css'))
@@ -102,6 +102,15 @@ gulp.task('webserver', function() {
   gulp.src('dist')
     .pipe($.webserver({
       host: '0.0.0.0',
+      port: '8080',
+      directoryListing: false
+    }));
+});
+
+gulp.task('webserver-dev', function() {
+  gulp.src('app')
+    .pipe($.webserver({
+      host: 'localhost',
       port: '8080',
       directoryListing: false
     }));
@@ -160,7 +169,7 @@ let worker = () => {
 
 let client_modules = () => {
   return rollup({
-    input: './app/scripts/main.js',
+    input: './app/scripts/main.mjs',
     plugins: [
       terser()
     ]
@@ -174,7 +183,7 @@ let client_modules = () => {
 
 let client = () => {
   return rollup({
-    input: './app/scripts/main.js',
+    input: './app/scripts/main.mjs',
     plugins: [
       babel({
         babelrc: false,

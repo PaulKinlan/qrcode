@@ -19,15 +19,9 @@
 import gulp from 'gulp';
 import del from 'del';
 import gulpLoadPlugins from 'gulp-load-plugins';
-import rename from 'gulp-rename';
-import * as rollupStream_ from 'rollup-stream';
-import * as rollup_ from 'rollup';
-import source from 'vinyl-source-stream';
+import {rollup} from 'rollup';
 import { terser } from 'rollup-plugin-terser';
 import babel from 'rollup-plugin-babel';
-
-const rollupStream = rollupStream_;
-const rollup = rollup_;
 
 const $ = gulpLoadPlugins();
 
@@ -118,19 +112,17 @@ let clean = () => {
 };
 
 let sw = () => {
-  // Assume the SW can do everything modern except modules.
-  return rollupStream({
-    input: 'app/sw.js',
-    rollup: rollup,
-    output: {
-      format: 'iife'
-    },
+  return rollup({
+    input: './app/sw.js',
     plugins: [
       terser()
     ]
+  }).then(bundle => {
+    return bundle.write({
+      file: './dist/sw.js',
+      format: 'iife'
+    })
   })
-  .pipe(source('sw.js'))
-  .pipe(gulp.dest('dist/'));
 }
 
 let worker_prep_lib = () => {
@@ -148,63 +140,55 @@ let worker_prep = () => {
 }
 
 let worker = () => {
-  // Assume the worker can do everything modern except modules.
-  return rollupStream({
-      input: '.tmp/scripts/qrworker.js',
-      rollup: rollup,
-      output: {
-        format: 'iife',
-      },
-      plugins: [
-        babel({
-          babelrc: false,
-          presets: [['@babel/env',{"targets": { "chrome": "52" }}]],
-          exclude: 'node_modules/**'
-        }),
-        terser()
-      ]
+  return rollup({
+    input: '.tmp/scripts/qrworker.js',
+    plugins: [
+      babel({
+        babelrc: false,
+        presets: [['@babel/env',{"targets": { "chrome": "52" }}]],
+        exclude: 'node_modules/**'
+      }),
+      terser()
+    ]
+  }).then(bundle => {
+    return bundle.write({
+      file: './dist/scripts/qrworker.js',
+      format: 'iife'
     })
-    .pipe(source('qrworker.js'))
-    .pipe($.rename('qrworker.js'))
-    .pipe(gulp.dest('dist/scripts/'));
+  })
 }
 
 let client_modules = () => {
-  // Any browser that can load modules is totes amaze.
-  return rollupStream({
-      input: 'app/scripts/main.js',
-      rollup: rollup,
-      output: {
-        format: 'es',
-      },
-      plugins: [
-        terser()
-      ]
+  return rollup({
+    input: './app/scripts/main.js',
+    plugins: [
+      terser()
+    ]
+  }).then(bundle => {
+    return bundle.write({
+      file: './dist/scripts/main.mjs',
+      format: 'es'
     })
-    .pipe(source('main.js'))
-    .pipe(rename({extname: ".mjs"}))
-    .pipe(gulp.dest('dist/scripts/'));
+  })
 };
 
 let client = () => {
-  // Create the client JS for browsers that don't support modules. Aim for indexing.
-  return rollupStream({
-        input: 'app/scripts/main.js',
-        rollup: rollup,
-        output: {
-          format: 'iife',
-        },
-        plugins: [
-          babel({
-            babelrc: false,
-            presets: [['@babel/env',{"targets": { "chrome": "41" }}]],
-            exclude: 'node_modules/**'
-          }),
-          terser()
-        ]
-      })
-      .pipe(source('main.js'))
-      .pipe(gulp.dest('dist/scripts/'));
+  return rollup({
+    input: './app/scripts/main.js',
+    plugins: [
+      babel({
+        babelrc: false,
+        presets: [['@babel/env',{"targets": { "chrome": "41" }}]],
+        exclude: 'node_modules/**'
+      }),
+      terser()
+    ]
+  }).then(bundle => {
+    return bundle.write({
+      file: './dist/scripts/main.js',
+      format: 'iife'
+    })
+  })
 };
 
 let build = gulp.series(clean, copy, gulp.parallel(client, client_modules, sw, gulp.series(worker_prep_lib, worker_prep, worker), styles, html, images));

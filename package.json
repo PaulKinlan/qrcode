@@ -29,17 +29,14 @@
   "dependencies": {
     "comlink": "^3.0.3",
     "gulp-merge": "^0.1.1",
-    "gulp-rename": "^1.4.0",
     "gulp-rollup": "^2.16.2",
     "now": "^11.4.4",
     "rollup": "^0.65.2",
     "rollup-plugin-terser": "^2.0.2",
     "rollup-plugin-uglify": "^5.0.2",
     "rollup-plugin-uglify-es": "0.0.1",
-    "rollup-stream": "^1.24.1",
     "uglify-es": "^3.3.9",
-    "vinyl-buffer": "^1.0.1",
-    "vinyl-source-stream": "^2.0.0"
+    "vinyl-buffer": "^1.0.1"
   },
   "babel": {
     "presets": [

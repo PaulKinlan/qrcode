@@ -1,6 +1,6 @@
 import * as Comlink from './comlink.js';
 
-const proxy = Comlink.proxy(new Worker('/scripts/qrworker.js', {type: 'module'}));
+const proxy = Comlink.proxy(new Worker('/scripts/qrworker.js'));
 
 export const decode = async function (context) {
   try {

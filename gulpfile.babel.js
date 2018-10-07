@@ -110,7 +110,7 @@ gulp.task('webserver', function() {
 gulp.task('webserver-dev', function() {
   gulp.src('app')
     .pipe($.webserver({
-      host: 'localhost',
+      host: '0.0.0.0',
       port: '8080',
       directoryListing: false
     }));

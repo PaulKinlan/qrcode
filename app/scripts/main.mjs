@@ -42,7 +42,7 @@ import { decode } from './qrclient.js'
         processingFrame = true;
         let url = await qrCodeManager.detectQRCode(context);
         if(url !== undefined) {
-          if(ga) { ga('send', 'event', 'urlfound'); }
+          if('ga' in window) { ga('send', 'event', 'urlfound'); }
           qrCodeManager.showDialog(url);
         }
         processingFrame = false;

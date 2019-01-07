@@ -41,11 +41,12 @@ import { decode } from './qrclient.js'
       if(processingFrame == false) {
         processingFrame = true;
         let url = await qrCodeManager.detectQRCode(context);
-        if(url !== undefined) {
-          if('ga' in window) { ga('send', 'event', 'urlfound'); }
-          qrCodeManager.showDialog(url);
-        }
         processingFrame = false;
+        if(url === undefined) return;
+        if('ga' in window) ga('send', 'event', 'urlfound');
+        if('vibrate' in navigator) navigator.vibrate([200]);
+        
+        qrCodeManager.showDialog(url);
       }
     };
   };

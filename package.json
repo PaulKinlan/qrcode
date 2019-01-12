@@ -23,8 +23,9 @@
   },
   "private": true,
   "scripts": {
-    "start": "gulp && gulp webserver",
-    "start-dev": "gulp webserver-dev"
+    "build": "gulp",
+    "serve": "serve -l tcp:0.0.0.0:8080 dist",
+    "clean": "rm dist/*"
   },
   "dependencies": {
     "@babel/register": "^7.0.0",
@@ -36,6 +37,7 @@
     "rollup-plugin-terser": "^4.0.2",
     "rollup-plugin-uglify": "^6.0.1",
     "rollup-plugin-uglify-es": "0.0.1",
+    "serve": "^10.1.1",
     "uglify-es": "^3.3.9",
     "vinyl-buffer": "^1.0.1"
   },

@@ -16,9 +16,7 @@
     "gulp-load-plugins": "^1.0.0",
     "gulp-newer": "^1.0.0",
     "gulp-size": "^3.0.0",
-    "gulp-uglify": "^3.0.1",
     "gulp-useref": "^3.1.6",
-    "gulp-webserver": "^0.9.1",
     "rollup-plugin-babel": "^4.3.0"
   },
   "private": true,
@@ -30,16 +28,11 @@
   "dependencies": {
     "@babel/register": "^7.0.0",
     "comlink": "^3.1.1",
-    "gulp-merge": "^0.1.1",
     "gulp-rollup": "^2.16.2",
     "now": "^13.0.4",
     "rollup": "^1.1.0",
     "rollup-plugin-terser": "^4.0.2",
-    "rollup-plugin-uglify": "^6.0.1",
-    "rollup-plugin-uglify-es": "0.0.1",
-    "serve": "^10.1.1",
-    "uglify-es": "^3.3.9",
-    "vinyl-buffer": "^1.0.1"
+    "serve": "^10.1.1"
   },
   "babel": {
     "presets": [

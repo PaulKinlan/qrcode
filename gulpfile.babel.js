@@ -19,7 +19,7 @@
 import gulp from 'gulp';
 import del from 'del';
 import gulpLoadPlugins from 'gulp-load-plugins';
-import {rollup} from 'rollup';
+import { rollup } from 'rollup';
 import { terser } from 'rollup-plugin-terser';
 import babel from 'rollup-plugin-babel';
 
@@ -97,24 +97,6 @@ let html = () => {
     .pipe($.if('*.html', $.size({title: 'html', showFiles: true})))
     .pipe(gulp.dest('dist'));
 };
-
-gulp.task('webserver', function() {
-  gulp.src('dist')
-    .pipe($.webserver({
-      host: '0.0.0.0',
-      port: '8080',
-      directoryListing: false
-    }));
-});
-
-gulp.task('webserver-dev', function() {
-  gulp.src('app')
-    .pipe($.webserver({
-      host: '0.0.0.0',
-      port: '8080',
-      directoryListing: false
-    }));
-});
 
 let clean = () => {
   return del(['.tmp', 'dist/*', '!dist/.git'], {dot: true});

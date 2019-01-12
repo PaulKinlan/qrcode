@@ -1,26 +1,25 @@
 {
   "devDependencies": {
-    "@babel/core": "^7.0.1",
-    "@babel/preset-env": "^7.0.0",
-    "babel-preset-es2015": "^6.24.1",
-    "del": "^2.0.2",
+    "@babel/core": "^7.2.2",
+    "@babel/preset-env": "^7.2.3",
+    "del": "^3.0.0",
     "gulp": "^4.0.0",
-    "gulp-autoprefixer": "^3.1.0",
-    "gulp-babel": "^6.1.3",
-    "gulp-better-rollup": "^3.3.0",
-    "gulp-cache": "^1.0.2",
+    "gulp-autoprefixer": "^6.0.0",
+    "gulp-babel": "^8.0.0",
+    "gulp-better-rollup": "^3.4.0",
+    "gulp-cache": "^1.1.0",
     "gulp-concat": "^2.5.2",
     "gulp-cssnano": "^2.0.0",
-    "gulp-htmlmin": "^1.3.0",
+    "gulp-htmlmin": "^5.0.1",
     "gulp-if": "^2.0.0",
-    "gulp-imagemin": "^4.1.0",
+    "gulp-imagemin": "^5.0.3",
     "gulp-load-plugins": "^1.0.0",
     "gulp-newer": "^1.0.0",
-    "gulp-size": "^2.0.0",
-    "gulp-uglify": "^1.5.4",
-    "gulp-useref": "^3.0.0",
+    "gulp-size": "^3.0.0",
+    "gulp-uglify": "^3.0.1",
+    "gulp-useref": "^3.1.6",
     "gulp-webserver": "^0.9.1",
-    "rollup-plugin-babel": "^4.0.3"
+    "rollup-plugin-babel": "^4.3.0"
   },
   "private": true,
   "scripts": {
@@ -28,20 +27,21 @@
     "start-dev": "gulp webserver-dev"
   },
   "dependencies": {
-    "comlink": "^3.0.3",
+    "@babel/register": "^7.0.0",
+    "comlink": "^3.1.1",
     "gulp-merge": "^0.1.1",
     "gulp-rollup": "^2.16.2",
-    "now": "^11.4.4",
-    "rollup": "^0.65.2",
-    "rollup-plugin-terser": "^2.0.2",
-    "rollup-plugin-uglify": "^5.0.2",
+    "now": "^13.0.4",
+    "rollup": "^1.1.0",
+    "rollup-plugin-terser": "^4.0.2",
+    "rollup-plugin-uglify": "^6.0.1",
     "rollup-plugin-uglify-es": "0.0.1",
     "uglify-es": "^3.3.9",
     "vinyl-buffer": "^1.0.1"
   },
   "babel": {
     "presets": [
-      "es2015"
+      "@babel/env"
     ]
   }
 }

@@ -1,43 +1,43 @@
 {
   "name": "qrsnapper.com",
-  "type": "static",
+  "version": 2,
   "alias": [
     "qrsnapper.com"
   ],
-  "static": {
-    "headers": [
-      {
-        "source" : "**/*.@(mjs)",
-        "headers" : [{
-          "key" : "Content-type",
-          "value" : "text/javascript"
-        },
-        {
-          "key" : "Cache-Control",
-          "value" : "max-age=7200"
-        }]
-      },
-      {
-        "source" : "**/*.@(jpg|jpeg|gif|png|svg)",
-        "headers" : [{
-          "key" : "Cache-Control",
-          "value" : "max-age=7200"
-        }]
-      },
-      {
-        "source" : "**/*.@(css)",
-        "headers" : [{
-          "key" : "Cache-Control",
-          "value" : "max-age=7200"
-        }]
-      },
-      {
-        "source" : "**/*.@(js|json)",
-        "headers" : [{
-          "key" : "Cache-Control",
-          "value" : "max-age=7200"
-        }]
+  "github": {
+    "enabled": false
+  },
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@now/static-build"
+    }
+  ],
+  "routes": [
+    {
+      "src" : ".mjs$",
+      "headers" : {
+        "content-type": "text/javascript",
+        "cache-control": "max-age=7200"
       }
-    ]
-  }
+    },
+    {
+      "src" : ".(jpg|jpeg|gif|png|svg)$",
+      "headers" :{
+        "cache-control": "max-age=7200"
+      }
+    },
+    {
+      "src" : ".css$",
+      "headers" : {
+        "cache-control": "max-age=7200"
+      }
+    },
+    {
+      "src": ".(js|json)$",
+      "headers" : {
+        "cache-control": "max-age=7200"
+      }
+    }
+  ]
 }

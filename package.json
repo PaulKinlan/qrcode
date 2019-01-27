@@ -21,6 +21,7 @@
   },
   "private": true,
   "scripts": {
+    "now-build": "gulp",
     "build": "gulp",
     "serve": "serve -l tcp:0.0.0.0:8080 dist",
     "clean": "rm dist/*"
@@ -29,7 +30,7 @@
     "@babel/register": "^7.0.0",
     "comlink": "^3.1.1",
     "gulp-rollup": "^2.16.2",
-    "now": "^13.0.4",
+    "now": "^13.1.2",
     "rollup": "^1.1.0",
     "rollup-plugin-terser": "^4.0.2",
     "serve": "^10.1.1"

@@ -11,11 +11,8 @@ cache:
 install:
 - npm install
 script:
-- npx gulp
-- cp now.json dist/
-after_success:
-- (cd dist/ && npx now --token $NOW_TOKEN)
-- (cd dist/ && npx now alias --token $NOW_TOKEN)
+- npx now --token $NOW_TOKEN
+- npx now alias --token $NOW_TOKEN
   
 # branch whitelist
 branches:

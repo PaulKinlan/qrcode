@@ -335,6 +335,9 @@ import { decode } from './qrclient.js'
     var animationFrameId;
     var cameras = null;
     var self = this;
+    var useMediaDevices = ('mediaDevices' in navigator
+                            && 'enumerateDevices' in navigator.mediaDevices
+                            && 'getUserMedia' in navigator.mediaDevices);
     var gUM = (navigator.getUserMedia ||
                navigator.webkitGetUserMedia ||
                navigator.mozGetUserMedia ||
@@ -431,7 +434,7 @@ import { decode } from './qrclient.js'
         params = { video: { deviceId: { exact: videoSource.deviceId || videoSource.id } }, audio: false };
       }
 
-      gUM.call(navigator, params, function(cameraStream) {
+      let selectStream = function(cameraStream) {
         stream = cameraStream;
 
         videoElement.addEventListener('loadeddata', function(e) {
@@ -454,7 +457,16 @@ import { decode } from './qrclient.js'
           .catch(error => {
             console.error("Auto Play Error", error);
           });
-      }, console.error);
+      }
+
+      if (useMediaDevices) {
+        mediaDevices.getUserMedia(params)
+          .then(selectStream)
+          .catch(console.error);
+      }
+      else {
+        gUM.call(navigator, params, selectStream, console.error);
+      }
     };
   };
 
@@ -463,12 +475,13 @@ import { decode } from './qrclient.js'
     // The canvas is analysed but also displayed to the user.
     var self = this;
     var debug = false;
-    var gUM = (navigator.getUserMedia ||
-                       navigator.webkitGetUserMedia ||
-                       navigator.mozGetUserMedia ||
-                       navigator.msGetUserMedia || null);
+    var gUMPresent = ((navigator.mediaDevices ||
+                      navigator.getUserMedia ||
+                      navigator.webkitGetUserMedia ||
+                      navigator.mozGetUserMedia ||
+                      navigator.msGetUserMedia) !== null);
 
-    if(location.hash == "#nogum") gUM = null;
+    if(location.hash == "#nogum") gUMPresent = false;
     if(location.hash == "#canvasdebug") debug = true;
 
     var root = document.getElementById(element);
@@ -476,7 +489,7 @@ import { decode } from './qrclient.js'
     var sourceManager;
 
     // Where are we getting the data from
-    if(gUM === null) {
+    if(gUMPresent) {
       cameraRoot = root.querySelector('.CameraFallback');
       sourceManager = new CameraFallbackManager(cameraRoot);
     }

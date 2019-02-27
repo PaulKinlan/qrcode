@@ -460,7 +460,7 @@ import { decode } from './qrclient.js'
       }
 
       if (useMediaDevices) {
-        mediaDevices.getUserMedia(params)
+        navigator.mediaDevices.getUserMedia(params)
           .then(selectStream)
           .catch(console.error);
       }
@@ -489,7 +489,7 @@ import { decode } from './qrclient.js'
     var sourceManager;
 
     // Where are we getting the data from
-    if(gUMPresent) {
+    if(gUMPresent === false) {
       cameraRoot = root.querySelector('.CameraFallback');
       sourceManager = new CameraFallbackManager(cameraRoot);
     }

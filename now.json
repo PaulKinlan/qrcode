@@ -4,9 +4,6 @@
   "alias": [
     "qrsnapper.com"
   ],
-  "github": {
-    "enabled": false
-  },
   "builds": [
     {
       "src": "package.json",

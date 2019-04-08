@@ -21,6 +21,10 @@
   display: none;
 }
 
+.QRCodeSuccessDialog .QRCodeSuccessDialog-data {
+  user-select: text;
+}
+
 .QRCodeSuccessDialog .QRCodeSuccessDialog-callback .QRCodeSuccessDialogCallback-domain {
   font-style: italic;
   text-transform: lowercase;

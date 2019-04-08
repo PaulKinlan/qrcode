@@ -120,6 +120,7 @@ import { decode } from './qrclient.js'
     var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
     var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
     var qrcodeShare = root.querySelector(".QRCodeSuccessDialog-share");
+    var qrcodeCopy = root.querySelector(".QRCodeSuccessDialog-copy");
     var qrcodeCallback = root.querySelector(".QRCodeSuccessDialog-callback");
     var callbackController = new QRCodeCallbackController(qrcodeCallback);
 
@@ -130,6 +131,10 @@ import { decode } from './qrclient.js'
     if(navigator.share) {
       // Sharing is supported so let's make the UI visible
       qrcodeShare.classList.remove('hidden');
+    }
+
+    if(navigator.clipboard && navigator.clipboard.writeText) {
+      qrcodeCopy.classList.remove('hidden');
     }
 
     this.detectQRCode = async function(context) {
@@ -172,6 +177,14 @@ import { decode } from './qrclient.js'
 
     }.bind(this));
 
+    qrcodeCopy.addEventListener("click", function() {
+      if(navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(this.currentUrl)
+        .then(self.closeDialog())
+        .catch(self.closeDialog());
+      }
+      self.closeDialog();
+    }.bind(this));
 
     qrcodeNavigate.addEventListener("click", function() {
       // I really want this to be a link.

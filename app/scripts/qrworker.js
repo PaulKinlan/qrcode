@@ -27,7 +27,7 @@ let workerDetector = async (width, height, imageData) => {
 }
 
 let detectUrl = async (width, height, imageData) => {
-  return detector(width, height, imageData);
+  return await detector(width, height, imageData);
 };
 
 let detector = (async () => {

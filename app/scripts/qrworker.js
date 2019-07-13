@@ -26,11 +26,15 @@ let workerDetector = async (width, height, imageData) => {
   }
 }
 
-let detectUrl = async (width, height, imageData) => {
-  return await detector(width, height, imageData);
+const detectUrl = async (width, height, imageData) => {
+  if (detector) {
+    return await detector(width, height, imageData);
+  }
+
+  return null;
 };
 
-let detector = (async () => {
+const getDetector = async () => {
   try {
     if ('BarcodeDetector' in self && 'getSupportedFormats' in BarcodeDetector) {
       const formats = await BarcodeDetector.getSupportedFormats();
@@ -44,6 +48,11 @@ let detector = (async () => {
   }
   
   return workerDetector;
+};
+
+let detector;
+(async () => {
+  detector = await getDetector();
 })();
 
 Comlink.expose({detectUrl}, self);

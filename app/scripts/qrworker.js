@@ -31,11 +31,16 @@ let detectUrl = async (width, height, imageData) => {
 };
 
 let detector = (async () => {
-  if ('BarcodeDetector' in self && 'getSupportedFormats' in BarcodeDetector) {
-    const formats = await BarcodeDetector.getSupportedFormats();
-    if (formats.find(format => format === 'qr_code')) {
-      return nativeDetector(new BarcodeDetector({formats: ['qr_code']}));
+  try {
+    if ('BarcodeDetector' in self && 'getSupportedFormats' in BarcodeDetector) {
+      const formats = await BarcodeDetector.getSupportedFormats();
+      if (formats.find(format => format === 'qr_code')) {
+        return nativeDetector(new BarcodeDetector({formats: ['qr_code']}));
+      }
     }
+  } catch (error) {
+   // Fallback to worker detector;
+   console.log(error);
   }
   
   return workerDetector;

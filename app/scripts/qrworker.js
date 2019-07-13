@@ -2,17 +2,18 @@ import * as Comlink from './comlink.js';
 import {qrcode} from './qrcode.js';
 
 // Use the native API's
-let nativeDetector = async (width, height, imageData) => {
-  try {
-    let barcodeDetector = new BarcodeDetector();
-    let barcodes = await barcodeDetector.detect(imageData);
-    // return the first barcode.
-    if (barcodes.length > 0) {
-      return barcodes[0].rawValue;
+let nativeDetector = (detectorInstance) => {
+  return async (width, height, imageData) => {
+    try {
+      let barcodes = await detectorInstance.detect(imageData);
+      // return the first barcode.
+      if (barcodes.length > 0) {
+        return barcodes[0].rawValue;
+      }
+    } catch(err) {
+      detector = workerDetector;
     }
-  } catch(err) {
-    detector = workerDetector;
-  }
+  };
 };
 
 // Use the polyfil
@@ -29,6 +30,15 @@ let detectUrl = async (width, height, imageData) => {
   return detector(width, height, imageData);
 };
 
-let detector = ('BarcodeDetector' in self) ? nativeDetector : workerDetector;
+let detector = (async () => {
+  if ('BarcodeDetector' in self && 'getSupportedFormats' in BarcodeDetector) {
+    const formats = await BarcodeDetector.getSupportedFormats();
+    if (formats.find(format => format === 'qr_code')) {
+      return nativeDetector(new BarcodeDetector({formats: ['qr_code']}));
+    }
+  } 
+  
+  return workerDetector;
+})();
 
 Comlink.expose({detectUrl}, self);

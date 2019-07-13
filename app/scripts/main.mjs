@@ -40,6 +40,8 @@ var normalizeUrl = function(url) {
 (function() {
   'use strict';
 
+
+  // This is the App.
   var QRCodeCamera = function(element) {
     // Controls the Camera and the QRCode Module
   
@@ -129,9 +131,7 @@ var normalizeUrl = function(url) {
     var sHeight;
     var sWidth;
 
-    var cameras = [];
-    
-   
+    // Abstract the Overlay as a UI component
 
     var getOverlayDimensions = function(width, height) {
       var minLength = Math.min(width, height);

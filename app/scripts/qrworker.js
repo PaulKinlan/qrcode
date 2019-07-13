@@ -36,7 +36,7 @@ let detector = (async () => {
     if (formats.find(format => format === 'qr_code')) {
       return nativeDetector(new BarcodeDetector({formats: ['qr_code']}));
     }
-  } 
+  }
   
   return workerDetector;
 })();

@@ -134,12 +134,12 @@ let worker = () => {
   return rollup({
     input: '.tmp/scripts/qrworker.js',
     plugins: [
-      /*babel({
+      babel({
         babelrc: false,
         presets: [['@babel/env',{"targets": { "chrome": "52" }}]],
         exclude: 'node_modules/**'
       }),
-      terser()*/
+      terser()
     ]
   }).then(bundle => {
     return bundle.write({

@@ -2,17 +2,18 @@ import * as Comlink from './comlink.js';
 import {qrcode} from './qrcode.js';
 
 // Use the native API's
-let nativeDetector = async (width, height, imageData) => {
-  try {
-    let barcodeDetector = new BarcodeDetector();
-    let barcodes = await barcodeDetector.detect(imageData);
-    // return the first barcode.
-    if (barcodes.length > 0) {
-      return barcodes[0].rawValue;
+let nativeDetector = (detectorInstance) => {
+  return async (width, height, imageData) => {
+    try {
+      let barcodes = await detectorInstance.detect(imageData);
+      // return the first barcode.
+      if (barcodes.length > 0) {
+        return barcodes[0].rawValue;
+      }
+    } catch(err) {
+      detector = workerDetector;
     }
-  } catch(err) {
-    detector = workerDetector;
-  }
+  };
 };
 
 // Use the polyfil
@@ -25,10 +26,33 @@ let workerDetector = async (width, height, imageData) => {
   }
 }
 
-let detectUrl = async (width, height, imageData) => {
-  return detector(width, height, imageData);
+const detectUrl = async (width, height, imageData) => {
+  if (detector) {
+    return await detector(width, height, imageData);
+  }
+
+  return null;
 };
 
-let detector = ('BarcodeDetector' in self) ? nativeDetector : workerDetector;
+const getDetector = async () => {
+  try {
+    if ('BarcodeDetector' in self && 'getSupportedFormats' in BarcodeDetector) {
+      const formats = await BarcodeDetector.getSupportedFormats();
+      if (formats.find(format => format === 'qr_code')) {
+        return nativeDetector(new BarcodeDetector({formats: ['qr_code']}));
+      }
+    }
+  } catch (error) {
+   // Fallback to worker detector;
+   console.log(error);
+  }
+  
+  return workerDetector;
+};
+
+let detector;
+(async () => {
+  detector = await getDetector();
+})();
 
 Comlink.expose({detectUrl}, self);

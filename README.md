@@ -6,6 +6,7 @@ and looks for QR Codes.
 
 The QR Code library is a port of [JSQRCode](https://github.com/LazarSoft/jsqrcode) and has been ported to work inside a WebWorker for performance.
 
+**Warning :** Contain a Google Analytics tracker.
 
 Building yourself
 =================

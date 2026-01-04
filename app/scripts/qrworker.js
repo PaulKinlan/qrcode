@@ -1,5 +1,5 @@
-import * as Comlink from './comlink.js';
-import {qrcode} from './qrcode.js';
+import * as Comlink from 'comlink';
+import {qrcode} from './qrcode-lib.js';
 
 // Use the native API's
 let nativeDetector = (detectorInstance) => {

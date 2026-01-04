@@ -1,5 +1,5 @@
-import { WebCamManager } from './WebCamManager.js';
-import { CameraFallbackManager } from './CameraFallbackManager.js';
+import { WebCamManager } from "./WebCamManager.js";
+import { CameraFallbackManager } from "./CameraFallbackManager.js";
 
 /**
  * CameraManager - Main camera controller that handles canvas rendering
@@ -9,46 +9,48 @@ export class CameraManager {
   constructor(element) {
     this.element = element;
     this.debug = false;
-    
+
     // Check if camera is available
     const hasCamera = this.checkCameraSupport();
-    
+
     // Check for debug modes from URL hash
-    if (location.hash === '#nogum') {
+    if (location.hash === "#nogum") {
       this.hasCamera = false;
     } else {
       this.hasCamera = hasCamera;
     }
-    
-    if (location.hash === '#canvasdebug') {
+
+    if (location.hash === "#canvasdebug") {
       this.debug = true;
     }
 
     const root = document.getElementById(element);
-    const cameraRoot = this.hasCamera 
-      ? root.querySelector('.CameraRealtime')
-      : root.querySelector('.CameraFallback');
-    
+    const cameraRoot = this.hasCamera
+      ? root.querySelector(".CameraRealtime")
+      : root.querySelector(".CameraFallback");
+
     // Initialize appropriate source manager
     this.sourceManager = this.hasCamera
       ? new WebCamManager(cameraRoot)
       : new CameraFallbackManager(cameraRoot);
 
     if (this.debug) {
-      root.classList.add('debug');
+      root.classList.add("debug");
     }
 
-    cameraRoot.classList.remove('hidden');
+    cameraRoot.classList.remove("hidden");
 
     // Set up canvas and overlay
-    this.cameraCanvas = root.querySelector('.Camera-display');
-    this.cameraOverlay = root.querySelector('.Camera-overlay');
-    this.context = this.cameraCanvas.getContext('2d');
+    this.cameraCanvas = root.querySelector(".Camera-display");
+    this.cameraOverlay = root.querySelector(".Camera-overlay");
+    this.context = this.cameraCanvas.getContext("2d", {
+      willReadFrequently: true,
+    });
 
     // Canvas dimensions
     this.dWidth = null;
     this.dHeight = null;
-    
+
     // Source position
     this.sx = 0;
     this.sy = 0;
@@ -56,10 +58,10 @@ export class CameraManager {
     this.sWidth = null;
 
     this.setupSourceManager();
-    
+
     // Listen for window resize
-    window.addEventListener('resize', () => this.resize());
-    
+    window.addEventListener("resize", () => this.resize());
+
     // Initial resize
     this.resize();
   }
@@ -69,8 +71,9 @@ export class CameraManager {
    * Modernized - no more webkit/moz/ms prefix checks
    */
   checkCameraSupport() {
-    return 'mediaDevices' in navigator 
-      && 'getUserMedia' in navigator.mediaDevices;
+    return (
+      "mediaDevices" in navigator && "getUserMedia" in navigator.mediaDevices
+    );
   }
 
   setupSourceManager() {
@@ -78,11 +81,17 @@ export class CameraManager {
     this.sourceManager.onframeready = (frameData) => {
       // Draw the frame to canvas
       this.context.drawImage(
-        frameData, 
-        this.sx, this.sy, this.sWidth, this.sHeight,
-        0, 0, this.dWidth, this.dHeight
+        frameData,
+        this.sx,
+        this.sy,
+        this.sWidth,
+        this.sHeight,
+        0,
+        0,
+        this.dWidth,
+        this.dHeight
       );
-      
+
       // Pass context to external callback
       if (this.onframe) {
         this.onframe(this.context);
@@ -106,7 +115,7 @@ export class CameraManager {
       width: minLength - 64,
       height: minLength - 64,
       paddingHeight: paddingHeight,
-      paddingWidth: paddingWidth
+      paddingWidth: paddingWidth,
     };
   }
 
@@ -114,10 +123,14 @@ export class CameraManager {
    * Draw the scanning overlay
    */
   drawOverlay(overlayDimensions) {
-    this.cameraOverlay.style.borderTopWidth = overlayDimensions.paddingHeight + 'px';
-    this.cameraOverlay.style.borderLeftWidth = overlayDimensions.paddingWidth + 'px';
-    this.cameraOverlay.style.borderRightWidth = overlayDimensions.paddingWidth + 'px';
-    this.cameraOverlay.style.borderBottomWidth = overlayDimensions.paddingHeight + 'px';
+    this.cameraOverlay.style.borderTopWidth =
+      overlayDimensions.paddingHeight + "px";
+    this.cameraOverlay.style.borderLeftWidth =
+      overlayDimensions.paddingWidth + "px";
+    this.cameraOverlay.style.borderRightWidth =
+      overlayDimensions.paddingWidth + "px";
+    this.cameraOverlay.style.borderBottomWidth =
+      overlayDimensions.paddingHeight + "px";
   }
 
   /**
@@ -138,18 +151,22 @@ export class CameraManager {
     const sourceWidth = sourceDimensions.width;
 
     // Target size in device coordinates
-    const overlaySize = this.getOverlayDimensions(containerWidth, containerHeight);
+    const overlaySize = this.getOverlayDimensions(
+      containerWidth,
+      containerHeight
+    );
 
     // The canvas should be the same size as the overlay in video size
-    this.dHeight = this.dWidth = overlaySize.width / sourceDimensions.scaleFactor;
+    this.dHeight = this.dWidth =
+      overlaySize.width / sourceDimensions.scaleFactor;
 
     // Set canvas dimensions
     this.cameraCanvas.width = this.dWidth;
     this.cameraCanvas.height = this.dWidth;
 
     // Calculate source crop (center of video)
-    this.sx = (sourceWidth / 2) - (this.dWidth / 2);
-    this.sy = (sourceHeight / 2) - (this.dHeight / 2);
+    this.sx = sourceWidth / 2 - this.dWidth / 2;
+    this.sy = sourceHeight / 2 - this.dHeight / 2;
     this.sWidth = this.dWidth;
     this.sHeight = this.dHeight;
 

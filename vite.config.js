@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite';
 import { copyFileSync, mkdirSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Plugin to copy additional public files
 function copyPublicFiles() {

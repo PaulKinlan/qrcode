@@ -1269,7 +1269,7 @@ function QRCodeDataBlockReader(blocks,  version,  numErrorCorrectionCode)
 			var unicodeString = "";
 			do 
 			{
-				intData = getNextBits(13);
+				intData = this.getNextBits(13);
 				var lowerByte = intData % 0xC0;
 				var higherByte = intData / 0xC0;
 				
@@ -1325,7 +1325,7 @@ function QRCodeDataBlockReader(blocks,  version,  numErrorCorrectionCode)
 							/*					canvas.println("Invalid mode: " + mode);
 							mode = guessMode(mode);
 							canvas.println("Guessed mode: " + mode); */
-							throw new Error($1);
+							throw new Error("Invalid mode: " + mode);
 						}
 						let dataLength = this.getDataLength(mode);
 						if (dataLength < 1)
@@ -2787,7 +2787,7 @@ function FinderPatternFinder()
 					if (this.hasSkipped)
 					{
 						// Found a third one
-						done = haveMultiplyConfirmedCenters();
+						done = this.haveMultiplyConfirmedCenters();
 					}
 				}
 			}

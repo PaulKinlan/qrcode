@@ -23,17 +23,11 @@ export function isSafeUrl(url) {
     return false;
   }
 
-  // Prevent XSS attacks
+  // Prevent XSS attacks by only allowing safe protocols
   const SAFE_PROTOCOLS = ['http:', 'https:', 'mailto:', 'tel:', 'sms:'];
   
   if (!SAFE_PROTOCOLS.includes(url.protocol)) {
     console.warn('Unsafe protocol detected:', url.protocol);
-    return false;
-  }
-
-  // Additional check for javascript: protocol (case-insensitive)
-  if (url.protocol === 'javascript:') {
-    console.log('XSS prevented!');
     return false;
   }
 

@@ -1,120 +1,127 @@
 <!doctype html>
 <html lang="en-GB">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Capture QR Code</title>
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' data: https://www.googletagmanager.com/">
-    <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
-    <!-- Add to homescreen -->
-    <link rel="manifest" href="/manifest.json">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capture QR Code</title>
+  <meta http-equiv="Content-Security-Policy"
+    content="script-src 'self' 'unsafe-inline' data: https://www.googletagmanager.com/">
+  <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
-    <!-- Fallback to homescreen for Chrome <39 on Android -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Capture QR Code">
-    <link rel="icon" sizes="192x192" href="/images/touch/chrome-touch-icon-192x192.png">
+  <!-- Add to homescreen -->
+  <link rel="manifest" href="/manifest.json">
 
-    <!-- Add to homescreen for Safari on iOS -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Snap QR Code">
-    <link rel="apple-touch-icon" href="/images/touch/apple-touch-icon.png">
+  <!-- Fallback to homescreen for Chrome <39 on Android -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="Capture QR Code">
+  <link rel="icon" sizes="192x192" href="/images/touch/chrome-touch-icon-192x192.png">
 
-    <!-- Tile icon for Win8 (144x144 + tile color) -->
-    <meta name="msapplication-TileImage" content="/images/touch/ms-touch-icon-144x144-precomposed.png">
-    <meta name="msapplication-TileColor" content="#212121">
+  <!-- Add to homescreen for Safari on iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Snap QR Code">
+  <link rel="apple-touch-icon" href="/images/touch/apple-touch-icon.png">
 
-    <!-- Origin Trial Token, feature = Shape Detection API, origin = https://qrsnapper.com, expires = 2018-11-05 -->
-    <meta http-equiv="origin-trial" data-feature="Shape Detection API" data-expires="2018-11-05" content="Ask9b8eaymdcPPFq0xVl/GH4DVDZnMhMiffYEexo9/LiOL21SHQQkToqpAozpULepkOaPlnv8RegP813aA2XAwEAAABVeyJvcmlnaW4iOiJodHRwczovL3Fyc25hcHBlci5jb206NDQzIiwiZmVhdHVyZSI6IlNoYXBlRGV0ZWN0aW9uIiwiZXhwaXJ5IjoxNTQxNDI1NDE1fQ==">
+  <!-- Tile icon for Win8 (144x144 + tile color) -->
+  <meta name="msapplication-TileImage" content="/images/touch/ms-touch-icon-144x144-precomposed.png">
+  <meta name="msapplication-TileColor" content="#212121">
 
-    <meta name="theme-color" content="#212121">
-    <link rel="stylesheet" href="/styles/app.css">
-    <script src="/scripts/main.mjs" type="module"></script>
-    <script src="/scripts/main.js" defer nomodule></script>
-  </head>
-  <body>
+  <!-- Origin Trial Token, feature = Shape Detection API, origin = https://qrsnapper.com, expires = 2018-11-05 -->
+  <meta http-equiv="origin-trial" data-feature="Shape Detection API" data-expires="2018-11-05"
+    content="Ask9b8eaymdcPPFq0xVl/GH4DVDZnMhMiffYEexo9/LiOL21SHQQkToqpAozpULepkOaPlnv8RegP813aA2XAwEAAABVeyJvcmlnaW4iOiJodHRwczovL3Fyc25hcHBlci5jb206NDQzIiwiZmVhdHVyZSI6IlNoYXBlRGV0ZWN0aW9uIiwiZXhwaXJ5IjoxNTQxNDI1NDE1fQ==">
 
-    <div class="wsk-layout">
-      <div class="wsk-layout__content">
-        <div id="camera" class="Camera">
-          <canvas class="Camera-display"></canvas>
-          <img src="/images/help_outline-24px.svg" class="about" />
-          <div class="CameraRealtime hidden">
-            <video class="Camera-video" muted autoplay playsinline></video>
-            <div class="Camera-instructions">Point at a QR code</div>
-            <div class="Camera-toggle wsk-button wsk-button--fab">
-              <input type="checkbox" id="checkbox-1" class="Camera-toggle-input" />
-              <label for="checkbox-1">
-                <img class="front" src="/images/ic_camera_front_24px.svg">
-                <img class="rear" src="/images/ic_camera_rear_24px.svg">
-              </label>
-            </div>
-          </div>
-          <div class="Camera-overlay"></div>
-          <div id="camera-fallback" class="CameraFallback hidden">
-            <form method="post" action="/scan-image" class="CameraFallback-form">
-              <input type="file" accept="image/*" capture="camera" id="qrcode-input" name="qrcode" class="CameraFallback-input">
-              <label for="qrcode-input"><img src="/images/ic_file_upload_24px.svg"></label>
-              <img class="CameraFallback-image">
-            </form>
+  <meta name="theme-color" content="#212121">
+  <link rel="stylesheet" href="/styles/app.css">
+  <script src="/scripts/main.mjs" type="module"></script>
+  <script src="/scripts/main.js" defer nomodule></script>
+</head>
+
+<body>
+
+  <div class="wsk-layout">
+    <div class="wsk-layout__content">
+      <div id="camera" class="Camera">
+        <canvas class="Camera-display"></canvas>
+        <img src="/images/help_outline-24px.svg" class="about" />
+        <div class="CameraRealtime hidden">
+          <video class="Camera-video" muted autoplay playsinline></video>
+          <div class="Camera-instructions">Point at a QR code</div>
+          <div class="Camera-toggle wsk-button wsk-button--fab">
+            <input type="checkbox" id="checkbox-1" class="Camera-toggle-input" />
+            <label for="checkbox-1">
+              <img class="front" src="/images/ic_camera_front_24px.svg">
+              <img class="rear" src="/images/ic_camera_rear_24px.svg">
+            </label>
           </div>
         </div>
-        <!-- QR Code found-->
-        <div id="qrcode" class="wsk-card wsk-shadow--z3 QRCodeSuccessDialog">
-          <div class="wsk-card--heading">
-             <span class="wsk-card--heading-text">QR Code found</span>
-          </div>
-          <div class="wsk-card--lower QRCodeSuccessDialog-data" >
-          </div>
-          <div class="wsk-card--bottom">
-            <div>
-              <button class="wsk-button QRCodeSuccessDialog-navigate">Open</button>
-              <button class="wsk-button QRCodeSuccessDialog-callback hidden">
-                <div class="QRCodeSuccessDialogCallback-name">Return</div>
-                <div class="QRCodeSuccessDialogCallback-domain"></div>
-              </button>
-              <button class="wsk-button QRCodeSuccessDialog-ignore">Ignore</button>
-              <button class="wsk-button QRCodeSuccessDialog-share hidden">Share</button>
-            </div>
+        <div class="Camera-overlay"></div>
+        <div id="camera-fallback" class="CameraFallback hidden">
+          <form method="post" action="/scan-image" class="CameraFallback-form">
+            <input type="file" accept="image/*" capture="camera" id="qrcode-input" name="qrcode"
+              class="CameraFallback-input">
+            <label for="qrcode-input"><img src="/images/ic_file_upload_24px.svg"></label>
+            <img class="CameraFallback-image">
+          </form>
+        </div>
+      </div>
+      <!-- QR Code found-->
+      <div id="qrcode" class="wsk-card wsk-shadow--z3 QRCodeSuccessDialog">
+        <div class="wsk-card--heading">
+          <span class="wsk-card--heading-text">QR Code found</span>
+        </div>
+        <div class="wsk-card--lower QRCodeSuccessDialog-data">
+        </div>
+        <div class="wsk-card--bottom">
+          <div>
+            <button class="wsk-button QRCodeSuccessDialog-navigate">Open</button>
+            <button class="wsk-button QRCodeSuccessDialog-callback hidden">
+              <div class="QRCodeSuccessDialogCallback-name">Return</div>
+              <div class="QRCodeSuccessDialogCallback-domain"></div>
+            </button>
+            <button class="wsk-button QRCodeSuccessDialog-ignore">Ignore</button>
+            <button class="wsk-button QRCodeSuccessDialog-share hidden">Share</button>
           </div>
         </div>
+      </div>
 
-        <!-- About Dialog -->
-        <div id="about" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog">
-          <div class="wsk-card--heading">
-              <span class="wsk-card--heading-text">About QR Snapper</span>
-          </div>
-          <div class="wsk-card--lower QRCodeAboutDialog-data">
-            <p>QR Snapper is the simplest to use QR Scanner available on the web.</p>
-            <p>If you would like to learn how it was built, visit <a href="https://paul.kinlan.me/projects/qrsnapper/">Paul Kinlan's site</a>.</p>
-            <p>The code is also available on <a href="https://github.com/PaulKinlan/qrcode/">Github</a>.</p>
-          </div>
-          <div class="wsk-card--bottom">
-            <div>
-              <button class="wsk-button QRCodeAboutDialog-close">Close</button>
-            </div>
+      <!-- About Dialog -->
+      <div id="about" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog">
+        <div class="wsk-card--heading">
+          <span class="wsk-card--heading-text">About QR Snapper</span>
+        </div>
+        <div class="wsk-card--lower QRCodeAboutDialog-data">
+          <p>QR Snapper is the simplest to use QR Scanner available on the web.</p>
+          <p>If you would like to learn how it was built, visit <a
+              href="https://paul.kinlan.me/projects/qrsnapper/">Paul Kinlan's site</a>.</p>
+          <p>The code is also available on <a href="https://github.com/PaulKinlan/qrcode/">Github</a>.</p>
+        </div>
+        <div class="wsk-card--bottom">
+          <div>
+            <button class="wsk-button QRCodeAboutDialog-close">Close</button>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <script>
-    if('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(function() { console.log("Service Worker Registered"); });
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
+        .then(function () { console.log("Service Worker Registered"); });
     }
-    </script>
+  </script>
 
-    <!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-42052847-1"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-42052847-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
 
-  gtag('config', 'UA-42052847-1');
-</script>
-  </body>
+    gtag('config', 'UA-42052847-1');
+  </script>
+</body>
+
 </html>

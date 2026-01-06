@@ -17,18 +17,22 @@ QR Snapper offers a seamless QR code scanning experience directly in your browse
 To set up QR Snapper locally, follow these steps:
 
 1.  **Prerequisites:**
-    * Node.js (v16 or later)
-    * npm (v8 or later)
+    * Node.js (v18 or later)
+    * npm (v9 or later)
 2.  **Installation:**
     * Clone the repository: `git clone https://github.com/PaulKinlan/qrcode.git`
     * Navigate to the project directory: `cd qrcode`
     * Install dependencies: `npm install`
-    * Run the local server: `gulp serve`
-    * Build for production: `gulp`
-    * \*Note: If you encounter errors with gulp, run `rollup gulpfile.babel.js -f cjs -o gulpfile.js`\*
-3.  **Potential Issues:**
+3.  **Development:**
+    * Run the development server: `npm run dev`
+    * Open your browser to `http://localhost:8080`
+4.  **Production Build:**
+    * Build for production: `npm run build`
+    * Preview the production build: `npm run preview`
+5.  **Potential Issues:**
     * Ensure your Node.js and npm versions meet the prerequisites.
     * Camera access may require browser permissions.
+    * Use HTTPS in production for camera and service worker support.
 
 ## Getting Started (Quick Start)
 
@@ -68,25 +72,55 @@ To quickly test QR Snapper, follow these steps:
 
 To better understand the codebase, here's a breakdown of the key components:
 
-* **`main.mjs`:**
-    * This is the main entry point of the application.
-    * It orchestrates camera access, QR code detection, and user interface interactions.
-    * It uses several manager classes to handle different functionalities.
-    * It is designed to be a module.
-* **`qrclient.js`:**
-    * This file contains the QR code decoding logic, ported from the JSQRCode library.
-    * It is optimized to run within a Web Worker for performance.
-    * This file is responsible for taking the video feed, and processing it to find a QR code.
-* **`qrworker.js`:**
-    * This file implements the QR code decoding logic, ported from the JSQRCode library.
-    * It is optimized to run within a Web Worker for performance.
-    * This file is responsible for taking the video feed, and processing it to find a QR code.
+### Modern Modular Structure
+
+The application is now organized into focused, maintainable modules:
+
+* **`scripts/main.js`:**
+    * Main entry point (32 lines) - initializes the application
+    * Much simpler than the previous 610-line monolithic file
+    
+* **`scripts/components/`:**
+    * **`QRCodeCamera.js`** - Main application coordinator
+    * **`camera/CameraManager.js`** - Manages canvas rendering and camera display
+    * **`camera/CameraSource.js`** - Low-level camera API interface (modernized, no deprecated prefixes)
+    * **`camera/WebCamManager.js`** - Real-time webcam handling with camera switching
+    * **`camera/CameraFallbackManager.js`** - Image upload fallback when camera unavailable
+    * **`dialogs/QRCodeManager.js`** - Result dialog with share/copy/navigate actions
+    * **`dialogs/QRCodeCallbackController.js`** - x-callback-url integration
+    * **`dialogs/QRCodeHelpManager.js`** - About/help dialog
+    
+* **`scripts/utils/`:**
+    * **`url-utils.js`** - URL normalization and security validation
+    
+* **`scripts/qrclient.js`:**
+    * Web Worker interface for QR code detection
+    * Uses Comlink for seamless worker communication
+    
+* **`scripts/qrworker.js`:**
+    * QR code detection worker implementation
+    * Uses native BarcodeDetector API when available
+    * Falls back to jsqrcode library polyfill
+    
+* **`scripts/jsqrcode/`:**
+    * JSQRCode library for QR detection
+    * Bundled from original source files
+
+### Modern Web APIs
+
+The application uses modern browser APIs:
+* **getUserMedia** - No deprecated webkit/moz/ms prefixes
+* **BarcodeDetector API** - Native QR detection when available
+* **Web Share API** - Share detected URLs
+* **Clipboard API** - Copy URLs to clipboard
+* **Service Workers** - Offline support and caching
 
 ### Development Notes
 
-* The project uses `gulp` as a build tool.
-* The project uses both a module and non-module javascript file to increase browser compatibility.
-* The project uses a polyfill to support older browsers.
+* The project uses Vite as the build tool (replaced Gulp)
+* Modern ES modules throughout
+* No Babel transpilation needed for modern browsers
+* Optimized production builds with Rollup under the hood
 
 ## Contributing
 

@@ -333,6 +333,8 @@ test(
           '--no-default-browser-check',
           '--disable-gpu',
           '--disable-dev-shm-usage',
+          // Force the WASM branch even on platforms where native QR detection is available.
+          '--disable-blink-features=BarcodeDetector',
           'about:blank',
         ],
         {
@@ -390,6 +392,9 @@ test(
 
       // 3. Load the app and drive the camera-free entry point
       await cdp.send('Page.navigate', { url: appUrl });
+
+      // Fail rather than silently testing the native path if Chrome ignores the feature switch.
+      assert.equal(await cdp.eval('typeof BarcodeDetector'), 'undefined');
 
       // Wait for DOM ready and CameraFallbackManager unhidden
       await pollUntil(

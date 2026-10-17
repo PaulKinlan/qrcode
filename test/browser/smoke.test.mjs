@@ -22,6 +22,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, normalize } from 'node:path';
@@ -37,6 +38,7 @@ const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
+  '.wasm': 'application/wasm',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
@@ -373,8 +375,10 @@ test(
       await cdp.send('Network.enable');
       await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
       const externalRequests = [];
+      const wasmRequests = [];
       cdp.on('Fetch.requestPaused', ({ requestId, request }) => {
         const url = request?.url ?? '';
+        if (url === `${origin}/scripts/zbar.wasm`) wasmRequests.push(url);
         const isLocal = url.startsWith(origin) || url.startsWith('data:') || url.startsWith('blob:');
         if (isLocal) {
           cdp.send('Fetch.continueRequest', { requestId }).catch(() => {});
@@ -442,6 +446,7 @@ test(
       assert.ok(domState.dialogVisible, 'Expected #qrcode dialog to be visible in DOM');
       assert.equal(domState.dialogDataText, EXPECTED_PAYLOAD);
       assert.ok(domState.bodyTextContains, 'Expected document.body.innerText to contain decoded payload');
+      assert.ok(wasmRequests.length > 0, 'Expected the browser to load ZBar WASM for fallback decoding');
 
       // 5. Assert service worker registration
       // Service workers are fully supported in headless Chrome on http://127.0.0.1 (considered secure context)
@@ -470,7 +475,6 @@ test(
         swRegistrations[0].scope.startsWith(origin),
         `Expected SW registration scope to start with ${origin}, got ${swRegistrations[0].scope}`
       );
-
       // 5b. Offline: the precache must actually serve the app (bead qrcode-gro). Everything below
       // runs with the network switched off, so a missing or stale precache entry fails here rather
       // than in the field. The cache name is version-derived, which is how the assertion proves the
@@ -499,6 +503,7 @@ test(
 
       assert.equal(cacheState.name, `qr-precache-${manifest.version}`, 'cache name must be version-derived');
       assert.ok(cacheState.keys.includes('/index.html'), 'the app entry should be precached');
+      assert.ok(cacheState.keys.includes('/scripts/zbar.wasm'), 'ZBar WASM must be precached for offline scanning');
       assert.ok(
         cacheState.keys.length >= manifest.files.length,
         `expected at least the ${manifest.files.length} generated files in the precache, got ${cacheState.keys.length}`
@@ -539,7 +544,12 @@ test(
         },
         { timeoutMs: 20000, message: 'the offline app to decode the uploaded QR fixture' }
       );
-      assert.equal(offlineDecoded, EXPECTED_PAYLOAD, 'offline decode (worker script from the precache) failed');
+      assert.equal(offlineDecoded, EXPECTED_PAYLOAD, 'offline ZBar WASM decode from the precache failed');
+      if (process.env.QR_SNAPPER_SCREENSHOT) {
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        writeFileSync(process.env.QR_SNAPPER_SCREENSHOT, Buffer.from(data, 'base64'));
+        t.diagnostic(`offline QR result screenshot: ${process.env.QR_SNAPPER_SCREENSHOT}`);
+      }
 
       await cdp.send('Network.emulateNetworkConditions', {
         offline: false,

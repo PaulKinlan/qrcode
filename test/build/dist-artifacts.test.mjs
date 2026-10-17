@@ -22,6 +22,7 @@ const REQUIRED_FILES = [
   'sw.js', // service worker stays at the dist root; the PWA scope depends on it
   'scripts/main.js', // app entry, deliberately unhashed so index.html and the SW agree
   'scripts/qrworker.js', // decoder worker chunk
+  'scripts/zbar.wasm', // separately cacheable offline decoder binary
   'styles/main.css',
   'manifest.json',
 ];
@@ -34,6 +35,7 @@ const COPIED_PUBLIC_FILES = [
   'manifest.webapp',
   'robots.txt',
   'webstore-manifest.json',
+  'licenses/zbar-wasm.txt',
   'images/touch/apple-touch-icon.png',
 ];
 
@@ -44,6 +46,13 @@ test('build emits the expected dist layout', () => {
     assert.ok(existsSync(path), `expected ${file} in dist/`);
     assert.ok(statSync(path).size > 0, `expected ${file} in dist/ to be non-empty`);
   }
+});
+
+test('the ZBar binary has a stable URL and is precached for offline scanning', () => {
+  const worker = readFileSync(join(dist, 'scripts/qrworker.js'), 'utf8');
+  const manifest = JSON.parse(readFileSync(join(dist, 'sw-manifest.json'), 'utf8'));
+  assert.match(worker, /\/scripts\/zbar\.wasm/, 'worker should load the emitted WASM binary');
+  assert.ok(manifest.files.includes('scripts/zbar.wasm'), 'generated SW manifest should precache the WASM binary');
 });
 
 test('the configured minifier is a declared dependency', () => {

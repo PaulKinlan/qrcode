@@ -75,6 +75,14 @@ function copyPublicFiles() {
         }
       });
 
+      // Ship the LGPL license alongside the separately distributed ZBar WASM binary.
+      const licensesDir = join(__dirname, 'dist', 'licenses');
+      mkdirSync(licensesDir, { recursive: true });
+      copyFileSync(
+        join(__dirname, 'node_modules', '@undecaf', 'zbar-wasm', 'LICENSE'),
+        join(licensesDir, 'zbar-wasm.txt')
+      );
+
       // Copy all images
       const copyDir = (src, dest) => {
         try {
@@ -121,6 +129,10 @@ export default defineConfig({
         },
         chunkFileNames: 'scripts/[name].js',
         assetFileNames: (assetInfo) => {
+          // Stable URL so the service worker can precache the external decoder binary.
+          if (assetInfo.name.endsWith('.wasm')) {
+            return 'scripts/[name].[ext]';
+          }
           // Keep styles in styles directory
           if (assetInfo.name.endsWith('.css')) {
             return 'styles/[name].[ext]';
@@ -147,7 +159,10 @@ export default defineConfig({
     format: 'es',
     rollupOptions: {
       output: {
-        entryFileNames: 'scripts/[name].js'
+        entryFileNames: 'scripts/[name].js',
+        assetFileNames: (assetInfo) => assetInfo.name.endsWith('.wasm')
+          ? 'scripts/[name].[ext]'
+          : 'assets/[name]-[hash].[ext]'
       }
     }
   },

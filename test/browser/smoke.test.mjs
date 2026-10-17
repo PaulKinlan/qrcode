@@ -378,6 +378,14 @@ test(
       await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
       const externalRequests = [];
       const wasmRequests = [];
+      // Uncaught page exceptions (bead qrcode-fc4). A page that throws at init still finishes
+      // loading, so "readyState complete" and "the upload control is visible" are both true while
+      // the app is dead: /about.html spent a release pointed at a script the build never emits and
+      // only a page-error check could see it. Every navigation below asserts this stayed empty.
+      const pageErrors = [];
+      cdp.on('Runtime.exceptionThrown', ({ exceptionDetails }) => {
+        pageErrors.push(exceptionDetails?.exception?.description || exceptionDetails?.text || 'unknown exception');
+      });
       cdp.on('Fetch.requestPaused', ({ requestId, request }) => {
         const url = request?.url ?? '';
         if (url === `${origin}/scripts/zbar.wasm`) wasmRequests.push(url);
@@ -563,22 +571,49 @@ test(
         uploadThroughput: -1,
       });
 
-      // The secondary HTML entry must load the same ESM app and built stylesheet, not the
-      // long-removed main.mjs / nomodule fallback from the old build.
+      // 5c. The secondary page has to be a working scanner too, not just a styled page (bead
+      // qrcode-fc4). Asserting the module script TAG exists is a false green: the tag is markup,
+      // and every other signal here (readyState, the visible camera fallback) is produced before
+      // the app's own code could throw. So: navigate it, require that nothing threw, then drive
+      // the same upload/decode path the index page is held to.
+      const errorsBeforeAbout = pageErrors.length;
+      t.diagnostic(`page exceptions before /about.html: ${errorsBeforeAbout}`);
       await cdp.send('Page.navigate', { url: `${origin}/about.html#nogum` });
-      const aboutState = await pollUntil(
+
+      await pollUntil(
         async () => {
-          const state = await cdp.eval(`(() => ({
-            ready: document.readyState === 'complete',
-            fallback: !document.querySelector('.CameraFallback')?.classList.contains('hidden'),
-            styled: getComputedStyle(document.querySelector('.CameraFallback')).position === 'absolute',
-            moduleScript: Boolean(document.querySelector('script[type="module"][src="/scripts/main.js"]')),
-          }))()`);
-          return state.ready && state.fallback && state.styled && state.moduleScript ? state : null;
+          const ready = await cdp.eval('document.readyState === "complete"');
+          const fallbackActive = await cdp.eval(
+            'Boolean(document.querySelector(".CameraFallback") && !document.querySelector(".CameraFallback").classList.contains("hidden"))'
+          );
+          return ready && fallbackActive;
         },
-        { timeoutMs: 15000, message: 'about.html to load the module app and visible upload fallback' }
+        { timeoutMs: 15000, message: '/about.html to load and its CameraFallback to become visible' }
       );
-      assert.ok(aboutState, 'about.html must initialize the styled module app');
+
+      assert.deepEqual(
+        pageErrors.slice(errorsBeforeAbout),
+        [],
+        '/about.html must initialise the scanner without throwing: an init exception leaves the page looking fine but scanning nothing'
+      );
+
+      const aboutDoc = await cdp.send('DOM.getDocument');
+      const aboutInput = await cdp.send('DOM.querySelector', {
+        nodeId: aboutDoc.root.nodeId,
+        selector: '#qrcode-input',
+      });
+      assert.ok(aboutInput?.nodeId > 0, 'expected #qrcode-input on /about.html');
+      await cdp.send('DOM.setFileInputFiles', { nodeId: aboutInput.nodeId, files: [fixturePath] });
+
+      const aboutDecoded = await pollUntil(
+        async () => {
+          const text = await cdp.eval('document.querySelector(".QRCodeSuccessDialog-data")?.innerText');
+          return text && text.trim().length > 0 ? text.trim() : null;
+        },
+        { timeoutMs: 20000, message: '/about.html to decode the uploaded QR fixture' }
+      );
+      assert.equal(aboutDecoded, EXPECTED_PAYLOAD, '/about.html must decode an uploaded QR, not just render the page');
+      assert.deepEqual(pageErrors.slice(errorsBeforeAbout), [], '/about.html threw while decoding');
       if (process.env.QR_SNAPPER_SCREENSHOT) {
         const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
         writeFileSync(process.env.QR_SNAPPER_SCREENSHOT, Buffer.from(data, 'base64'));

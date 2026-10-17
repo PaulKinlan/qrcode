@@ -1,0 +1,8 @@
+{
+  "description": "EAN-13 bars for a non-QR negative control, with guard patterns and a valid check digit.",
+  "expected": "5901234123457",
+  "bars": "10100010110100111011001100100110111101001110101010110011011011001000010101110010011101000100101",
+  "scale": 3,
+  "height": 90,
+  "quietModules": 12
+}

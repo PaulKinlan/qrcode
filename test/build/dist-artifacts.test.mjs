@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { aboutHtmlAlias } from '../../vite.config.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const dist = join(root, 'dist');
@@ -67,6 +68,15 @@ test('the configured minifier is a declared dependency', () => {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   const declared = { ...pkg.dependencies, ...pkg.devDependencies };
   assert.ok(declared[mode], `minify: '${mode}' needs ${mode} in package.json dependencies`);
+});
+
+test('About alias rejects markup that would otherwise be silently discarded', () => {
+  const transform = aboutHtmlAlias().transformIndexHtml.handler;
+  assert.throws(
+    () => transform('<!doctype html><body><button>Copy</button></body>', { path: '/about.html' }),
+    /app\/about\.html is an alias: edit app\/index\.html/
+  );
+  assert.match(transform('<!doctype html><!-- alias -->', { path: '/about.html' }), /QRCodeSuccessDialog-copy/);
 });
 
 test('about page is generated from the same app document as index', () => {

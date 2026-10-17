@@ -19,6 +19,7 @@ const dist = join(root, 'dist');
 // Entries vite must emit (see rollupOptions.input / output in vite.config.js).
 const REQUIRED_FILES = [
   'index.html',
+  'about.html', // Vite must process this HTML entry, not copy unresolved source references
   'sw.js', // service worker stays at the dist root; the PWA scope depends on it
   'scripts/main.js', // app entry, deliberately unhashed so index.html and the SW agree
   'scripts/qrworker.js', // decoder worker chunk
@@ -29,7 +30,6 @@ const REQUIRED_FILES = [
 
 // Public files copied by the copyPublicFiles() plugin in vite.config.js.
 const COPIED_PUBLIC_FILES = [
-  'about.html',
   'favicon.ico',
   'humans.txt',
   'manifest.webapp',
@@ -69,11 +69,14 @@ test('the configured minifier is a declared dependency', () => {
   assert.ok(declared[mode], `minify: '${mode}' needs ${mode} in package.json dependencies`);
 });
 
-test('built index.html references the emitted bundle and stylesheet', () => {
-  const html = readFileSync(join(dist, 'index.html'), 'utf8');
-  // Vite rewrites these hrefs; a mismatch here means the app loads unstyled or half-dead.
-  for (const ref of ['/scripts/main.js', '/styles/main.css', '/manifest.json']) {
-    assert.ok(html.includes(ref), `dist/index.html should reference ${ref}`);
+test('built HTML entries reference the emitted module and stylesheet', () => {
+  for (const page of ['index.html', 'about.html']) {
+    const html = readFileSync(join(dist, page), 'utf8');
+    // Vite rewrites these hrefs; a mismatch here means the page loads unstyled or half-dead.
+    for (const ref of ['/scripts/main.js', '/styles/main.css', '/manifest.json']) {
+      assert.ok(html.includes(ref), `dist/${page} should reference ${ref}`);
+    }
+    assert.ok(!html.includes('/styles/app.css'), `dist/${page} still points at the pre-build stylesheet path`);
+    assert.ok(!html.includes('main.mjs') && !html.includes('nomodule'), `dist/${page} still has a legacy script entry`);
   }
-  assert.ok(!html.includes('/styles/app.css'), 'dist/index.html still points at the pre-build stylesheet path');
 });

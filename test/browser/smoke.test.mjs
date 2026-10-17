@@ -471,6 +471,83 @@ test(
         `Expected SW registration scope to start with ${origin}, got ${swRegistrations[0].scope}`
       );
 
+      // 5b. Offline: the precache must actually serve the app (bead qrcode-gro). Everything below
+      // runs with the network switched off, so a missing or stale precache entry fails here rather
+      // than in the field. The cache name is version-derived, which is how the assertion proves the
+      // generated manifest and the injected version agree.
+      const manifest = JSON.parse(readFileSync(join(root, 'dist', 'sw-manifest.json'), 'utf8'));
+      const cacheState = await pollUntil(
+        async () => {
+          const state = await cdp.eval(`
+            (async () => {
+              const names = await caches.keys();
+              const name = names.find((n) => n.startsWith('qr-precache-'));
+              if (!name) return null;
+              const cache = await caches.open(name);
+              const keys = (await cache.keys()).map((r) => new URL(r.url).pathname);
+              return {
+                name,
+                keys,
+                controlled: Boolean(navigator.serviceWorker.controller),
+              };
+            })()
+          `);
+          return state && state.controlled && state.keys.length > 0 ? state : null;
+        },
+        { timeoutMs: 15000, message: 'the service worker to precache the build and control the page' }
+      );
+
+      assert.equal(cacheState.name, `qr-precache-${manifest.version}`, 'cache name must be version-derived');
+      assert.ok(cacheState.keys.includes('/index.html'), 'the app entry should be precached');
+      assert.ok(
+        cacheState.keys.length >= manifest.files.length,
+        `expected at least the ${manifest.files.length} generated files in the precache, got ${cacheState.keys.length}`
+      );
+
+      // Now cut the network and reload: only the precache can answer.
+      await cdp.send('Network.emulateNetworkConditions', {
+        offline: true,
+        latency: 0,
+        downloadThroughput: 0,
+        uploadThroughput: 0,
+      });
+      await cdp.send('Page.reload', { ignoreCache: false });
+
+      await pollUntil(
+        async () => {
+          const offlineReady = await cdp.eval(
+            'Boolean(document.querySelector("label[for=\\"qrcode-input\\"]") && document.readyState === "complete")'
+          );
+          return Boolean(offlineReady);
+        },
+        { timeoutMs: 20000, message: 'the app to load from the service worker cache with the network off' }
+      );
+
+      // And the offline app must still do its job: decode an uploaded QR with no network at all.
+      const offlineDoc = await cdp.send('DOM.getDocument');
+      const offlineInput = await cdp.send('DOM.querySelector', {
+        nodeId: offlineDoc.root.nodeId,
+        selector: '#qrcode-input',
+      });
+      assert.ok(offlineInput?.nodeId > 0, 'expected #qrcode-input after the offline reload');
+      await cdp.send('DOM.setFileInputFiles', { nodeId: offlineInput.nodeId, files: [fixturePath] });
+
+      const offlineDecoded = await pollUntil(
+        async () => {
+          const text = await cdp.eval('document.querySelector(".QRCodeSuccessDialog-data")?.innerText');
+          return text && text.trim().length > 0 ? text.trim() : null;
+        },
+        { timeoutMs: 20000, message: 'the offline app to decode the uploaded QR fixture' }
+      );
+      assert.equal(offlineDecoded, EXPECTED_PAYLOAD, 'offline decode (worker script from the precache) failed');
+
+      await cdp.send('Network.emulateNetworkConditions', {
+        offline: false,
+        latency: 0,
+        downloadThroughput: -1,
+        uploadThroughput: -1,
+      });
+
       // Everything above ran with zero external traffic: every off-origin request was failed by the
       // interceptor. Record what it blocked, and assert the one thing that would invalidate the
       // tier - a same-origin request wrongly blocked would have broken the page load outright.

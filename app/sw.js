@@ -1,6 +1,18 @@
-const dataStoreVersion = "0.2.5";
 import {router} from  './scripts/sw/router.js';
-import {requiredFiles} from './scripts/sw/fileManifest.js';
+
+/*
+  Cache names carry the app version, which the build injects from package.json
+  (`define: {__APP_VERSION__}` in vite.config.js). Bumping package.json therefore invalidates
+  the offline cache, and there is no second place to remember to bump.
+*/
+const VERSION = __APP_VERSION__;
+const PRECACHE_CACHE = `qr-precache-${VERSION}`;
+
+/*
+  The precache list is generated at build time by walking dist/ (vite.config.js,
+  generatePrecacheManifest) into /sw-manifest.json. Adding an asset needs no edit here.
+*/
+const PRECACHE_MANIFEST_URL = '/sw-manifest.json';
 
 /*
   Escape hatch. ABORT ABORT. Any URL with a kill-sw=true at the end of the query string.
@@ -16,22 +28,40 @@ router.get(/\?kill-sw=true/, function() {
 */
 router.get(`${self.location.origin}`, e => {
   e.respondWith(
-    caches.match(e.request, {ignoreSearch:true, cacheName: dataStoreVersion}).then(response => {
+    caches.match(e.request, {ignoreSearch:true, cacheName: PRECACHE_CACHE}).then(response => {
       return response || fetch(e.request);
     })
   );
 }, {urlMatchProperty: "origin"});
 
 self.addEventListener('activate', function(event) {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    // A versioned cache name means every release would otherwise leave its predecessor behind.
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key !== PRECACHE_CACHE).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('install', function(e) {
   self.skipWaiting();
 
-  e.waitUntil(
-    caches.open(dataStoreVersion).then(function(cache) {
-      return cache.addAll(requiredFiles);
-    })
-  );
+  e.waitUntil((async () => {
+    const response = await fetch(PRECACHE_MANIFEST_URL, {cache: 'no-store'});
+    if (!response.ok) {
+      throw new Error(`precache manifest ${PRECACHE_MANIFEST_URL} returned HTTP ${response.status}`);
+    }
+
+    const manifest = await response.json();
+    if (manifest.version !== VERSION) {
+      // A worker precaching a different release's assets would serve a mismatched app.
+      throw new Error(`precache manifest is v${manifest.version} but this worker is v${VERSION}`);
+    }
+
+    // '/' is the navigable entry point; cache.addAll() fails the install if any asset 404s,
+    // which is what turns a stale asset list into a visible failure instead of an offline 404.
+    const urls = ['/', ...manifest.files.map(file => `/${file}`)];
+    const cache = await caches.open(PRECACHE_CACHE);
+    await cache.addAll(urls);
+  })());
 });

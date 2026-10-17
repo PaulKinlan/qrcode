@@ -53,15 +53,20 @@ function generatePrecacheManifest() {
 
 // Keep /about.html as a real Vite entry without a second hand-maintained app document.
 // The pre hook runs for both dev requests and production HTML entry transforms.
-function aboutHtmlAlias() {
+export function aboutHtmlAlias() {
   return {
     name: 'about-html-alias',
     transformIndexHtml: {
       order: 'pre',
       handler(html, context) {
-        return context.path === '/about.html'
-          ? readFileSync(join(__dirname, 'app', 'index.html'), 'utf8')
-          : html;
+        if (context.path !== '/about.html') return html;
+        // A second app document would be ignored by this alias. Refuse it instead of
+        // silently discarding an About-page edit during dev or build.
+        const placeholder = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<!doctype html>/i, '').trim();
+        if (placeholder) {
+          throw new Error('app/about.html is an alias: edit app/index.html instead of adding markup here');
+        }
+        return readFileSync(join(__dirname, 'app', 'index.html'), 'utf8');
       }
     }
   };

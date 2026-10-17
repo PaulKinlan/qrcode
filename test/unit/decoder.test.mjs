@@ -67,6 +67,28 @@ test('QR-only scanner preserves UTF-8 QR payloads', async () => {
   assert.equal(symbols.find((symbol) => symbol.typeName === 'ZBAR_QRCODE')?.decode(), fixture.expected);
 });
 
+test('QR-only scanner rejects a barcode the default scanner can decode', async () => {
+  const { bars, expected, scale, height, quietModules } = JSON.parse(
+    readFileSync(join(here, '..', 'fixtures', 'ean13-negative-control.json'), 'utf8')
+  );
+  assert.equal(bars.length, 95, 'EAN-13 fixture must contain 95 bars');
+  const width = (bars.length + quietModules * 2) * scale;
+  const data = new Uint8ClampedArray(width * height * 4).fill(255);
+  for (let x = 0; x < bars.length; x++) {
+    if (bars[x] !== '1') continue;
+    for (let dx = 0; dx < scale; dx++) {
+      for (let y = 5; y < height - 5; y++) {
+        const pixel = (y * width + (quietModules + x) * scale + dx) * 4;
+        data[pixel] = data[pixel + 1] = data[pixel + 2] = 0;
+      }
+    }
+  }
+  const image = { width, height, data };
+  const defaultSymbols = await scanImageData(image);
+  assert.equal(defaultSymbols.find((symbol) => symbol.typeName === 'ZBAR_EAN13')?.decode(), expected);
+  assert.deepEqual(await scanImageData(image, await getQrScanner()), []);
+});
+
 test('WASM decoder returns the same QR payload on repeated scans', async () => {
   const fixture = loadFixture();
   for (let i = 0; i < 2; i++) {

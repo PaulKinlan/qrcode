@@ -57,7 +57,6 @@ function copyPublicFiles() {
     name: 'copy-public-files',
     closeBundle() {
       const filesToCopy = [
-        'about.html',
         'favicon.ico',
         'humans.txt',
         'manifest.webapp',
@@ -107,7 +106,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: './app/index.html',
+        index: './app/index.html',
+        about: './app/about.html',
         sw: './app/sw.js'
       },
       output: {

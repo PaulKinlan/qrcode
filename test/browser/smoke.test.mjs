@@ -22,6 +22,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, normalize } from 'node:path';
@@ -547,6 +548,28 @@ test(
         downloadThroughput: -1,
         uploadThroughput: -1,
       });
+
+      // The secondary HTML entry must load the same ESM app and built stylesheet, not the
+      // long-removed main.mjs / nomodule fallback from the old build.
+      await cdp.send('Page.navigate', { url: `${origin}/about.html#nogum` });
+      const aboutState = await pollUntil(
+        async () => {
+          const state = await cdp.eval(`(() => ({
+            ready: document.readyState === 'complete',
+            fallback: !document.querySelector('.CameraFallback')?.classList.contains('hidden'),
+            styled: getComputedStyle(document.querySelector('.CameraFallback')).position === 'absolute',
+            moduleScript: Boolean(document.querySelector('script[type="module"][src="/scripts/main.js"]')),
+          }))()`);
+          return state.ready && state.fallback && state.styled && state.moduleScript ? state : null;
+        },
+        { timeoutMs: 15000, message: 'about.html to load the module app and visible upload fallback' }
+      );
+      assert.ok(aboutState, 'about.html must initialize the styled module app');
+      if (process.env.QR_SNAPPER_SCREENSHOT) {
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        writeFileSync(process.env.QR_SNAPPER_SCREENSHOT, Buffer.from(data, 'base64'));
+        t.diagnostic(`about.html screenshot: ${process.env.QR_SNAPPER_SCREENSHOT}`);
+      }
 
       // Everything above ran with zero external traffic: every off-origin request was failed by the
       // interceptor. Record what it blocked, and assert the one thing that would invalidate the

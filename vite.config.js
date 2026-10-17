@@ -1,10 +1,55 @@
 import { defineConfig } from 'vite';
-import { copyFileSync, mkdirSync, readdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
+import { join, dirname, posix } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+
+// The service worker's precache list and cache version are DERIVED, never hand-maintained
+// (bead qrcode-gro): the list is walked out of dist/ after the bundle is written, and the
+// version is injected from package.json below. app/scripts/sw/fileManifest.js used to hold a
+// hand-typed list, which silently broke offline install whenever an asset was renamed.
+function generatePrecacheManifest() {
+  const MANIFEST_NAME = 'sw-manifest.json';
+  // Never precache the worker itself (the browser owns its update cycle) or the manifest.
+  const EXCLUDED = new Set(['sw.js', MANIFEST_NAME]);
+
+  return {
+    name: 'generate-precache-manifest',
+    apply: 'build',
+    // Must run after copyPublicFiles() has put the public files and images into dist/.
+    closeBundle() {
+      const distDir = join(__dirname, 'dist');
+      const files = [];
+
+      const walk = (dir, prefix) => {
+        for (const entry of readdirSync(dir)) {
+          const full = join(dir, entry);
+          const rel = prefix ? posix.join(prefix, entry) : entry;
+          if (statSync(full).isDirectory()) walk(full, rel);
+          else files.push(rel);
+        }
+      };
+      walk(distDir, '');
+      files.sort();
+
+      const precache = files.filter((file) => !EXCLUDED.has(file) && !file.endsWith('.map'));
+      if (precache.length === 0) {
+        // An empty manifest installs a worker that caches nothing: fail the build, loudly.
+        throw new Error('precache manifest: dist/ produced no files to precache');
+      }
+
+      writeFileSync(
+        join(distDir, MANIFEST_NAME),
+        `${JSON.stringify({ version: pkg.version, files: precache }, null, 2)}\n`
+      );
+      console.log(`precache manifest: ${precache.length} files for v${pkg.version}`);
+    }
+  };
+}
 
 // Plugin to copy additional public files
 function copyPublicFiles() {
@@ -92,7 +137,12 @@ export default defineConfig({
     target: 'es2020',
     minify: 'terser'
   },
-  plugins: [copyPublicFiles()],
+  plugins: [copyPublicFiles(), generatePrecacheManifest()],
+  // Single source of the app version: package.json. app/sw.js interpolates __APP_VERSION__
+  // into its cache names, so bumping the version invalidates the cache and nothing else.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version)
+  },
   worker: {
     format: 'es',
     rollupOptions: {

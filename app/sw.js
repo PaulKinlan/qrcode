@@ -6,7 +6,8 @@ import {router} from  './scripts/sw/router.js';
   the offline cache, and there is no second place to remember to bump.
 */
 const VERSION = __APP_VERSION__;
-const PRECACHE_CACHE = `qr-precache-${VERSION}`;
+const CACHE_PREFIX = 'qr-precache-';
+const PRECACHE_CACHE = `${CACHE_PREFIX}${VERSION}`;
 
 /*
   The precache list is generated at build time by walking dist/ (vite.config.js,
@@ -37,8 +38,12 @@ router.get(`${self.location.origin}`, e => {
 self.addEventListener('activate', function(event) {
   event.waitUntil((async () => {
     // A versioned cache name means every release would otherwise leave its predecessor behind.
+    // Only OUR caches may be removed: CacheStorage is per origin, and other applications or user
+    // storage on the same origin must survive this worker activating (review finding qrcode-kr4 -
+    // deleting every key not equal to this release's name was over-broad).
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key !== PRECACHE_CACHE).map(key => caches.delete(key)));
+    const stale = keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== PRECACHE_CACHE);
+    await Promise.all(stale.map(key => caches.delete(key)));
     await self.clients.claim();
   })());
 });

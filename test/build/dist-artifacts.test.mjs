@@ -9,7 +9,7 @@
 // that drives the file-upload path is a separate, later tier (bead qrcode-cf0).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aboutHtmlAlias } from '../../vite.config.js';
@@ -56,6 +56,22 @@ test('the ZBar binary has a stable URL and is precached for offline scanning', (
   assert.ok(manifest.files.includes('scripts/zbar.wasm'), 'generated SW manifest should precache the WASM binary');
 });
 
+test('both pages ship a CSP that allows their own WebAssembly', () => {
+  // bead qrcode-2pt: script-src lacked 'wasm-unsafe-eval', so every WebAssembly compile in the
+  // document was refused (CompileError, verified in Chrome against the built page). Scanning still
+  // worked only because a meta CSP is NOT inherited by workers and the decode runs in
+  // app/scripts/qrworker.js - so moving decoding to the main thread, or serving this policy as an
+  // HTTP header (which workers DO inherit), would kill the fallback with no visible error: the
+  // rejected scan is swallowed and the user just sees "no QR found".
+  for (const page of ['index.html', 'about.html']) {
+    const html = readFileSync(join(dist, page), 'utf8');
+    const policy = html.match(/<meta[^>]+Content-Security-Policy[^>]+content="([^"]+)"/i)?.[1];
+    assert.ok(policy, `${page} should declare a Content-Security-Policy`);
+    assert.match(policy, /script-src[^;]*'wasm-unsafe-eval'/, `${page} CSP must allow 'wasm-unsafe-eval'`);
+    assert.match(policy, /script-src[^;]*'self'/, `${page} CSP should still restrict scripts to 'self'`);
+  }
+});
+
 test('the configured minifier is a declared dependency', () => {
   // cost us a red gate on 2026-10-17: vite.config.js sets minify: 'terser', but terser is only
   // an OPTIONAL peer of vite and was not declared anywhere, so it existed in a hand-made
@@ -97,4 +113,33 @@ test('built HTML entries reference the emitted module and stylesheet', () => {
     assert.ok(!html.includes('/styles/app.css'), `dist/${page} still points at the pre-build stylesheet path`);
     assert.ok(!html.includes('main.mjs') && !html.includes('nomodule'), `dist/${page} still has a legacy script entry`);
   }
+});
+
+test('dist ships only the JavaScript the app loads', () => {
+  // bead qrcode-lmm: Vite rewrote `new URL('./', import.meta.url)` in the ZBar Emscripten glue
+  // and emitted a byte-identical copy of that module as a hashed chunk under dist/assets/. Its
+  // only reader is the glue's `process.versions.node` branch, which cannot run in a browser
+  // worker, so the copy was pure weight - it was precached for offline install and never fetched.
+  // vite.config.js suppresses that rewrite (worker.plugins: root plugins are not run for worker
+  // modules). This asserts no emitted JS is dead weight of that shape; if a dependency bumps and
+  // the glue changes, the chunk comes back and this fails.
+  const jsFiles = [];
+  const walk = (dir, prefix) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      const rel = prefix ? `${prefix}/${entry}` : entry;
+      if (statSync(full).isDirectory()) walk(full, rel);
+      else if (/\.m?js$/.test(entry)) jsFiles.push(rel);
+    }
+  };
+  walk(dist, '');
+  assert.deepEqual(
+    jsFiles.sort(),
+    ['scripts/main.js', 'scripts/qrworker.js', 'sw.js'],
+    'dist/ should contain exactly the app entry, the decoder worker and the service worker'
+  );
+
+  const manifest = JSON.parse(readFileSync(join(dist, 'sw-manifest.json'), 'utf8'));
+  const orphaned = manifest.files.filter((file) => /\.m?js$/.test(file) && !jsFiles.includes(file));
+  assert.deepEqual(orphaned, [], 'the precache manifest should not list JavaScript that dist/ does not ship');
 });

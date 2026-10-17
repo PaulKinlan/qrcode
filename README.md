@@ -43,11 +43,11 @@ To quickly test QR Snapper, follow these steps:
     * \*Note: This step requires an internet connection.\*
     * Clone the repository directly, or fork it and then clone your fork:
         ```bash
-        git clone [https://github.com/PaulKinlan/qrcode.git](https://github.com/PaulKinlan/qrcode.git)
+        git clone https://github.com/PaulKinlan/qrcode.git
         ```
         or
         ```bash
-        git clone [https://github.com/YOUR_USERNAME/qrcode.git](https://github.com/YOUR_USERNAME/qrcode.git)
+        git clone https://github.com/YOUR_USERNAME/qrcode.git
         ```
 
 2.  **Navigate to the Project Directory:**
@@ -65,13 +65,13 @@ To quickly test QR Snapper, follow these steps:
 4.  **Run the tests (optional but recommended):**
 
     * `npm run test:fast` - builds and runs the unit tests (seconds)
-    * `npm test` - the fast tier plus post-build `dist/` assertions
+    * `npm test` - builds and runs unit, post-build `dist/`, and headless browser tests
 
 5.  **Open in Browser:**
 
-    * Open `index.html` (or your main HTML file) in your web browser.
+    * Run `npm run dev`, then open `http://localhost:8080` in your browser. Do not open `app/index.html` as a `file://` URL; Vite serves the app's module and asset paths.
 
-**Note:** For full functionality (including camera access and advanced build processes), you may need to grant camera permissions and ensure your browser supports the necessary APIs. Refer to the full build instructions for details about build processes.
+**Note:** Grant camera permission when prompted. Camera access and service workers require a secure context (localhost or HTTPS).
 
 ## Code Architecture
 
@@ -81,11 +81,10 @@ To better understand the codebase, here's a breakdown of the key components:
 
 The application is now organized into focused, maintainable modules:
 
-* **`scripts/main.js`:**
-    * Main entry point (32 lines) - initializes the application
-    * Much simpler than the previous 610-line monolithic file
+* **`app/scripts/main.js`:**
+    * Main entry point that initializes the application
     
-* **`scripts/components/`:**
+* **`app/scripts/components/`:**
     * **`QRCodeCamera.js`** - Main application coordinator
     * **`camera/CameraManager.js`** - Manages canvas rendering and camera display
     * **`camera/CameraSource.js`** - Low-level camera API interface (modernized, no deprecated prefixes)
@@ -95,14 +94,14 @@ The application is now organized into focused, maintainable modules:
     * **`dialogs/QRCodeCallbackController.js`** - x-callback-url integration
     * **`dialogs/QRCodeHelpManager.js`** - About/help dialog
     
-* **`scripts/utils/`:**
+* **`app/scripts/utils/`:**
     * **`url-utils.js`** - URL normalization and security validation
     
-* **`scripts/qrclient.js`:**
+* **`app/scripts/qrclient.js`:**
     * Web Worker interface for QR code detection
     * Uses Comlink for seamless worker communication
     
-* **`scripts/qrworker.js`:**
+* **`app/scripts/qrworker.js`:**
     * QR code detection worker implementation
     * Uses native BarcodeDetector API when available
     * Falls back to `@undecaf/zbar-wasm` when the native API is unavailable or fails

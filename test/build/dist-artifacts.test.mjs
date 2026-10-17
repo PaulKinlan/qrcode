@@ -9,7 +9,7 @@
 // that drives the file-upload path is a separate, later tier (bead qrcode-cf0).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aboutHtmlAlias } from '../../vite.config.js';
@@ -97,4 +97,33 @@ test('built HTML entries reference the emitted module and stylesheet', () => {
     assert.ok(!html.includes('/styles/app.css'), `dist/${page} still points at the pre-build stylesheet path`);
     assert.ok(!html.includes('main.mjs') && !html.includes('nomodule'), `dist/${page} still has a legacy script entry`);
   }
+});
+
+test('dist ships only the JavaScript the app loads', () => {
+  // bead qrcode-lmm: Vite rewrote `new URL('./', import.meta.url)` in the ZBar Emscripten glue
+  // and emitted a byte-identical copy of that module as a hashed chunk under dist/assets/. Its
+  // only reader is the glue's `process.versions.node` branch, which cannot run in a browser
+  // worker, so the copy was pure weight - it was precached for offline install and never fetched.
+  // vite.config.js suppresses that rewrite (worker.plugins: root plugins are not run for worker
+  // modules). This asserts no emitted JS is dead weight of that shape; if a dependency bumps and
+  // the glue changes, the chunk comes back and this fails.
+  const jsFiles = [];
+  const walk = (dir, prefix) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      const rel = prefix ? `${prefix}/${entry}` : entry;
+      if (statSync(full).isDirectory()) walk(full, rel);
+      else if (/\.m?js$/.test(entry)) jsFiles.push(rel);
+    }
+  };
+  walk(dist, '');
+  assert.deepEqual(
+    jsFiles.sort(),
+    ['scripts/main.js', 'scripts/qrworker.js', 'sw.js'],
+    'dist/ should contain exactly the app entry, the decoder worker and the service worker'
+  );
+
+  const manifest = JSON.parse(readFileSync(join(dist, 'sw-manifest.json'), 'utf8'));
+  const orphaned = manifest.files.filter((file) => /\.m?js$/.test(file) && !jsFiles.includes(file));
+  assert.deepEqual(orphaned, [], 'the precache manifest should not list JavaScript that dist/ does not ship');
 });

@@ -72,6 +72,34 @@ export function aboutHtmlAlias() {
   };
 }
 
+// Vite rewrites every static `new URL('<specifier>', import.meta.url)` at build time. The
+// Emscripten glue inside @undecaf/zbar-wasm has `new URL('./', import.meta.url)` in its Node
+// branch; that specifier resolves to the package's own dist/ directory, so the rewrite emits a
+// byte-identical COPY of the module as an asset (dist/assets/index-<hash>.mjs), and the precache
+// walker below then ships it - even though its only reader is a `process.versions.node` branch
+// that cannot run in a browser worker (bead qrcode-lmm: 12.9 kB of never-fetched weight in
+// every install). `@vite-ignore` suppresses the rewrite for that one call.
+//
+// This has to be registered under `worker.plugins`: Vite builds workers in their own
+// environment, and a plugin in the top-level `plugins` array is never run for worker modules
+// (verified on 6.4.1 with a logging transform hook). The module is only imported by the worker.
+const ZBAR_BROWSER_ENTRY = /[\\/]@undecaf[\\/]zbar-wasm[\\/]dist[\\/]index\.mjs$/;
+const EMSCRIPTEN_DIR_URL = /new URL\(\s*(["'])\.\/\1\s*,\s*import\.meta\.url\s*\)/;
+
+function skipEmscriptenDirectoryUrl() {
+  return {
+    name: 'skip-emscripten-directory-url',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!ZBAR_BROWSER_ENTRY.test(id.split('?')[0]) || !EMSCRIPTEN_DIR_URL.test(code)) return null;
+      return {
+        code: code.replace(EMSCRIPTEN_DIR_URL, 'new URL(/* @vite-ignore */ "./", import.meta.url)'),
+        map: null
+      };
+    }
+  };
+}
+
 // Plugin to copy additional public files
 function copyPublicFiles() {
   return {
@@ -178,6 +206,8 @@ export default defineConfig({
   },
   worker: {
     format: 'es',
+    // Worker modules are transformed in their own environment: see skipEmscriptenDirectoryUrl().
+    plugins: () => [skipEmscriptenDirectoryUrl()],
     rollupOptions: {
       output: {
         entryFileNames: 'scripts/[name].js',

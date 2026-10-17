@@ -12,8 +12,6 @@ export class QRCodeCamera {
     this.qrCodeManager = new QRCodeManager('qrcode');
     this.qrCodeHelpManager = new QRCodeHelpManager('about');
     
-    this.processingFrame = false;
-
     this.setupHelpButton();
     this.setupCameraCallback();
   }
@@ -26,13 +24,14 @@ export class QRCodeCamera {
   }
 
   setupCameraCallback() {
+    let isDecoding = false;
     this.cameraManager.onframe = async (context) => {
-      // Prevent overlapping QR code detection
-      if (this.processingFrame) {
+      // Drop incoming frames while the worker is decoding the previous one.
+      if (isDecoding) {
         return;
       }
 
-      this.processingFrame = true;
+      isDecoding = true;
       
       try {
         const url = await this.qrCodeManager.detectQRCode(context);
@@ -53,7 +52,7 @@ export class QRCodeCamera {
           this.qrCodeManager.showDialog(url);
         }
       } finally {
-        this.processingFrame = false;
+        isDecoding = false;
       }
     };
   }

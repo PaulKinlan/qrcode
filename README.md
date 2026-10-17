@@ -105,16 +105,8 @@ The application is now organized into focused, maintainable modules:
 * **`scripts/qrworker.js`:**
     * QR code detection worker implementation
     * Uses native BarcodeDetector API when available
-    * Falls back to the vendored `qrcode-lib.js` decoder
-    
-* **`scripts/qrcode-lib.js`:**
-    * **The one and only decoder source** in this repo - a concatenation of the JSQRCode/
-      [LazarSoft](https://github.com/LazarSoft/jsqrcode) ZXing port, exported as a single module
-    * Imported by `qrworker.js`; it has no importer of its own and there is deliberately no
-      second copy of this decoder in the tree
-    * **Vendored upstream code: do not edit it casually.** A decoder fix belongs upstream or in
-      a clearly marked patch, and it must keep `npm run test:fast` green (the decoder fixture
-      test decodes a known QR image through this file)
+    * Falls back to `@undecaf/zbar-wasm` when the native API is unavailable or fails
+    * Loads `/scripts/zbar.wasm` as a separate asset, precached for offline scanning
 
 ### Modern Web APIs
 
@@ -150,4 +142,10 @@ We welcome contributions to QR Snapper! Please follow these guidelines:
 
 ## License
 
-This project is licensed under the Apache License 2.0
+This project's own code is licensed under the Apache License 2.0 (see `LICENSE`).
+The distributed ZBar WASM decoder is `@undecaf/zbar-wasm` 0.11.0, licensed
+LGPL-2.1-or-later. Its license is included at `/licenses/zbar-wasm.txt` in the
+built app; its upstream source and build instructions are at
+https://github.com/undecaf/zbar-wasm/tree/0.11.0 (also available from the
+package's `repository` field). The decoder binary is a separate file so it
+can be replaced independently of the application bundle.

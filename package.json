@@ -1,6 +1,6 @@
 {
   "name": "qr-snapper",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "A simple PWA QR code scanner",
   "private": true,
   "type": "module",
@@ -19,6 +19,7 @@
     "vite": "^6.4.1"
   },
   "dependencies": {
+    "@undecaf/zbar-wasm": "0.11.0",
     "comlink": "^4.4.2"
   }
 }

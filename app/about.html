@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Capture QR Code</title>
   <meta http-equiv="Content-Security-Policy"
-    content="script-src 'self' 'unsafe-inline' data: https://www.googletagmanager.com/">
+    content="script-src 'self' 'unsafe-inline' data:">
   <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
   <!-- Add to homescreen -->
@@ -111,16 +111,6 @@
       navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
         .then(function () { console.log("Service Worker Registered"); });
     }
-  </script>
-
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-42052847-1"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-
-    gtag('config', 'UA-42052847-1');
   </script>
 </body>
 

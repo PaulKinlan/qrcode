@@ -3,12 +3,16 @@
   "version": "0.2.5",
   "description": "A simple PWA QR code scanner",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "serve": "vite preview --port 8080",
-    "clean": "rm -rf dist .tmp"
+    "clean": "rm -rf dist .tmp",
+    "test": "npm run build && node --test 'test/unit/**/*.test.mjs' 'test/build/**/*.test.mjs'",
+    "test:fast": "npm run build && node --test 'test/unit/**/*.test.mjs'",
+    "test:unit": "node --test 'test/unit/**/*.test.mjs'"
   },
   "devDependencies": {
     "vite": "^6.4.1",

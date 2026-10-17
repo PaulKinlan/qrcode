@@ -2,7 +2,7 @@
 
 QR Snapper is a simple, small, progressive web app that accesses the user's camera and looks for QR Codes.
 
-The QR Code library is a port of [JSQRCode](https://github.com/LazarSoft/jsqrcode) and has been ported to work inside a Web Worker for performance.
+QR Snapper uses the native BarcodeDetector API for QR codes when available, and falls back to the [ZBar WebAssembly decoder](https://github.com/undecaf/zbar-wasm) in a Web Worker. The WASM asset is precached for offline scanning.
 
 ## Features
 

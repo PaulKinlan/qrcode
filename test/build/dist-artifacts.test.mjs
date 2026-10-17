@@ -60,6 +60,14 @@ test('the configured minifier is a declared dependency', () => {
   assert.ok(declared[mode], `minify: '${mode}' needs ${mode} in package.json dependencies`);
 });
 
+test('about page is generated from the same app document as index', () => {
+  assert.equal(
+    readFileSync(join(dist, 'about.html'), 'utf8'),
+    readFileSync(join(dist, 'index.html'), 'utf8'),
+    'the About route must not drift from the scanner app markup'
+  );
+});
+
 test('built HTML entries reference the emitted module and stylesheet', () => {
   for (const page of ['index.html', 'about.html']) {
     const html = readFileSync(join(dist, page), 'utf8');

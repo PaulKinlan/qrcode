@@ -51,6 +51,22 @@ function generatePrecacheManifest() {
   };
 }
 
+// Keep /about.html as a real Vite entry without a second hand-maintained app document.
+// The pre hook runs for both dev requests and production HTML entry transforms.
+function aboutHtmlAlias() {
+  return {
+    name: 'about-html-alias',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html, context) {
+        return context.path === '/about.html'
+          ? readFileSync(join(__dirname, 'app', 'index.html'), 'utf8')
+          : html;
+      }
+    }
+  };
+}
+
 // Plugin to copy additional public files
 function copyPublicFiles() {
   return {
@@ -137,7 +153,7 @@ export default defineConfig({
     target: 'es2020',
     minify: 'terser'
   },
-  plugins: [copyPublicFiles(), generatePrecacheManifest()],
+  plugins: [aboutHtmlAlias(), copyPublicFiles(), generatePrecacheManifest()],
   // Single source of the app version: package.json. app/sw.js interpolates __APP_VERSION__
   // into its cache names, so bumping the version invalidates the cache and nothing else.
   define: {

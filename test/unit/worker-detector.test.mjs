@@ -7,6 +7,12 @@ import { createWorkerDetector } from '../../app/scripts/worker-detector.js';
 
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/ean13-negative-control.json', import.meta.url), 'utf8'));
 
+test('the worker entry wires its real scan and QR-only scanner into the tested detector', () => {
+  const entry = readFileSync(new URL('../../app/scripts/qrworker.js', import.meta.url), 'utf8');
+  assert.match(entry, /import\s*\{\s*createWorkerDetector\s*\}\s*from\s*['"]\.\/worker-detector\.js['"]/);
+  assert.match(entry, /createWorkerDetector\(scanImageData,\s*getQrScanner\)/);
+});
+
 function barcodeImage({ bars, scale, height, quietModules }) {
   const width = (bars.length + quietModules * 2) * scale;
   const data = new Uint8ClampedArray(width * height * 4).fill(255);

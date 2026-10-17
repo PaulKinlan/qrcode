@@ -46,6 +46,20 @@ test('build emits the expected dist layout', () => {
   }
 });
 
+test('the configured minifier is a declared dependency', () => {
+  // cost us a red gate on 2026-10-17: vite.config.js sets minify: 'terser', but terser is only
+  // an OPTIONAL peer of vite and was not declared anywhere, so it existed in a hand-made
+  // node_modules and nowhere else - a clean `npm ci` could not build the project at all.
+
+  const config = readFileSync(join(root, 'vite.config.js'), 'utf8');
+  const mode = config.match(/minify:\s*'([a-z0-9-]+)'/)?.[1];
+  assert.ok(mode, 'vite.config.js should state a minify mode');
+  if (mode === 'esbuild') return; // vite's built-in, nothing to install
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const declared = { ...pkg.dependencies, ...pkg.devDependencies };
+  assert.ok(declared[mode], `minify: '${mode}' needs ${mode} in package.json dependencies`);
+});
+
 test('built index.html references the emitted bundle and stylesheet', () => {
   const html = readFileSync(join(dist, 'index.html'), 'utf8');
   // Vite rewrites these hrefs; a mismatch here means the app loads unstyled or half-dead.

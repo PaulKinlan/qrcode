@@ -1,5 +1,6 @@
 import * as Comlink from 'comlink';
 import { createNativeDetector } from './native-detector.js';
+import { getQrScanner } from './qr-scanner.js';
 import { scanImageData, setModuleArgs } from '@undecaf/zbar-wasm';
 import wasmUrl from '@undecaf/zbar-wasm/dist/zbar.wasm?url';
 
@@ -8,7 +9,7 @@ setModuleArgs({ locateFile: () => wasmUrl });
 
 // Scan only QR symbols: other barcode formats must not become navigable URLs.
 let workerDetector = async (width, height, imageData) => {
-  const symbols = await scanImageData(imageData);
+  const symbols = await scanImageData(imageData, await getQrScanner());
   return symbols.find((symbol) => symbol.typeName === 'ZBAR_QRCODE')?.decode();
 };
 

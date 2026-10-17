@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { scanImageData } from '@undecaf/zbar-wasm';
+import { getQrScanner } from '../../app/scripts/qr-scanner.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureUrl = join(here, '..', 'fixtures', 'qr-example-v2-L.json');
@@ -49,6 +50,20 @@ function rasterise({ rows, scale, modules }) {
 test('WASM decoder returns the QR payload encoded in the fixture', async () => {
   const fixture = loadFixture();
   const symbols = await scanImageData(rasterise(fixture));
+  assert.equal(symbols.find((symbol) => symbol.typeName === 'ZBAR_QRCODE')?.decode(), fixture.expected);
+});
+
+test('QR-only scanner is reused and decodes the QR fixture', async () => {
+  const fixture = loadFixture();
+  const scanner = await getQrScanner();
+  assert.equal(await getQrScanner(), scanner, 'camera frames should reuse the configured scanner');
+  const symbols = await scanImageData(rasterise(fixture), scanner);
+  assert.equal(symbols.find((symbol) => symbol.typeName === 'ZBAR_QRCODE')?.decode(), fixture.expected);
+});
+
+test('QR-only scanner preserves UTF-8 QR payloads', async () => {
+  const fixture = JSON.parse(readFileSync(join(here, '..', 'fixtures', 'qr-utf8-v2-L.json'), 'utf8'));
+  const symbols = await scanImageData(rasterise(fixture), await getQrScanner());
   assert.equal(symbols.find((symbol) => symbol.typeName === 'ZBAR_QRCODE')?.decode(), fixture.expected);
 });
 

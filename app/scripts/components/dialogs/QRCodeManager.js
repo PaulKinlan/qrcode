@@ -24,12 +24,12 @@ export class QRCodeManager {
 
   setupUI() {
     // Show share button if Web Share API is supported
-    if (navigator.share) {
+    if (navigator.share && this.qrcodeShare) {
       this.qrcodeShare.classList.remove('hidden');
     }
 
     // Show copy button if Clipboard API is supported
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if (navigator.clipboard?.writeText && this.qrcodeCopy) {
       this.qrcodeCopy.classList.remove('hidden');
     }
   }
@@ -41,7 +41,7 @@ export class QRCodeManager {
     });
 
     // Share button
-    this.qrcodeShare.addEventListener('click', async () => {
+    this.qrcodeShare?.addEventListener('click', async () => {
       if (navigator.share) {
         try {
           await navigator.share({
@@ -61,7 +61,7 @@ export class QRCodeManager {
     });
 
     // Copy button
-    this.qrcodeCopy.addEventListener('click', async () => {
+    this.qrcodeCopy?.addEventListener('click', async () => {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         try {
           await navigator.clipboard.writeText(this.currentUrl);

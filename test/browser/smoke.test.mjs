@@ -173,12 +173,21 @@ class CDPClient {
   #ws;
   #seq = 1;
   #pending = new Map();
+  #eventHandlers = new Map();
 
   constructor(ws) {
     this.#ws = ws;
     this.#ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+        if (msg.method && this.#eventHandlers.has(msg.method)) {
+          for (const handler of this.#eventHandlers.get(msg.method)) {
+            try {
+              handler(msg.params);
+            } catch {}
+          }
+          return;
+        }
         if (msg.id && this.#pending.has(msg.id)) {
           const { resolve, reject, timer, method } = this.#pending.get(msg.id);
           clearTimeout(timer);
@@ -197,6 +206,11 @@ class CDPClient {
     this.#ws.onclose = () => {
       this.#rejectAll(new Error('WebSocket closed'));
     };
+  }
+
+  on(method, handler) {
+    if (!this.#eventHandlers.has(method)) this.#eventHandlers.set(method, []);
+    this.#eventHandlers.get(method).push(handler);
   }
 
   #rejectAll(err) {
@@ -350,6 +364,26 @@ test(
       await cdp.send('Runtime.enable');
       await cdp.send('DOM.enable');
 
+      // Hermetic run. The built index.html carries an async Google Analytics <script> tag, so a
+      // plain navigation waits on a THIRD-PARTY host before `readyState === 'complete'`. This tier
+      // must never depend on the network (ADR qrcode-vyq), and an egress-less VM or a slow DNS
+      // answer would otherwise turn a green build into a 15s timeout. Intercept every request:
+      // same-origin is continued, anything else is failed in the browser, instantly and
+      // deterministically, so the assertions below can only pass on locally-served behaviour.
+      await cdp.send('Network.enable');
+      await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
+      const externalRequests = [];
+      cdp.on('Fetch.requestPaused', ({ requestId, request }) => {
+        const url = request?.url ?? '';
+        const isLocal = url.startsWith(origin) || url.startsWith('data:') || url.startsWith('blob:');
+        if (isLocal) {
+          cdp.send('Fetch.continueRequest', { requestId }).catch(() => {});
+          return;
+        }
+        externalRequests.push(url);
+        cdp.send('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' }).catch(() => {});
+      });
+
       // 3. Load the app and drive the camera-free entry point
       await cdp.send('Page.navigate', { url: appUrl });
 
@@ -435,6 +469,19 @@ test(
       assert.ok(
         swRegistrations[0].scope.startsWith(origin),
         `Expected SW registration scope to start with ${origin}, got ${swRegistrations[0].scope}`
+      );
+
+      // Everything above ran with zero external traffic: every off-origin request was failed by the
+      // interceptor. Record what it blocked, and assert the one thing that would invalidate the
+      // tier - a same-origin request wrongly blocked would have broken the page load outright.
+      t.diagnostic(
+        externalRequests.length === 0
+          ? 'smoke run made no external requests'
+          : `smoke run blocked ${externalRequests.length} external request(s) and still decoded: ${[...new Set(externalRequests)].join(', ')}`
+      );
+      assert.ok(
+        externalRequests.every((url) => !url.startsWith(origin)),
+        'the interceptor must never have blocked a same-origin request'
       );
     } finally {
       // 6. Bounded, leak-free cleanup

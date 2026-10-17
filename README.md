@@ -62,7 +62,12 @@ To quickly test QR Snapper, follow these steps:
     * \*Note: This step requires an internet connection.\*
     * Run `npm install` to install the necessary dependencies (defined in `package.json`).
 
-4.  **Open in Browser:**
+4.  **Run the tests (optional but recommended):**
+
+    * `npm run test:fast` - builds and runs the unit tests (seconds)
+    * `npm test` - the fast tier plus post-build `dist/` assertions
+
+5.  **Open in Browser:**
 
     * Open `index.html` (or your main HTML file) in your web browser.
 
@@ -100,11 +105,16 @@ The application is now organized into focused, maintainable modules:
 * **`scripts/qrworker.js`:**
     * QR code detection worker implementation
     * Uses native BarcodeDetector API when available
-    * Falls back to jsqrcode library polyfill
+    * Falls back to the vendored `qrcode-lib.js` decoder
     
-* **`scripts/jsqrcode/`:**
-    * JSQRCode library for QR detection
-    * Bundled from original source files
+* **`scripts/qrcode-lib.js`:**
+    * **The one and only decoder source** in this repo - a concatenation of the JSQRCode/
+      [LazarSoft](https://github.com/LazarSoft/jsqrcode) ZXing port, exported as a single module
+    * Imported by `qrworker.js`; it has no importer of its own and there is deliberately no
+      second copy of this decoder in the tree
+    * **Vendored upstream code: do not edit it casually.** A decoder fix belongs upstream or in
+      a clearly marked patch, and it must keep `npm run test:fast` green (the decoder fixture
+      test decodes a known QR image through this file)
 
 ### Modern Web APIs
 
@@ -118,9 +128,11 @@ The application uses modern browser APIs:
 ### Development Notes
 
 * The project uses Vite as the build tool (replaced Gulp)
-* Modern ES modules throughout
+* Modern ES modules throughout (`"type": "module"`)
 * No Babel transpilation needed for modern browsers
 * Optimized production builds with Rollup under the hood
+* Tests use the Node built-in test runner (`node --test`), so there is no test framework
+  dependency; `app/` is bundled by Vite and only DOM-free modules are unit tested
 
 ## Contributing
 

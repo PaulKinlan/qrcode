@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "serve": "vite preview --port 8080",
     "clean": "rm -rf dist .tmp",
-    "test": "npm run build && node --test 'test/unit/**/*.test.mjs' 'test/build/**/*.test.mjs' && node tools/fast-gate-marker.mjs",
+    "test": "npm run build && node --test 'test/unit/**/*.test.mjs' 'test/build/**/*.test.mjs' 'test/browser/**/*.test.mjs' && node tools/fast-gate-marker.mjs",
     "test:fast": "npm run build && node --test 'test/unit/**/*.test.mjs' && node tools/fast-gate-marker.mjs",
     "test:unit": "node --test 'test/unit/**/*.test.mjs'"
   },

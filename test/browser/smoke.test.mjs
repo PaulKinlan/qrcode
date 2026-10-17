@@ -1,0 +1,473 @@
+// Full-tier headless browser smoke test.
+//
+// This test drives the real application inside a headless Chromium instance using raw CDP over
+// the native WebSocket without adding any npm dependencies (playwright, puppeteer, ws, etc.).
+//
+// The test serves `dist/` over an ephemeral HTTP port, launches a headless Chrome instance with
+// a dedicated temporary profile directory, connects to the DevToolsActivePort, drives the
+// camera-fallback image upload control using `test/fixtures/qr-upload-smoke.png`, asserts that
+// the decoded payload is rendered in the DOM dialog, and asserts that the PWA service worker
+// successfully registers.
+//
+// If `google-chrome` is missing, it fails unless `QR_SNAPPER_NO_BROWSER=1` is set.
+// It is wired into `npm test` (full tier) only; `npm run test:fast` remains pure-module.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import { spawn, spawnSync } from 'node:child_process';
+import {
+  createReadStream,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = join(here, '..', '..');
+const distDir = join(root, 'dist');
+const fixturePath = join(root, 'test', 'fixtures', 'qr-upload-smoke.png');
+const EXPECTED_PAYLOAD = 'https://example.com/upload-smoke';
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.webapp': 'application/x-web-app-manifest+json',
+};
+
+/**
+ * Locate the Google Chrome / Chromium executable.
+ * @returns {string|null}
+ */
+function findChromeExecutable() {
+  const envBin = process.env.CHROME_BIN || process.env.GOOGLE_CHROME_BIN;
+  if (envBin !== undefined) {
+    return existsSync(envBin) ? envBin : null;
+  }
+  const candidates = [
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  try {
+    const which = spawnSync('which', ['google-chrome'], { encoding: 'utf8' });
+    if (which.status === 0 && which.stdout.trim()) {
+      const candidate = which.stdout.trim();
+      if (existsSync(candidate)) return candidate;
+    }
+  } catch {}
+  return null;
+}
+
+/**
+ * Minimal static HTTP file server for dist/.
+ * Gives the service worker a valid origin and scope.
+ * @param {string} baseDir
+ * @returns {http.Server}
+ */
+function createDistServer(baseDir) {
+  return http.createServer((req, res) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { 'Content-Type': 'text/plain' });
+      res.end('Method Not Allowed');
+      return;
+    }
+
+    let reqPath;
+    try {
+      reqPath = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Bad Request');
+      return;
+    }
+
+    if (reqPath === '/') {
+      reqPath = '/index.html';
+    }
+
+    const filePath = normalize(join(baseDir, reqPath));
+    if (!filePath.startsWith(baseDir)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('Forbidden');
+      return;
+    }
+
+    if (!existsSync(filePath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+      return;
+    }
+
+    const stat = statSync(filePath);
+    if (!stat.isFile()) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+      return;
+    }
+
+    const ext = extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Content-Length': stat.size,
+    });
+
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+
+    createReadStream(filePath).pipe(res);
+  });
+}
+
+/**
+ * Deadline-polling helper: repeatedly checks an async condition until it returns truthy.
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @param {{ timeoutMs?: number, intervalMs?: number, message?: string }} options
+ * @returns {Promise<T>}
+ */
+async function pollUntil(
+  fn,
+  { timeoutMs = 15000, intervalMs = 50, message = 'Condition timed out' } = {}
+) {
+  const start = Date.now();
+  let lastError;
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const result = await fn();
+      if (result) return result;
+    } catch (err) {
+      lastError = err;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  const detail = lastError ? `: ${lastError.message}` : '';
+  throw new Error(`${message} after ${timeoutMs}ms${detail}`);
+}
+
+/**
+ * Minimal Chrome DevTools Protocol client using the global Node WebSocket.
+ */
+class CDPClient {
+  #ws;
+  #seq = 1;
+  #pending = new Map();
+
+  constructor(ws) {
+    this.#ws = ws;
+    this.#ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.id && this.#pending.has(msg.id)) {
+          const { resolve, reject, timer, method } = this.#pending.get(msg.id);
+          clearTimeout(timer);
+          this.#pending.delete(msg.id);
+          if (msg.error) {
+            reject(new Error(`CDP ${method} error: ${msg.error.message} (code ${msg.error.code})`));
+          } else {
+            resolve(msg.result);
+          }
+        }
+      } catch {}
+    };
+    this.#ws.onerror = (err) => {
+      this.#rejectAll(new Error(`WebSocket error: ${err.message || err}`));
+    };
+    this.#ws.onclose = () => {
+      this.#rejectAll(new Error('WebSocket closed'));
+    };
+  }
+
+  #rejectAll(err) {
+    for (const [, entry] of this.#pending.entries()) {
+      clearTimeout(entry.timer);
+      entry.reject(err);
+    }
+    this.#pending.clear();
+  }
+
+  static async connect(wsUrl, timeoutMs = 10000) {
+    const ws = new WebSocket(wsUrl);
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        try {
+          ws.close();
+        } catch {}
+        reject(new Error(`CDP WebSocket connection to ${wsUrl} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      ws.onopen = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      ws.onerror = (err) => {
+        clearTimeout(timer);
+        reject(new Error(`CDP WebSocket connection error: ${err.message || err}`));
+      };
+    });
+    return new CDPClient(ws);
+  }
+
+  send(method, params = {}, timeoutMs = 15000) {
+    return new Promise((resolve, reject) => {
+      const id = this.#seq++;
+      const timer = setTimeout(() => {
+        this.#pending.delete(id);
+        reject(new Error(`CDP ${method} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      this.#pending.set(id, { resolve, reject, timer, method });
+      this.#ws.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  async eval(expression, { awaitPromise = true, timeoutMs = 15000 } = {}) {
+    const res = await this.send(
+      'Runtime.evaluate',
+      {
+        expression,
+        returnByValue: true,
+        awaitPromise,
+      },
+      timeoutMs
+    );
+    if (res.exceptionDetails) {
+      const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text;
+      throw new Error(`Runtime.evaluate failed: ${desc}`);
+    }
+    return res.result?.value;
+  }
+
+  close() {
+    this.#rejectAll(new Error('CDPClient closed'));
+    try {
+      this.#ws.close();
+    } catch {}
+  }
+}
+
+test(
+  'headless browser smoke: uploads QR fixture, decodes payload, registers service worker',
+  { timeout: 120_000 },
+  async (t) => {
+    const chromeBinary = findChromeExecutable();
+    if (!chromeBinary) {
+      if (process.env.QR_SNAPPER_NO_BROWSER === '1') {
+        t.skip('SKIPPED browser smoke test: google-chrome not found and QR_SNAPPER_NO_BROWSER=1 is set');
+        return;
+      }
+      assert.fail(
+        'google-chrome is missing from /usr/bin/google-chrome and PATH. Set QR_SNAPPER_NO_BROWSER=1 to bypass the browser smoke tier.'
+      );
+    }
+
+    if (process.env.QR_SNAPPER_NO_BROWSER === '1') {
+      t.skip('SKIPPED browser smoke test: QR_SNAPPER_NO_BROWSER=1 requested skipping browser tier');
+      return;
+    }
+
+    assert.ok(existsSync(distDir), 'dist/ directory missing: build must run before browser tests');
+    assert.ok(existsSync(fixturePath), `QR fixture missing at ${fixturePath}`);
+
+    const userDataDir = mkdtempSync(join(tmpdir(), 'qr-browser-smoke-'));
+    let server;
+    let chromeProcess;
+    let cdp;
+
+    try {
+      // 1. Serve built dist/ over HTTP on an ephemeral port
+      server = createDistServer(distDir);
+      await new Promise((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', resolve);
+      });
+
+      const port = server.address().port;
+      const origin = `http://127.0.0.1:${port}`;
+      // The camera-free entry point: #nogum signals CameraManager to initialize CameraFallbackManager
+      const appUrl = `${origin}/#nogum`;
+
+      // 2. Launch ONE headless Chrome instance with an isolated profile
+      chromeProcess = spawn(
+        chromeBinary,
+        [
+          '--headless=new',
+          '--remote-debugging-port=0',
+          `--user-data-dir=${userDataDir}`,
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          'about:blank',
+        ],
+        {
+          stdio: ['ignore', 'ignore', 'pipe'],
+        }
+      );
+
+      // Read remote debugging port from <user-data-dir>/DevToolsActivePort
+      const devToolsActivePortPath = join(userDataDir, 'DevToolsActivePort');
+      const cdpPort = await pollUntil(
+        async () => {
+          if (!existsSync(devToolsActivePortPath)) return null;
+          const text = readFileSync(devToolsActivePortPath, 'utf8').trim();
+          if (!text) return null;
+          const [portLine] = text.split('\n');
+          const parsed = parseInt(portLine.trim(), 10);
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        },
+        { timeoutMs: 15000, message: 'DevToolsActivePort file to be written by Chrome' }
+      );
+
+      // Query targets and connect raw CDP to page target
+      const targetsRes = await fetch(`http://127.0.0.1:${cdpPort}/json/list`);
+      const targets = await targetsRes.json();
+      const pageTarget = targets.find((target) => target.type === 'page');
+      assert.ok(pageTarget?.webSocketDebuggerUrl, 'expected page target with webSocketDebuggerUrl in /json/list');
+
+      cdp = await CDPClient.connect(pageTarget.webSocketDebuggerUrl);
+
+      await cdp.send('Page.enable');
+      await cdp.send('Runtime.enable');
+      await cdp.send('DOM.enable');
+
+      // 3. Load the app and drive the camera-free entry point
+      await cdp.send('Page.navigate', { url: appUrl });
+
+      // Wait for DOM ready and CameraFallbackManager unhidden
+      await pollUntil(
+        async () => {
+          const ready = await cdp.eval('document.readyState === "complete"');
+          const fallbackActive = await cdp.eval(
+            'Boolean(document.querySelector(".CameraFallback") && !document.querySelector(".CameraFallback").classList.contains("hidden"))'
+          );
+          return ready && fallbackActive;
+        },
+        { timeoutMs: 15000, message: 'App to load and CameraFallback to become visible' }
+      );
+
+      // Click the upload control like a user would
+      await cdp.eval('document.querySelector(\'label[for="qrcode-input"]\')?.click()');
+
+      // Set the file input to test/fixtures/qr-upload-smoke.png via CDP
+      const doc = await cdp.send('DOM.getDocument');
+      const inputNode = await cdp.send('DOM.querySelector', {
+        nodeId: doc.root.nodeId,
+        selector: '#qrcode-input',
+      });
+      assert.ok(inputNode?.nodeId > 0, 'expected #qrcode-input element to be found in DOM');
+
+      await cdp.send('DOM.setFileInputFiles', {
+        nodeId: inputNode.nodeId,
+        files: [fixturePath],
+      });
+
+      // 4. Assert decoded payload is visible in the result dialog's text
+      const decodedText = await pollUntil(
+        async () => {
+          const text = await cdp.eval('document.querySelector(".QRCodeSuccessDialog-data")?.innerText');
+          return text && text.trim().length > 0 ? text.trim() : null;
+        },
+        { timeoutMs: 15000, message: 'QR polyfill decoding to render result in .QRCodeSuccessDialog-data' }
+      );
+
+      assert.equal(decodedText, EXPECTED_PAYLOAD, 'Decoded QR payload in dialog text does not match fixture payload');
+
+      const domState = await cdp.eval(`
+        (() => {
+          const dialog = document.querySelector('#qrcode');
+          const computed = window.getComputedStyle(dialog);
+          const dataElement = dialog.querySelector('.QRCodeSuccessDialog-data');
+          return {
+            dialogVisible: computed.display !== 'none' && computed.visibility !== 'hidden',
+            dialogDataText: dataElement ? dataElement.innerText.trim() : '',
+            bodyTextContains: document.body.innerText.includes(${JSON.stringify(EXPECTED_PAYLOAD)}),
+          };
+        })()
+      `);
+
+      assert.ok(domState.dialogVisible, 'Expected #qrcode dialog to be visible in DOM');
+      assert.equal(domState.dialogDataText, EXPECTED_PAYLOAD);
+      assert.ok(domState.bodyTextContains, 'Expected document.body.innerText to contain decoded payload');
+
+      // 5. Assert service worker registration
+      // Service workers are fully supported in headless Chrome on http://127.0.0.1 (considered secure context)
+      const swRegistrations = await pollUntil(
+        async () => {
+          const regs = await cdp.eval(`
+            (async () => {
+              if (!('serviceWorker' in navigator)) return null;
+              const list = await navigator.serviceWorker.getRegistrations();
+              if (!list || list.length === 0) return null;
+              return list.map(r => ({
+                scope: r.scope,
+                active: Boolean(r.active),
+                installing: Boolean(r.installing),
+                waiting: Boolean(r.waiting),
+              }));
+            })()
+          `);
+          return regs && regs.length > 0 ? regs : null;
+        },
+        { timeoutMs: 15000, message: 'Service worker to register successfully' }
+      );
+
+      assert.ok(swRegistrations && swRegistrations.length >= 1, 'Expected at least one active service worker registration');
+      assert.ok(
+        swRegistrations[0].scope.startsWith(origin),
+        `Expected SW registration scope to start with ${origin}, got ${swRegistrations[0].scope}`
+      );
+    } finally {
+      // 6. Bounded, leak-free cleanup
+      if (cdp) {
+        try {
+          cdp.close();
+        } catch {}
+      }
+
+      if (chromeProcess && chromeProcess.exitCode === null) {
+        try {
+          chromeProcess.kill('SIGTERM');
+          const exited = new Promise((resolve) => chromeProcess.once('exit', resolve));
+          const timer = setTimeout(() => {
+            if (chromeProcess.exitCode === null) {
+              chromeProcess.kill('SIGKILL');
+            }
+          }, 3000);
+          await exited;
+          clearTimeout(timer);
+        } catch {}
+      }
+
+      if (server) {
+        try {
+          server.closeAllConnections?.();
+          await new Promise((resolve) => server.close(resolve));
+        } catch {}
+      }
+
+      try {
+        rmSync(userDataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch {}
+    }
+  }
+);

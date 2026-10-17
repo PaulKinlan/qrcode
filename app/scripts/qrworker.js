@@ -25,11 +25,7 @@ const getDetector = async () => {
     if ('BarcodeDetector' in self && 'getSupportedFormats' in BarcodeDetector) {
       const formats = await BarcodeDetector.getSupportedFormats();
       if (formats.find(format => format === 'qr_code')) {
-        return createNativeDetector(
-          new BarcodeDetector({formats: ['qr_code']}),
-          workerDetector,
-          () => { detector = workerDetector; }
-        );
+        return createNativeDetector(new BarcodeDetector({formats: ['qr_code']}), workerDetector);
       }
     }
   } catch (error) {

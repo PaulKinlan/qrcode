@@ -56,6 +56,22 @@ test('the ZBar binary has a stable URL and is precached for offline scanning', (
   assert.ok(manifest.files.includes('scripts/zbar.wasm'), 'generated SW manifest should precache the WASM binary');
 });
 
+test('both pages ship a CSP that allows their own WebAssembly', () => {
+  // bead qrcode-2pt: script-src lacked 'wasm-unsafe-eval', so every WebAssembly compile in the
+  // document was refused (CompileError, verified in Chrome against the built page). Scanning still
+  // worked only because a meta CSP is NOT inherited by workers and the decode runs in
+  // app/scripts/qrworker.js - so moving decoding to the main thread, or serving this policy as an
+  // HTTP header (which workers DO inherit), would kill the fallback with no visible error: the
+  // rejected scan is swallowed and the user just sees "no QR found".
+  for (const page of ['index.html', 'about.html']) {
+    const html = readFileSync(join(dist, page), 'utf8');
+    const policy = html.match(/<meta[^>]+Content-Security-Policy[^>]+content="([^"]+)"/i)?.[1];
+    assert.ok(policy, `${page} should declare a Content-Security-Policy`);
+    assert.match(policy, /script-src[^;]*'wasm-unsafe-eval'/, `${page} CSP must allow 'wasm-unsafe-eval'`);
+    assert.match(policy, /script-src[^;]*'self'/, `${page} CSP should still restrict scripts to 'self'`);
+  }
+});
+
 test('the configured minifier is a declared dependency', () => {
   // cost us a red gate on 2026-10-17: vite.config.js sets minify: 'terser', but terser is only
   // an OPTIONAL peer of vite and was not declared anywhere, so it existed in a hand-made

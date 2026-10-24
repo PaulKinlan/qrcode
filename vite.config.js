@@ -100,28 +100,35 @@ function skipEmscriptenDirectoryUrl() {
   };
 }
 
+// Public assets copied as-is into dist/ (they sit at the site root, so Vite does not process
+// them). This list is the single source of truth: test/build/dist-artifacts.test.mjs imports it
+// and asserts every entry landed in dist/ (bead qrcode-f7s).
+export const PUBLIC_FILES = [
+  'favicon.ico',
+  'humans.txt',
+  'manifest.webapp',
+  'robots.txt',
+  'webstore-manifest.json'
+];
+
 // Plugin to copy additional public files
 function copyPublicFiles() {
   return {
     name: 'copy-public-files',
+    // A copy failure MUST fail the build (bead qrcode-f7s). The precache manifest is derived by
+    // walking whatever landed in dist/ (see generatePrecacheManifest below), so a copy that only
+    // warned left the build green, the manifest and dist/ agreeing with each other, and the
+    // shipped PWA silently missing an icon, the favicon or the web app manifest.
     closeBundle() {
-      const filesToCopy = [
-        'favicon.ico',
-        'humans.txt',
-        'manifest.webapp',
-        'robots.txt',
-        'webstore-manifest.json'
-      ];
-
-      filesToCopy.forEach(file => {
+      for (const file of PUBLIC_FILES) {
+        const src = join(__dirname, 'app', file);
+        const dest = join(__dirname, 'dist', file);
         try {
-          const src = join(__dirname, 'app', file);
-          const dest = join(__dirname, 'dist', file);
           copyFileSync(src, dest);
         } catch (err) {
-          console.warn(`Failed to copy ${file}:`, err.message);
+          throw new Error(`copy-public-files: cannot copy public asset app/${file} into dist/: ${err.message}`);
         }
-      });
+      }
 
       // Ship the LGPL license alongside the separately distributed ZBar WASM binary.
       const licensesDir = join(__dirname, 'dist', 'licenses');
@@ -131,23 +138,18 @@ function copyPublicFiles() {
         join(licensesDir, 'zbar-wasm.txt')
       );
 
-      // Copy all images
+      // Copy all images. Also uncaught: a partially copied image tree is a broken PWA (missing
+      // icons in the manifest), not a warning.
       const copyDir = (src, dest) => {
-        try {
-          mkdirSync(dest, { recursive: true });
-          const entries = readdirSync(src);
-          entries.forEach(entry => {
-            const srcPath = join(src, entry);
-            const destPath = join(dest, entry);
-            const stat = statSync(srcPath);
-            if (stat.isDirectory()) {
-              copyDir(srcPath, destPath);
-            } else {
-              copyFileSync(srcPath, destPath);
-            }
-          });
-        } catch (err) {
-          console.warn(`Failed to copy directory ${src}:`, err.message);
+        mkdirSync(dest, { recursive: true });
+        for (const entry of readdirSync(src)) {
+          const srcPath = join(src, entry);
+          const destPath = join(dest, entry);
+          if (statSync(srcPath).isDirectory()) {
+            copyDir(srcPath, destPath);
+          } else {
+            copyFileSync(srcPath, destPath);
+          }
         }
       };
 

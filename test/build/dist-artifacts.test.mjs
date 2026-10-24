@@ -6,13 +6,14 @@
 // the copy plugin silently skips), so the expected output is asserted rather than trusted.
 //
 // It reads dist/ only - no server, no browser - so it stays seconds-fast. The browser smoke
-// that drives the file-upload path is a separate, later tier (bead qrcode-cf0).
+// that drives the file-upload path is test/browser/smoke.test.mjs, in the same `npm test` run
+// (bead qrcode-cf0 landed it); `npm run test:fast` runs neither of these post-build tiers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { aboutHtmlAlias } from '../../vite.config.js';
+import { aboutHtmlAlias, PUBLIC_FILES } from '../../vite.config.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const dist = join(root, 'dist');
@@ -29,13 +30,11 @@ const REQUIRED_FILES = [
   'manifest.json',
 ];
 
-// Public files copied by the copyPublicFiles() plugin in vite.config.js.
+// Public files copied by the copyPublicFiles() plugin in vite.config.js. The list itself is
+// imported from the config (single source of truth), so a file added to the plugin cannot be
+// missing here; the derived copies below are the ones the plugin makes itself (bead qrcode-f7s).
 const COPIED_PUBLIC_FILES = [
-  'favicon.ico',
-  'humans.txt',
-  'manifest.webapp',
-  'robots.txt',
-  'webstore-manifest.json',
+  ...PUBLIC_FILES,
   'licenses/zbar-wasm.txt',
   'images/touch/apple-touch-icon.png',
 ];
@@ -46,6 +45,25 @@ test('build emits the expected dist layout', () => {
     const path = join(dist, file);
     assert.ok(existsSync(path), `expected ${file} in dist/`);
     assert.ok(statSync(path).size > 0, `expected ${file} in dist/ to be non-empty`);
+  }
+});
+
+test('the image tree reaches dist/ whole, not partially', () => {
+  // The copyDir() half of the same plugin used to swallow its errors too (bead qrcode-f7s): a
+  // half-copied app/images/ left a green build and a manifest that agreed with it, while the
+  // shipped PWA was missing icons. Walk the source tree and require every file in dist/.
+  const walk = (dir, prefix = '') =>
+    readdirSync(dir).flatMap((entry) => {
+      const full = join(dir, entry);
+      const rel = prefix ? `${prefix}/${entry}` : entry;
+      return statSync(full).isDirectory() ? walk(full, rel) : [rel];
+    });
+  const sourceImages = walk(join(root, 'app', 'images'));
+  assert.ok(sourceImages.length > 0, 'app/images/ must contain the PWA icons');
+  for (const rel of sourceImages) {
+    const copied = join(dist, 'images', rel);
+    assert.ok(existsSync(copied), `expected images/${rel} in dist/ (copied from app/images/${rel})`);
+    assert.ok(statSync(copied).size > 0, `expected images/${rel} in dist/ to be non-empty`);
   }
 });
 

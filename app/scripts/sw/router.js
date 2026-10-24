@@ -39,7 +39,7 @@ const FetchRouter = function() {
       const urlPart = (urlMatchProperty in url) ? url[urlMatchProperty] : url.toString();
       const routeMatch = route.regex.regexp.exec(urlPart);
 
-      if(!!routeMatch == false) continue;
+      if(!!routeMatch == false || (route.options.matches && !route.options.matches(url))) continue;
       
       var params = {};
       for(var g in route.regex.groups) {

@@ -368,12 +368,9 @@ test(
       await cdp.send('Runtime.enable');
       await cdp.send('DOM.enable');
 
-      // Hermetic run. The built index.html carries an async Google Analytics <script> tag, so a
-      // plain navigation waits on a THIRD-PARTY host before `readyState === 'complete'`. This tier
-      // must never depend on the network (ADR qrcode-vyq), and an egress-less VM or a slow DNS
-      // answer would otherwise turn a green build into a 15s timeout. Intercept every request:
-      // same-origin is continued, anything else is failed in the browser, instantly and
-      // deterministically, so the assertions below can only pass on locally-served behaviour.
+      // Hermetic run: a third-party request is a regression, not a dependency. Intercept every
+      // request so the tier never relies on external network access (ADR qrcode-vyq); continue
+      // same-origin requests and fail anything else immediately. Assert below that none occurred.
       await cdp.send('Network.enable');
       await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
       const externalRequests = [];
@@ -620,18 +617,9 @@ test(
         t.diagnostic(`about.html screenshot: ${process.env.QR_SNAPPER_SCREENSHOT}`);
       }
 
-      // Everything above ran with zero external traffic: every off-origin request was failed by the
-      // interceptor. Record what it blocked, and assert the one thing that would invalidate the
-      // tier - a same-origin request wrongly blocked would have broken the page load outright.
-      t.diagnostic(
-        externalRequests.length === 0
-          ? 'smoke run made no external requests'
-          : `smoke run blocked ${externalRequests.length} external request(s) and still decoded: ${[...new Set(externalRequests)].join(', ')}`
-      );
-      assert.ok(
-        externalRequests.every((url) => !url.startsWith(origin)),
-        'the interceptor must never have blocked a same-origin request'
-      );
+      // Interception keeps the run hermetic; this assertion also catches regressions that try to
+      // reach a third-party host rather than silently passing because the request was blocked.
+      assert.deepEqual(externalRequests, [], 'the app must not request third-party resources');
     } finally {
       // 6. Bounded, leak-free cleanup
       if (cdp) {

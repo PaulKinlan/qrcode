@@ -39,11 +39,6 @@ export class QRCodeCamera {
         if (url !== undefined) {
           // QR code found!
           
-          // Track with Google Analytics if available
-          if ('ga' in window) {
-            ga('send', 'event', 'urlfound');
-          }
-
           // Haptic feedback if available
           if ('vibrate' in navigator) {
             navigator.vibrate([200]);

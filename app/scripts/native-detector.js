@@ -11,6 +11,11 @@ export function createNativeDetector(detectorInstance, fallback) {
       useNative = false;
       return fallback(width, height, imageData);
     }
+    if (!Array.isArray(barcodes)) {
+      // A malformed native result is a decoder failure, not a reason to lose every frame.
+      useNative = false;
+      return fallback(width, height, imageData);
+    }
     // A native miss is only authoritative for this decoder, not for ZBar.
     return barcodes[0]?.rawValue ?? fallback(width, height, imageData);
   };

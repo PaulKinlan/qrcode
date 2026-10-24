@@ -1,6 +1,7 @@
 import { ZBarConfigType, ZBarScanner, ZBarSymbolType } from '@undecaf/zbar-wasm';
 
-// A worker owns one scanner for its lifetime; avoid loading WASM when native QR detection works.
+// A worker reuses one scanner; ZBar loads on the first native miss and scans every missed frame.
+// This costs an extra decode per miss, but lets ZBar recover QR codes the native decoder misses.
 let scannerPromise;
 
 export function getQrScanner() {

@@ -31,6 +31,21 @@ test('native detector failure returns the fallback result and switches future sc
   assert.equal(fallbackCalls, 2);
 });
 
+test('malformed native result uses fallback and stops retrying the broken detector', async () => {
+  for (const malformed of [undefined, null, {}]) {
+    let nativeCalls = 0;
+    let fallbackCalls = 0;
+    const detect = createNativeDetector({
+      async detect() { nativeCalls++; return malformed; },
+    }, async () => { fallbackCalls++; return 'https://example.com/zbar'; });
+
+    assert.equal(await detect(1, 1, {}), 'https://example.com/zbar');
+    assert.equal(await detect(1, 1, {}), 'https://example.com/zbar');
+    assert.equal(nativeCalls, 1);
+    assert.equal(fallbackCalls, 2);
+  }
+});
+
 test('native miss falls back for this frame without disabling native detection', async () => {
   const image = { width: 1, height: 1, data: new Uint8ClampedArray(4) };
   let nativeCalls = 0;

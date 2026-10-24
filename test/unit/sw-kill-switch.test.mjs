@@ -49,11 +49,13 @@ test('kill switch matches a later query parameter and extends the fetch lifetime
 });
 
 test('similar parameter names and values do not trigger the kill switch', async () => {
+  const unregistersBefore = unregistered;
+  const matchesBefore = cacheMatches;
   for (const query of ['?not-kill-sw=true', '?kill-sw=false', '?kill-sw=trueish']) {
     const event = dispatch(`${origin}/index.html${query}`);
     assert.equal(event.lifetime, undefined);
     assert.equal((await event.response).status, 200);
   }
-  assert.equal(unregistered, 1);
-  assert.equal(cacheMatches, 3);
+  assert.equal(unregistered, unregistersBefore);
+  assert.equal(cacheMatches - matchesBefore, 3);
 });

@@ -16,16 +16,18 @@ const PRECACHE_CACHE = `${CACHE_PREFIX}${VERSION}`;
 const PRECACHE_MANIFEST_URL = '/sw-manifest.json';
 
 /*
-  Escape hatch. ABORT ABORT. Any URL with a kill-sw=true at the end of the query string.
+  Escape hatch: unregister this worker and clear its precache on an explicit kill-sw=true request.
 */
-router.get(/\?kill-sw=true/, function() {
-  self.registration.unregister();
-
-  caches.keys().then(cacheKeys => Promise.all(cacheKeys.map(key => caches.delete(key))));
-}, {urlMatchProperty: "search"});
+router.get(`${self.location.origin}`, function(event) {
+  event.waitUntil((async () => {
+    await self.registration.unregister();
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX)).map(key => caches.delete(key)));
+  })());
+}, {urlMatchProperty: "origin", matches: url => url.searchParams.get('kill-sw') === 'true'});
 
 /*
-  Manage all the request for this origin in a cache only manner.
+  Serve this origin's cached assets first, falling back to the network on a miss.
 */
 router.get(`${self.location.origin}`, e => {
   e.respondWith(

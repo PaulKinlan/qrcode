@@ -6,7 +6,8 @@
 // the copy plugin silently skips), so the expected output is asserted rather than trusted.
 //
 // It reads dist/ only - no server, no browser - so it stays seconds-fast. The browser smoke
-// that drives the file-upload path is a separate, later tier (bead qrcode-cf0).
+// that drives the file-upload path is test/browser/smoke.test.mjs, in the same `npm test` run
+// (bead qrcode-cf0 landed it); `npm run test:fast` runs neither of these post-build tiers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';

@@ -617,8 +617,27 @@ test(
         t.diagnostic(`about.html screenshot: ${process.env.QR_SNAPPER_SCREENSHOT}`);
       }
 
-      // Interception keeps the run hermetic; this assertion also catches regressions that try to
-      // reach a third-party host rather than silently passing because the request was blocked.
+      // The kill navigation must not re-register the worker from the page's inline script.
+      // Test a non-leading parameter on index, then the generated about.html alias too.
+      await cdp.send('Page.navigate', { url: `${origin}/index.html?source=offline&kill-sw=true` });
+      await pollUntil(
+        async () => cdp.eval(`(async () =>
+          location.search === '?source=offline&kill-sw=true' && document.readyState === 'complete' &&
+          (await navigator.serviceWorker.getRegistrations()).length === 0 &&
+          !(await caches.keys()).some(name => name.startsWith('qr-precache-'))
+        )()`),
+        { timeoutMs: 10000, message: 'kill navigation to unregister worker and clear app precache' }
+      );
+      await cdp.send('Page.navigate', { url: `${origin}/about.html?kill-sw=true` });
+      await pollUntil(
+        async () => cdp.eval('location.pathname === "/about.html" && document.readyState === "complete"'),
+        { timeoutMs: 10000, message: 'about kill page to load' }
+      );
+      await cdp.eval('new Promise(resolve => setTimeout(resolve, 300))');
+      assert.equal(await cdp.eval('(async () => (await navigator.serviceWorker.getRegistrations()).length)()'), 0,
+        'about kill page must not re-register the worker');
+
+      // Interception keeps the run hermetic; any third-party request is a regression.
       assert.deepEqual(externalRequests, [], 'the app must not request third-party resources');
     } finally {
       // 6. Bounded, leak-free cleanup

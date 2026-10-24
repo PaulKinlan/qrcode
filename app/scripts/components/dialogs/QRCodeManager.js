@@ -1,6 +1,6 @@
 import { decode } from '../../qrclient.js';
 import { QRCodeCallbackController } from './QRCodeCallbackController.js';
-import { isSafeUrl } from '../../utils/url-utils.js';
+import { isSafeUrl, normalizeUrl } from '../../utils/url-utils.js';
 
 /**
  * QRCodeManager - Manages the QR code success dialog and actions
@@ -93,19 +93,24 @@ export class QRCodeManager {
    */
   async detectQRCode(context) {
     const result = await decode(context);
-    
-    if (result !== undefined) {
-      try {
-        const normalizedUrl = new URL(result);
-        this.currentUrl = normalizedUrl;
-        return normalizedUrl;
-      } catch (e) {
-        // Invalid URL
-        return undefined;
-      }
+
+    if (result === undefined) {
+      // Nothing decoded (no QR in the frame)
+      return undefined;
     }
-    
-    return undefined;
+
+    // One normalisation path for the whole app (bead qrcode-amy): the composition the unit tests
+    // document and cover, decode -> normalizeUrl -> isSafeUrl, is now the shipped one. This used
+    // to re-implement normalizeUrl() inline with new URL()/try/catch, so the tested path and the
+    // running path could drift apart.
+    const normalizedUrl = normalizeUrl(result);
+    if (normalizedUrl === undefined) {
+      // Invalid URL: the parser rejected the payload
+      return undefined;
+    }
+
+    this.currentUrl = normalizedUrl;
+    return normalizedUrl;
   }
 
   /**

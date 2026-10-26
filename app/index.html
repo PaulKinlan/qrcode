@@ -10,9 +10,14 @@
        WebAssembly compile in a page is refused (CompileError), which is invisible today only
        because workers do not inherit a meta CSP and the decode runs in app/scripts/qrworker.js.
        Serving the same policy as an HTTP header (inherited by workers) would silently kill
-       scanning (bead qrcode-2pt). -->
+       scanning (bead qrcode-2pt).
+
+       No 'unsafe-inline': every script here is a same-origin URL. The service-worker
+       registration used to be an inline block and was the only reason the policy needed it, so
+       it now lives in /scripts/sw-register.js (bead qrcode-3bc).
+       test/build/dist-artifacts.test.mjs fails the build if an inline <script> comes back. -->
   <meta http-equiv="Content-Security-Policy"
-    content="script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' data:">
+    content="script-src 'self' 'wasm-unsafe-eval' data:">
   <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
   <!-- Add to homescreen -->
@@ -109,13 +114,8 @@
     </div>
   </div>
 
-  <script>
-    // The kill-switch navigation must not undo the worker's unregister() during page load.
-    if ('serviceWorker' in navigator && new URL(location.href).searchParams.get('kill-sw') !== 'true') {
-      navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
-        .then(function () { console.log("Service Worker Registered"); });
-    }
-  </script>
+  <!-- Registration must stay in an external file: the CSP above allows no inline script. -->
+  <script src="/scripts/sw-register.js"></script>
 </body>
 
 </html>

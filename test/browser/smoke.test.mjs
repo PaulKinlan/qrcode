@@ -383,6 +383,24 @@ test(
       cdp.on('Runtime.exceptionThrown', ({ exceptionDetails }) => {
         pageErrors.push(exceptionDetails?.exception?.description || exceptionDetails?.text || 'unknown exception');
       });
+      // CSP enforcement evidence (bead qrcode-3bc). The page policy no longer carries
+      // 'unsafe-inline', and a script the policy refuses does not throw: it simply never runs, so
+      // neither an exception nor a 404 would report it. Chromium logs the refusal as a security
+      // entry, and the document also gets a securitypolicyviolation event, so count both. Zero
+      // violations while the app boots, decodes and registers its worker is the proof that the
+      // tightened policy still covers everything the page does.
+      await cdp.send('Log.enable');
+      const cspViolations = [];
+      cdp.on('Log.entryAdded', ({ entry }) => {
+        if (entry?.source === 'security' || /content security policy/i.test(entry?.text ?? '')) {
+          cspViolations.push(entry.text || 'security entry');
+        }
+      });
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+        source:
+          'window.__cspViolations = 0;' +
+          'document.addEventListener("securitypolicyviolation", function () { window.__cspViolations++; });',
+      });
       cdp.on('Fetch.requestPaused', ({ requestId, request }) => {
         const url = request?.url ?? '';
         if (url === `${origin}/scripts/zbar.wasm`) wasmRequests.push(url);
@@ -611,13 +629,16 @@ test(
       );
       assert.equal(aboutDecoded, EXPECTED_PAYLOAD, '/about.html must decode an uploaded QR, not just render the page');
       assert.deepEqual(pageErrors.slice(errorsBeforeAbout), [], '/about.html threw while decoding');
+      assert.deepEqual(cspViolations, [], 'no page may violate its own Content-Security-Policy');
+      assert.equal(await cdp.eval('window.__cspViolations'), 0,
+        'the app and about documents must report no securitypolicyviolation events');
       if (process.env.QR_SNAPPER_SCREENSHOT) {
         const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
         writeFileSync(process.env.QR_SNAPPER_SCREENSHOT, Buffer.from(data, 'base64'));
         t.diagnostic(`about.html screenshot: ${process.env.QR_SNAPPER_SCREENSHOT}`);
       }
 
-      // The kill navigation must not re-register the worker from the page's inline script.
+      // The kill navigation must not re-register the worker from the page's registration script.
       // Test a non-leading parameter on index, then the generated about.html alias too.
       await cdp.send('Page.navigate', { url: `${origin}/index.html?source=offline&kill-sw=true` });
       await pollUntil(
@@ -639,6 +660,9 @@ test(
 
       // Interception keeps the run hermetic; any third-party request is a regression.
       assert.deepEqual(externalRequests, [], 'the app must not request third-party resources');
+      assert.deepEqual(cspViolations, [], 'the kill-switch pages must not violate the CSP either');
+      assert.equal(await cdp.eval('window.__cspViolations'), 0,
+        'the kill-switch pages must report no securitypolicyviolation events');
     } finally {
       // 6. Bounded, leak-free cleanup
       if (cdp) {

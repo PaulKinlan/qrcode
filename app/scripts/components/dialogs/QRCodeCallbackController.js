@@ -2,6 +2,8 @@
  * QRCodeCallbackController - Handles x-callback-url integration
  * Allows other applications to receive decoded QR code data
  */
+import { isSafeUrl } from '../../utils/url-utils.js';
+
 export class QRCodeCallbackController {
   constructor(element) {
     this.element = element;
@@ -18,9 +20,10 @@ export class QRCodeCallbackController {
     this.callbackUrl = this.getCallbackURL();
     this.isValidCallbackUrl = this.validateCallbackURL(this.callbackUrl);
 
-    if (this.callbackUrl) {
+    if (this.callbackUrl && isSafeUrl(this.callbackUrl)) {
       this.element.addEventListener('click', () => {
-        // Add QR code data to callback URL
+        // Recheck at the navigation sink: the URL can change after initialization.
+        if (!isSafeUrl(this.callbackUrl)) return;
         this.callbackUrl.searchParams.set('qrcode', this.qrcodeUrl);
         location = this.callbackUrl;
       });

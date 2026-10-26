@@ -87,7 +87,15 @@ test('both pages ship a CSP that allows their own WebAssembly', () => {
     assert.ok(policy, `${page} should declare a Content-Security-Policy`);
     assert.match(policy, /script-src[^;]*'wasm-unsafe-eval'/, `${page} CSP must allow 'wasm-unsafe-eval'`);
     assert.match(policy, /script-src[^;]*'self'/, `${page} CSP should still restrict scripts to 'self'`);
+    for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'none'", "img-src 'self' data: blob:", "connect-src 'self'"]) {
+      assert.ok(policy.split(';').map((part) => part.trim()).includes(directive), `${page} CSP needs ${directive}`);
+    }
+    assert.doesNotMatch(policy, /'unsafe-inline'|script-src[^;]*data:/, `${page} CSP must reject inline and data: scripts`);
+    assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/i, `${page} must not require inline scripts`);
   }
+  const entry = readFileSync(join(dist, 'scripts/main.js'), 'utf8');
+  assert.match(entry, /serviceWorker\.register\(/, 'the emitted entry should register the service worker');
+  assert.match(entry, /kill-sw/, 'the emitted entry should preserve the kill-switch guard');
 });
 
 test('the configured minifier is a declared dependency', () => {

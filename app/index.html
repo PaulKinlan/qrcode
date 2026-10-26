@@ -12,7 +12,7 @@
        Serving the same policy as an HTTP header (inherited by workers) would silently kill
        scanning (bead qrcode-2pt). -->
   <meta http-equiv="Content-Security-Policy"
-    content="script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' data:">
+    content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; img-src 'self' data: blob:; connect-src 'self'">
   <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
   <!-- Add to homescreen -->
@@ -109,13 +109,6 @@
     </div>
   </div>
 
-  <script>
-    // The kill-switch navigation must not undo the worker's unregister() during page load.
-    if ('serviceWorker' in navigator && new URL(location.href).searchParams.get('kill-sw') !== 'true') {
-      navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
-        .then(function () { console.log("Service Worker Registered"); });
-    }
-  </script>
 </body>
 
 </html>

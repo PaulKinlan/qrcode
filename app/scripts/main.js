@@ -19,6 +19,12 @@
 
 import { QRCodeCamera } from './components/QRCodeCamera.js';
 
+// The kill-switch navigation must not undo the worker's unregister() during page load.
+if ('serviceWorker' in navigator && new URL(location.href).searchParams.get('kill-sw') !== 'true') {
+  navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
+    .then(() => console.log('Service Worker Registered'));
+}
+
 // Initialize the application
 (function() {
   'use strict';

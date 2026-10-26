@@ -1,61 +1,92 @@
+// A tiny fetch router for the service worker.
+//
+// Route patterns are strings, with `:name` capturing one path segment, matched against either the
+// whole URL (`url.toString()`) or one URL property named by `options.urlMatchProperty` (app/sw.js
+// matches on "origin"). An options.matches(url) predicate can add a condition on top.
+//
+// Two properties of the pattern handling are deliberate, and were both bugs before bead qrcode-cl1:
+//
+//  - The regex is built from ESCAPED literal text, so a '.' in a route (e.g. '/sw-manifest.json')
+//    matches a full stop and nothing else. Patterns used to be interpolated raw into `new RegExp`,
+//    which made every metacharacter in them live.
+//  - The regex is anchored at BOTH ends. It used to be appended with '$' only, so every route was
+//    a suffix match: '/scan-image' also matched '/anything/scan-image'.
+const REGEXP_METACHARACTERS = /[.*+?^${}()|[\]\\]/g;
+
+const escapeLiteral = (text) => text.replace(REGEXP_METACHARACTERS, '\\$&');
+
+// One :name segment. The excluded characters are unchanged from the original router, so the params
+// a route receives do not change with this fix: no '/', '.' or '\' inside a captured value.
+const PARAM_SOURCE = String.raw`([^/.\\]+)`;
+
 const FetchRouter = function() {
   const _routes = {
     get: [],
-    post: []   
+    post: []
   };
-  
+
   this.parseRoute = function(path) {
     this.parseGroups = function(loc) {
-      var nameRegexp = new RegExp(":([^/.\\\\]+)", "g"); 
-      var newRegexp = "" + loc;
-      var groups = {};
-      var matches = null;
-      var i = 0;
+      // A fresh regex per call: a module-level /g regex would carry lastIndex between routes.
+      const nameRegexp = /:([^/.\\]+)/g;
+      const groups = {};
+      let source = '^';
+      let cursor = 0;
+      let index = 0;
+      let matches = null;
 
-      // Find the places to edit.
-      while(matches = nameRegexp.exec(loc)) {
-        groups[matches[1]] = i++;
-        newRegexp = newRegexp.replace(matches[0], "([^/.\\\\]+)"); 
+      while((matches = nameRegexp.exec(loc))) {
+        source += escapeLiteral(loc.slice(cursor, matches.index)) + PARAM_SOURCE;
+        groups[matches[1]] = index ++;
+        cursor = matches.index + matches[0].length;
       }
 
-      newRegexp += "$"; // Only do a full string match
+      // The whole pattern (literal tail included) must be consumed by the match.
+      source += escapeLiteral(loc.slice(cursor)) + "$";
 
-      return { "groups" : groups, "regexp": new RegExp(newRegexp)};
+      return { "groups" : groups, "regexp": new RegExp(source)};
     };
-      
-    return this.parseGroups(path); 
+
+    return this.parseGroups(path);
   };
 
+  // Returns { route, params } - or undefined. Params belong to THIS match: they used to be written
+  // onto the shared route object (route.params), so two overlapping fetch events on the same
+  // parameterised route raced, and the second match overwrote the first before its callback read it.
   var matchRoute = function(url, type) {
-    var route = null;
-    const filteredType = type.toLowerCase();
-    
-    if(filteredType in _routes === false) { 
+    const filteredType = String(type).toLowerCase();
+
+    if(filteredType in _routes === false) {
       return ; // Reject
     }
 
-    for(let i = 0; route = _routes[filteredType][i]; i ++) {
-      const urlMatchProperty = route.options.urlMatchProperty
+    for(let i = 0; i < _routes[filteredType].length; i ++) {
+      const route = _routes[filteredType][i];
+      const urlMatchProperty = route.options.urlMatchProperty;
       const urlPart = (urlMatchProperty in url) ? url[urlMatchProperty] : url.toString();
       const routeMatch = route.regex.regexp.exec(urlPart);
 
       if(!!routeMatch == false || (route.options.matches && !route.options.matches(url))) continue;
-      
+
       var params = {};
       for(var g in route.regex.groups) {
-        var group = route.regex.groups[g];
-        params[g] = routeMatch[group + 1];
+        params[g] = routeMatch[route.regex.groups[g] + 1];
       }
-      
-      route.params = params;
-      
-      return route;
+
+      return { route: route, params: params };
     }
 
     return;
   };
 
   this.registerRoute = function(method, route, handler, options) {
+    const filteredMethod = String(method).toLowerCase();
+
+    // Refuse an unknown method instead of pushing into a table that matchRoute will never read.
+    if(filteredMethod in _routes === false) {
+      throw new Error(`FetchRouter: unsupported method "${method}"`);
+    }
+
     let regex;
 
     if(route instanceof RegExp) {
@@ -65,7 +96,7 @@ const FetchRouter = function() {
       regex = this.parseRoute(route);
     }
 
-     _routes[method].push({regex: regex, callback: handler, options: options || {} });
+     _routes[filteredMethod].push({regex: regex, callback: handler, options: options || {} });
   };
 
   this.get = function(route, handler, options) {
@@ -73,7 +104,8 @@ const FetchRouter = function() {
   };
 
   this.post = function(route, handler, options) {
-    this.registerRoute("get", route, handler, options);
+    // Was "get": a POST route landed in the GET table and could never match a POST request.
+    this.registerRoute("post", route, handler, options);
   };
 
   this.findRoute = function(url, type) {
@@ -82,14 +114,14 @@ const FetchRouter = function() {
 };
 
 self.addEventListener('fetch', function(event) {
-  const request = event.request;
   const url = new URL(event.request.url);
-  const method = event.request.method;
 
-  const executor = router.findRoute(url, method);
-  
-  if(executor) {
-    executor.callback(event, { params: executor.params });
+  const match = router.findRoute(url, event.request.method);
+
+  if(match) {
+    // Pass this match's params directly: reading them back off the shared route object leaked the
+    // most recent match into an earlier, still-running callback.
+    match.route.callback(event, { params: match.params });
   }
 });
 

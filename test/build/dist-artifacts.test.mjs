@@ -90,6 +90,41 @@ test('both pages ship a CSP that allows their own WebAssembly', () => {
   }
 });
 
+test('the shipped CSP does not fall back to unsafe-inline, and no built page needs it', () => {
+  // bead qrcode-3bc: the service-worker registration was an inline <script> at the end of
+  // index.html, and it was the ONLY inline script in the app, so 'unsafe-inline' sat in script-src
+  // for its sake alone. It now lives in scripts/sw-register.js. Both halves matter: dropping
+  // 'unsafe-inline' while an inline script remains would break the page silently (an inline block
+  // refused by CSP just does not run: no error a user would see), so assert each independently.
+  for (const page of ['index.html', 'about.html']) {
+    const html = readFileSync(join(dist, page), 'utf8');
+    const policy = html.match(/<meta[^>]+Content-Security-Policy[^>]+content="([^"]+)"/i)?.[1];
+    const scriptSrc = policy.match(/script-src([^;]*)/i)?.[1] ?? '';
+    assert.doesNotMatch(scriptSrc, /'unsafe-inline'/, `${page} script-src must not allow 'unsafe-inline'`);
+
+    const scriptTags = html.match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) ?? [];
+    assert.ok(scriptTags.length > 0, `${page} should still load scripts`);
+    for (const tag of scriptTags) {
+      assert.match(tag, /\ssrc=/, `${page} has an inline <script> that the CSP would refuse: ${tag.slice(0, 120)}`);
+    }
+
+    // The registration itself must be a same-origin file the policy allows by 'self'.
+    assert.match(html, /<script src="\/scripts\/sw-register\.js"><\/script>/, `${page} should load the external registration script`);
+  }
+});
+
+test('the external registration script ships and keeps the kill-switch guard', () => {
+  // The built page references /scripts/sw-register.js by name and Vite does NOT bundle a classic
+  // (non-module) script, so the copy plugin in vite.config.js is what puts the file in dist/. A
+  // missing copy would be a 404 at runtime and NO registration at all - the app would still scan,
+  // but would never work offline, and nothing in the page would report the failure.
+  const shipped = readFileSync(join(dist, 'scripts', 'sw-register.js'), 'utf8');
+  assert.match(shipped, /navigator\.serviceWorker\.register\(\s*'\/sw\.js'/, 'should register /sw.js');
+  assert.match(shipped, /kill-sw/, 'should keep the kill-switch guard (bead qrcode-tho)');
+  assert.equal(readFileSync(join(dist, 'scripts', 'sw-register.js'), 'utf8'), readFileSync(join(root, 'app', 'scripts', 'sw-register.js'), 'utf8'),
+    'the copied script must be the source file verbatim, not a stale copy');
+});
+
 test('the configured minifier is a declared dependency', () => {
   // cost us a red gate on 2026-10-17: vite.config.js sets minify: 'terser', but terser is only
   // an OPTIONAL peer of vite and was not declared anywhere, so it existed in a hand-made
@@ -153,8 +188,8 @@ test('dist ships only the JavaScript the app loads', () => {
   walk(dist, '');
   assert.deepEqual(
     jsFiles.sort(),
-    ['scripts/main.js', 'scripts/qrworker.js', 'sw.js'],
-    'dist/ should contain exactly the app entry, the decoder worker and the service worker'
+    ['scripts/main.js', 'scripts/qrworker.js', 'scripts/sw-register.js', 'sw.js'],
+    'dist/ should contain exactly the app entry, the decoder worker, the page registration script and the service worker'
   );
 
   const manifest = JSON.parse(readFileSync(join(dist, 'sw-manifest.json'), 'utf8'));

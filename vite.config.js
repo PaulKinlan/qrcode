@@ -108,6 +108,7 @@ export const PUBLIC_FILES = [
   'humans.txt',
   'manifest.webapp',
   'robots.txt',
+  'scripts/sw-register.js', // served as-is: index.html loads it as a CLASSIC script (bead qrcode-3bc)
   'webstore-manifest.json'
 ];
 

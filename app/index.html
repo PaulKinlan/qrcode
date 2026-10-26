@@ -17,7 +17,7 @@
        it now lives in /scripts/sw-register.js (bead qrcode-3bc).
        test/build/dist-artifacts.test.mjs fails the build if an inline <script> comes back. -->
   <meta http-equiv="Content-Security-Policy"
-    content="script-src 'self' 'wasm-unsafe-eval' data:">
+    content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; img-src 'self' data: blob:; connect-src 'self'">
   <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
   <!-- Add to homescreen -->

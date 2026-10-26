@@ -87,6 +87,13 @@ test('both pages ship a CSP that allows their own WebAssembly', () => {
     assert.ok(policy, `${page} should declare a Content-Security-Policy`);
     assert.match(policy, /script-src[^;]*'wasm-unsafe-eval'/, `${page} CSP must allow 'wasm-unsafe-eval'`);
     assert.match(policy, /script-src[^;]*'self'/, `${page} CSP should still restrict scripts to 'self'`);
+    // Baseline policy protects non-script fetches and injection surfaces too. Keep the
+    // upload preview's blob: images and the app's own data: images, not data: scripts.
+    for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'none'", "img-src 'self' data: blob:", "connect-src 'self'"]) {
+      assert.ok(policy.split(';').map((part) => part.trim()).includes(directive), `${page} CSP should contain ${directive}`);
+    }
+    const scriptSrc = policy.match(/(?:^|;)\s*script-src\s+([^;]*)/)?.[1] ?? '';
+    assert.doesNotMatch(scriptSrc, /(?:^|\s)data:(?:\s|$)/, `${page} CSP must not allow data: scripts`);
   }
 });
 

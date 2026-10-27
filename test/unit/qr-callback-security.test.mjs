@@ -39,6 +39,16 @@ test('unsafe callback URL never exposes a clickable navigation target', () => wi
   }
 }));
 
+test('callback navigation requires a matching HTTPS referrer', () => withBrowserGlobals(() => {
+  for (const referrer of ['', 'https://other.example/start', 'http://example.com/start', 'not a URL']) {
+    const { element, classes, listeners } = mountCallback('https://example.com/return', referrer);
+    new QRCodeCallbackController(element).setQrCode('https://example.com/qr');
+    assert.equal(classes.has('hidden'), true, referrer);
+    assert.equal(listeners.has('click'), false, referrer);
+    assert.equal(globalThis.location, null, referrer);
+  }
+}));
+
 test('callback navigation revalidates the URL at click time', () => withBrowserGlobals(() => {
   const { element, classes, listeners } = mountCallback('https://example.com/return');
   const controller = new QRCodeCallbackController(element);
@@ -50,7 +60,16 @@ test('callback navigation revalidates the URL at click time', () => withBrowserG
   listeners.get('click')();
   assert.equal(globalThis.location, null);
 
+  controller.callbackUrl = new URL('https://other.example/collect');
+  listeners.get('click')();
+  assert.equal(globalThis.location, null);
+
   controller.callbackUrl = new URL('https://example.com/return');
+  document.referrer = 'https://other.example/start';
+  listeners.get('click')();
+  assert.equal(globalThis.location, null);
+
+  document.referrer = 'https://example.com/start';
   listeners.get('click')();
   assert.equal(globalThis.location.href, 'https://example.com/return?qrcode=https%3A%2F%2Fexample.com%2Fqr');
 }));

@@ -20,20 +20,15 @@ export class QRCodeCallbackController {
     this.callbackUrl = this.getCallbackURL();
     this.isValidCallbackUrl = this.validateCallbackURL(this.callbackUrl);
 
-    if (this.callbackUrl && isSafeUrl(this.callbackUrl)) {
+    if (this.callbackUrl && isSafeUrl(this.callbackUrl) && this.isValidCallbackUrl) {
       this.element.addEventListener('click', () => {
-        // Recheck at the navigation sink: the URL can change after initialization.
-        if (!isSafeUrl(this.callbackUrl)) return;
+        // Recheck both the scheme and referrer at the navigation sink.
+        if (!isSafeUrl(this.callbackUrl) || !this.validateCallbackURL(this.callbackUrl)) return;
         this.callbackUrl.searchParams.set('qrcode', this.qrcodeUrl);
         location = this.callbackUrl;
       });
 
       this.element.classList.remove('hidden');
-      
-      if (!this.isValidCallbackUrl) {
-        this.callbackDomain.classList.add('invalid');
-      }
-      
       this.callbackDomain.innerText = this.callbackUrl.origin;
     }
   }
@@ -60,7 +55,7 @@ export class QRCodeCallbackController {
       const referrer = new URL(document.referrer);
       
       // Callback must be from same origin as referrer and use HTTPS
-      return callbackUrl !== undefined
+      return callbackUrl != null
         && referrer.origin === callbackUrl.origin
         && referrer.protocol === 'https:';
     } catch (e) {

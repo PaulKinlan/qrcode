@@ -59,11 +59,33 @@ export class CameraManager {
 
     this.setupSourceManager();
 
-    // Listen for window resize
-    window.addEventListener("resize", () => this.resize());
+    // Window resizes arrive continuously while a window edge is dragged, and
+    // mobile browsers also fire them on address-bar show/hide and rotation.
+    // Each resize() reads layout and reallocates the canvas buffer, so coalesce
+    // the events into at most one relayout per frame.
+    this.resizeFrameId = null;
+    window.addEventListener("resize", () => this.scheduleResize());
 
-    // Initial resize
+    // Initial resize (synchronous: the first frame must already be sized)
     this.resize();
+  }
+
+  /**
+   * Coalesce window resize events into at most one resize() per animation
+   * frame. Resizes are not latency-sensitive (the scan loop keeps drawing at
+   * the current size until the next frame), so dropping all but the last event
+   * of a burst costs nothing and avoids reallocating the canvas buffer dozens
+   * of times per interaction.
+   */
+  scheduleResize() {
+    if (this.resizeFrameId !== null) {
+      return;
+    }
+
+    this.resizeFrameId = requestAnimationFrame(() => {
+      this.resizeFrameId = null;
+      this.resize();
+    });
   }
 
   /**

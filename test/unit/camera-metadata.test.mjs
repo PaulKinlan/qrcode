@@ -266,6 +266,59 @@ test('stop() aborts a pending dimension wait instead of hanging setCamera', asyn
   }
 });
 
+test('a getUserMedia result that arrives after stop then restart is discarded', async () => {
+  const video = new FakeVideo();
+  const pending = [];
+  const restore = withBrowserGlobals({
+    getUserMedia: () => new Promise((resolve) => pending.push(resolve)),
+  });
+
+  try {
+    const source = new CameraSource(video);
+    source.cameras = [{ deviceId: 'rear', kind: 'videoinput', label: 'back' }];
+
+    const events = [];
+    source.onDimensionsChanged = () => events.push('dimensions');
+    source.onframeready = () => events.push('frame');
+
+    // First request for camera 0, still pending when the camera is stopped...
+    const first = source.setCamera(0);
+    await tick();
+    source.stop();
+
+    // ...and started again on the SAME index, which is the sequence a toggle takes.
+    const second = source.setCamera(0);
+    await tick();
+    assert.equal(pending.length, 2);
+
+    const staleStream = makeStream();
+    pending[0](staleStream);
+    await tick();
+    await tick();
+    await first;
+
+    // The superseded result must be discarded, not attached to the element.
+    assert.equal(staleStream.track.stopped, true);
+    assert.equal(video.srcObject, null);
+    assert.deepEqual(events, []);
+
+    const liveStream = makeStream();
+    pending[1](liveStream);
+    await tick();
+    await tick();
+
+    video.deliverMetadata(1280, 720);
+    await second;
+
+    assert.equal(liveStream.track.stopped, false);
+    assert.equal(video.srcObject, liveStream);
+    assert.deepEqual(events, ['dimensions']);
+    assert.equal(globalThis.__frames.length, 1);
+  } finally {
+    restore();
+  }
+});
+
 /** CameraManager resize harness: real prototype method, fake collaborators. */
 function makeManager(sourceDimensions) {
   const manager = Object.create(CameraManager.prototype);

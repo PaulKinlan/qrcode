@@ -12,6 +12,11 @@ export class CameraSource {
     this.stream = null;
     this.animationFrameId = null;
     this.pendingDimensions = null;
+    // Monotonic token for setCamera() calls: a getUserMedia/dimension wait is only
+    // allowed to take over the element if it is still the newest request. A counter,
+    // not the camera index, because stop-then-start of the same camera reuses the
+    // index and would otherwise accept the superseded request (bead qrcode-egr).
+    this.requestId = 0;
     this.cameras = null;
     this.currentCamera = -1;
 
@@ -77,6 +82,9 @@ export class CameraSource {
     this.currentCamera = idx;
     const videoSource = this.cameras[idx];
 
+    // This call supersedes any request still in flight.
+    const requestId = ++this.requestId;
+
     // A previous camera's dimension wait must not outlive this switch.
     this.abortPendingDimensions();
 
@@ -105,9 +113,9 @@ export class CameraSource {
     try {
       const cameraStream = await navigator.mediaDevices.getUserMedia(params);
 
-      // The user may have switched cameras or stopped the stream while
-      // getUserMedia was pending; that request now owns the video element.
-      if (this.currentCamera !== idx) {
+      // Another camera was selected, or the stream was stopped and restarted, while
+      // getUserMedia was pending; this result is stale and must not take the element.
+      if (requestId !== this.requestId) {
         cameraStream.getTracks().forEach((track) => track.stop());
         return;
       }
@@ -127,8 +135,8 @@ export class CameraSource {
 
       const hasDimensions = await dimensionsReady;
 
-      // Switched away or stopped while waiting for metadata.
-      if (this.currentCamera !== idx) {
+      // Superseded while waiting for metadata.
+      if (requestId !== this.requestId) {
         return;
       }
 
@@ -240,7 +248,8 @@ export class CameraSource {
   stop() {
     this.currentCamera = -1;
 
-    // Let a pending setCamera() finish instead of waiting on a stopped element.
+    // Invalidate any in-flight setCamera() request and let it settle.
+    this.requestId += 1;
     this.abortPendingDimensions();
 
     if (this.stream) {

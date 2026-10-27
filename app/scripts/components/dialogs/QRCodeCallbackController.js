@@ -11,21 +11,24 @@ export class QRCodeCallbackController {
     this.callbackDomain = element.querySelector('.QRCodeSuccessDialogCallback-domain');
     this.callbackUrl = null;
     this.qrcodeUrl = null;
-    this.isValidCallbackUrl = false;
 
     this.initialize();
   }
 
   initialize() {
     this.callbackUrl = this.getCallbackURL();
-    this.isValidCallbackUrl = this.validateCallbackURL(this.callbackUrl);
 
-    if (this.callbackUrl && isSafeUrl(this.callbackUrl) && this.isValidCallbackUrl) {
+    if (this.isWebCallback(this.callbackUrl)) {
       this.element.addEventListener('click', () => {
-        // Recheck both the scheme and referrer at the navigation sink.
-        if (!isSafeUrl(this.callbackUrl) || !this.validateCallbackURL(this.callbackUrl)) return;
-        this.callbackUrl.searchParams.set('qrcode', this.qrcodeUrl);
-        location = this.callbackUrl;
+        // The referrer is not proof of trust: the callback owner can also host the referring page.
+        // Confirm each transfer, including when the browser omits the referrer.
+        if (!this.isWebCallback(this.callbackUrl) || !this.qrcodeUrl) return;
+        const callbackUrl = new URL(this.callbackUrl);
+        const qrCode = this.qrcodeUrl;
+        const preview = JSON.stringify(qrCode.slice(0, 120).replace(/[\u202a-\u202e\u2066-\u2069]/g, ''));
+        if (!window.confirm(`Send scanned content to ${callbackUrl.origin}?\n\n${preview}${qrCode.length > 120 ? '…' : ''}`)) return;
+        callbackUrl.searchParams.set('qrcode', qrCode);
+        location = callbackUrl;
       });
 
       this.element.classList.remove('hidden');
@@ -41,26 +44,8 @@ export class QRCodeCallbackController {
     this.qrcodeUrl = normalizedUrl;
   }
 
-  /**
-   * Validate that callback URL matches the referrer
-   * @param {URL} callbackUrl - The callback URL to validate
-   * @returns {boolean} True if valid
-   */
-  validateCallbackURL(callbackUrl) {
-    if (document.referrer === '') {
-      return false;
-    }
-
-    try {
-      const referrer = new URL(document.referrer);
-      
-      // Callback must be from same origin as referrer and use HTTPS
-      return callbackUrl != null
-        && referrer.origin === callbackUrl.origin
-        && referrer.protocol === 'https:';
-    } catch (e) {
-      return false;
-    }
+  isWebCallback(url) {
+    return isSafeUrl(url) && (url.protocol === 'https:' || url.protocol === 'http:');
   }
 
   /**

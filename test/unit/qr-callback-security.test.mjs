@@ -58,10 +58,12 @@ test('even a matching referrer cannot bypass explicit consent; refusal sends not
 test('a missing referrer can return a scanned value only after affirmative consent', () => withBrowserGlobals(() => {
   const { element, classes, listeners } = mountCallback('https://example.com/return');
   const controller = new QRCodeCallbackController(element);
-  controller.setQrCode('https://example.com/qr');
+  controller.setQrCode(new URL('https://example.com/qr')); // QRCodeManager passes URL objects.
   assert.equal(classes.has('hidden'), false);
-  window.confirm = () => true;
+  let prompt;
+  window.confirm = (text) => { prompt = text; return true; };
   listeners.get('click')();
+  assert.match(prompt, /https:\/\/example\.com\/qr/);
   assert.equal(globalThis.location.href, 'https://example.com/return?qrcode=https%3A%2F%2Fexample.com%2Fqr');
 }));
 

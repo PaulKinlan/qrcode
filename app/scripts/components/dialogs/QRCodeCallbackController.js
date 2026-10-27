@@ -24,7 +24,7 @@ export class QRCodeCallbackController {
         // Confirm each transfer, including when the browser omits the referrer.
         if (!this.isWebCallback(this.callbackUrl) || !this.qrcodeUrl) return;
         const callbackUrl = new URL(this.callbackUrl);
-        const qrCode = this.qrcodeUrl;
+        const qrCode = String(this.qrcodeUrl);
         const preview = JSON.stringify(qrCode.slice(0, 120).replace(/[\u202a-\u202e\u2066-\u2069]/g, ''));
         if (!window.confirm(`Send scanned content to ${callbackUrl.origin}?\n\n${preview}${qrCode.length > 120 ? '…' : ''}`)) return;
         callbackUrl.searchParams.set('qrcode', qrCode);
@@ -38,7 +38,7 @@ export class QRCodeCallbackController {
 
   /**
    * Set the scanned QR code URL
-   * @param {string} normalizedUrl - The normalized URL from QR code
+   * @param {URL|string} normalizedUrl - The normalized URL from QR code
    */
   setQrCode(normalizedUrl) {
     this.qrcodeUrl = normalizedUrl;

@@ -89,7 +89,8 @@ export class QRCodeManager {
   /**
    * Detect QR code from canvas context
    * @param {CanvasRenderingContext2D} context - Canvas context with QR code image
-   * @returns {URL|undefined} Normalized URL if found
+   * @returns {URL|undefined} Normalized URL if found, undefined for a miss (no QR in the frame)
+   * @throws {DecodeError} When the decoder pipeline fails; a failure is never reported as a miss
    */
   async detectQRCode(context) {
     const result = await decode(context);

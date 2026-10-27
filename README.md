@@ -10,7 +10,7 @@ QR Snapper offers a seamless QR code scanning experience directly in your browse
 
 * **Real-time QR Code Scanning:** Instantly decode QR codes using your device's camera.
 * **Cross-Platform Compatibility:** Tested and optimized for major browsers (Chrome, Firefox, Safari) and mobile devices.
-* **x-callback-url support:** Allows other applications to receive the decoded QR code data.
+* **x-callback-url support:** Allows other applications to receive decoded QR code data after you confirm the callback destination and scanned content. Callback destinations must use HTTP(S).
 
 ## Build Instructions
 

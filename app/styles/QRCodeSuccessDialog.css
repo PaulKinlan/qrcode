@@ -31,7 +31,3 @@
   font-size: x-small;
   color: #424242;
 }
-
-.QRCodeSuccessDialog .QRCodeSuccessDialog-callback .QRCodeSuccessDialogCallback-domain.invalid {
-   color: #b71c1c;
-}

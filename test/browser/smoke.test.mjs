@@ -34,6 +34,18 @@ const distDir = join(root, 'dist');
 const fixturePath = join(root, 'test', 'fixtures', 'qr-upload-smoke.png');
 const EXPECTED_PAYLOAD = 'https://example.com/upload-smoke';
 
+// Load tolerance for a shared VM (bead qrcode-4tl). Both numbers were too tight once this tier
+// ran next to several other lanes: Chrome's own startup (process exec, profile creation, V8
+// snapshot paging) is the part that stretches under CPU steal, and a 15s DevToolsActivePort poll
+// read that as "Chrome is broken" and killed a run that was merely slow. The two budgets are
+// deliberately asymmetric: startup is a *liveness* poll, so a generous ceiling costs nothing when
+// Chrome is healthy, while the runner ceiling is the hang guard for the whole test.
+//
+// SMOKE_TEST_TIMEOUT_MS is the `node:test` timeout; tools/fleet-check.conf's CHECK_TIMEOUT is only
+// the outer ceiling above it.
+const CHROME_STARTUP_TIMEOUT_MS = 60_000;
+const SMOKE_TEST_TIMEOUT_MS = 300_000;
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -283,7 +295,7 @@ class CDPClient {
 
 test(
   'headless browser smoke: uploads QR fixture, decodes payload, registers service worker',
-  { timeout: 120_000 },
+  { timeout: SMOKE_TEST_TIMEOUT_MS },
   async (t) => {
     const chromeBinary = findChromeExecutable();
     if (!chromeBinary) {
@@ -353,7 +365,7 @@ test(
           const parsed = parseInt(portLine.trim(), 10);
           return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
         },
-        { timeoutMs: 15000, message: 'DevToolsActivePort file to be written by Chrome' }
+        { timeoutMs: CHROME_STARTUP_TIMEOUT_MS, message: 'DevToolsActivePort file to be written by Chrome' }
       );
 
       // Query targets and connect raw CDP to page target

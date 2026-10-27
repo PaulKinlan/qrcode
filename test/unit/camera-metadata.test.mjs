@@ -146,7 +146,57 @@ test('setCamera signals dimensions and starts frames only after metadata arrives
   }
 });
 
-test('setCamera does not size or pump frames when the stream never reports dimensions', async () => {
+test('setCamera keeps waiting when loadedmetadata arrives without usable dimensions', async () => {
+  const video = new FakeVideo();
+  const restore = withBrowserGlobals({ getUserMedia: async () => makeStream() });
+
+  try {
+    const source = new CameraSource(video);
+    source.cameras = [{ deviceId: 'front', kind: 'videoinput', label: 'front' }];
+
+    const events = [];
+    source.onDimensionsChanged = () => events.push('dimensions');
+    source.onframeready = () => events.push('frame');
+    const warnings = [];
+    const warn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(' '));
+
+    try {
+      const started = source.setCamera(0);
+      await tick();
+      await tick();
+
+      // Have metadata, but the platform has not filled in the dimensions yet.
+      video.readyState = 1;
+      video.videoWidth = 0;
+      video.videoHeight = 0;
+      video.dispatch('loadedmetadata');
+      await tick();
+
+      // Not a stall: still waiting, nothing sized, nothing pumped.
+      assert.deepEqual(events, []);
+      assert.deepEqual(globalThis.__frames, []);
+      assert.deepEqual(warnings, []);
+
+      // The dimensions turn up on a later event; the camera must still start.
+      video.videoWidth = 640;
+      video.videoHeight = 480;
+      video.readyState = 2;
+      video.dispatch('loadeddata');
+      await started;
+    } finally {
+      console.warn = warn;
+    }
+
+    assert.deepEqual(warnings, []);
+    assert.deepEqual(events, ['dimensions']);
+    assert.equal(globalThis.__frames.length, 1);
+  } finally {
+    restore();
+  }
+});
+
+test('setCamera gives up (with a warning) when the stream errors first', async () => {
   const video = new FakeVideo();
   const restore = withBrowserGlobals({ getUserMedia: async () => makeStream() });
 
@@ -176,7 +226,41 @@ test('setCamera does not size or pump frames when the stream never reports dimen
     assert.deepEqual(events, []);
     assert.deepEqual(globalThis.__frames, []);
     assert.equal(warnings.length, 1);
-    assert.match(warnings[0], /no video dimensions/);
+    assert.match(warnings[0], /no usable video dimensions/);
+  } finally {
+    restore();
+  }
+});
+
+test('stop() aborts a pending dimension wait instead of hanging setCamera', async () => {
+  const video = new FakeVideo();
+  const restore = withBrowserGlobals({ getUserMedia: async () => makeStream() });
+
+  try {
+    const source = new CameraSource(video);
+    source.cameras = [{ deviceId: 'front', kind: 'videoinput', label: 'front' }];
+
+    const events = [];
+    source.onDimensionsChanged = () => events.push('dimensions');
+    source.onframeready = () => events.push('frame');
+    const warnings = [];
+    const warn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(' '));
+
+    try {
+      const started = source.setCamera(0);
+      await tick();
+      await tick();
+
+      source.stop();
+      await started;
+    } finally {
+      console.warn = warn;
+    }
+
+    assert.deepEqual(events, []);
+    assert.deepEqual(globalThis.__frames, []);
+    assert.deepEqual(warnings, []);
   } finally {
     restore();
   }

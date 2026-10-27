@@ -11,6 +11,7 @@ export class CameraSource {
     this.videoElement = videoElement;
     this.stream = null;
     this.animationFrameId = null;
+    this.pendingDimensions = null;
     this.cameras = null;
     this.currentCamera = -1;
 
@@ -76,6 +77,9 @@ export class CameraSource {
     this.currentCamera = idx;
     const videoSource = this.cameras[idx];
 
+    // A previous camera's dimension wait must not outlive this switch.
+    this.abortPendingDimensions();
+
     // Cancel any pending frame analysis
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
@@ -121,15 +125,15 @@ export class CameraSource {
 
       await this.videoElement.play();
 
-      if (!(await dimensionsReady)) {
-        if (this.currentCamera === idx) {
-          console.warn("CameraSource: no video dimensions for camera", idx);
-        }
-        return;
-      }
+      const hasDimensions = await dimensionsReady;
 
       // Switched away or stopped while waiting for metadata.
       if (this.currentCamera !== idx) {
+        return;
+      }
+
+      if (!hasDimensions) {
+        console.warn("CameraSource: no usable video dimensions for camera", idx);
         return;
       }
 
@@ -156,8 +160,14 @@ export class CameraSource {
   }
 
   /**
-   * Resolve once the video element reports real dimensions, or once the stream
-   * fails outright. Never resolves while the element is still loading metadata.
+   * Resolve once the video element reports real dimensions.
+   *
+   * A ready event without usable dimensions is not fatal: some platforms reach
+   * HAVE_METADATA with videoWidth still 0 and only fill the dimensions in on a
+   * later loadeddata/resize. Waiting across those events keeps the camera
+   * starting when the dimensions do arrive, instead of stalling it for the life
+   * of the page (bead qrcode-wjj). Resolves false only on stream error or when
+   * stop()/a camera switch aborts the wait.
    * @returns {Promise<boolean>} True when dimensions are usable
    */
   waitForDimensions() {
@@ -171,17 +181,40 @@ export class CameraSource {
       const finish = (ok) => {
         video.removeEventListener("loadedmetadata", onReady);
         video.removeEventListener("loadeddata", onReady);
+        video.removeEventListener("canplay", onReady);
+        video.removeEventListener("resize", onReady);
         video.removeEventListener("error", onError);
+        this.pendingDimensions = null;
         resolve(ok);
       };
 
-      const onReady = () => finish(this.hasVideoDimensions());
+      const onReady = () => {
+        if (this.hasVideoDimensions()) {
+          finish(true);
+        }
+      };
       const onError = () => finish(false);
+
+      this.pendingDimensions = finish;
 
       video.addEventListener("loadedmetadata", onReady);
       video.addEventListener("loadeddata", onReady);
+      video.addEventListener("canplay", onReady);
+      video.addEventListener("resize", onReady);
       video.addEventListener("error", onError);
     });
+  }
+
+  /**
+   * Abort a pending dimension wait (camera switch or stop)
+   */
+  abortPendingDimensions() {
+    const pending = this.pendingDimensions;
+
+    if (pending) {
+      this.pendingDimensions = null;
+      pending(false);
+    }
   }
 
   /**
@@ -206,6 +239,10 @@ export class CameraSource {
    */
   stop() {
     this.currentCamera = -1;
+
+    // Let a pending setCamera() finish instead of waiting on a stopped element.
+    this.abortPendingDimensions();
+
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
     }

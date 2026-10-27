@@ -34,6 +34,32 @@ const distDir = join(root, 'dist');
 const fixturePath = join(root, 'test', 'fixtures', 'qr-upload-smoke.png');
 const EXPECTED_PAYLOAD = 'https://example.com/upload-smoke';
 
+// Load tolerance for a shared VM (bead qrcode-4tl). These ceilings were sized for an idle box, and
+// this tier runs next to several other lanes: on a starved CPU *every* phase stretches, not just
+// Chrome's startup. The first red run under load was the 15s DevToolsActivePort poll; with that
+// raised, the very next run died on the 15s "App to load and CameraFallback to become visible"
+// wait instead. So the fix is one tolerance rather than two numbers: PHASE_TIMEOUT_SCALE multiplies
+// every deadline wait (page boot, WASM decode, worker install, offline reload) and Chrome's startup
+// poll is simply the largest of them. The default 4 turns the original 15s/20s/10s ceilings into
+// 60s/80s/40s; a box slower still can raise QR_SNAPPER_BROWSER_TIMEOUT_SCALE instead of editing
+// this file. Because these ceilings are now load-tolerant rather than tight, a hang is caught by
+// the runner ceiling below (and, above it, by tools/fleet-check.conf's CHECK_TIMEOUT), not by an
+// individual phase.
+const requestedScale = Number(process.env.QR_SNAPPER_BROWSER_TIMEOUT_SCALE ?? 4);
+const PHASE_TIMEOUT_SCALE = Number.isFinite(requestedScale) && requestedScale > 0 ? requestedScale : 4;
+
+/**
+ * Scale a phase deadline for the VM the tier is running on.
+ * @param {number} baseMs
+ * @returns {number}
+ */
+function phaseTimeout(baseMs) {
+  return Math.round(baseMs * PHASE_TIMEOUT_SCALE);
+}
+
+const CHROME_STARTUP_TIMEOUT_MS = phaseTimeout(15_000); // 60s at the default scale
+const SMOKE_TEST_TIMEOUT_MS = 300_000;
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -158,7 +184,14 @@ async function pollUntil(
   while (Date.now() - start < timeoutMs) {
     try {
       const result = await fn();
-      if (result) return result;
+      if (result) {
+        // Where a wait's time went is the only way to tell "slow box" from "dead app" after the
+        // fact, and the log is the artefact a later flake hunt will read.
+        if (process.env.QR_SNAPPER_BROWSER_DEBUG === '1') {
+          console.error(`[browser-smoke] ${message}: ${Date.now() - start}ms`);
+        }
+        return result;
+      }
     } catch (err) {
       lastError = err;
     }
@@ -283,7 +316,7 @@ class CDPClient {
 
 test(
   'headless browser smoke: uploads QR fixture, decodes payload, registers service worker',
-  { timeout: 120_000 },
+  { timeout: SMOKE_TEST_TIMEOUT_MS },
   async (t) => {
     const chromeBinary = findChromeExecutable();
     if (!chromeBinary) {
@@ -353,7 +386,7 @@ test(
           const parsed = parseInt(portLine.trim(), 10);
           return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
         },
-        { timeoutMs: 15000, message: 'DevToolsActivePort file to be written by Chrome' }
+        { timeoutMs: CHROME_STARTUP_TIMEOUT_MS, message: 'DevToolsActivePort file to be written by Chrome' }
       );
 
       // Query targets and connect raw CDP to page target
@@ -428,7 +461,7 @@ test(
           );
           return ready && fallbackActive;
         },
-        { timeoutMs: 15000, message: 'App to load and CameraFallback to become visible' }
+        { timeoutMs: phaseTimeout(15_000), message: 'App to load and CameraFallback to become visible' }
       );
 
       // Click the upload control like a user would
@@ -453,7 +486,7 @@ test(
           const text = await cdp.eval('document.querySelector(".QRCodeSuccessDialog-data")?.innerText');
           return text && text.trim().length > 0 ? text.trim() : null;
         },
-        { timeoutMs: 15000, message: 'QR polyfill decoding to render result in .QRCodeSuccessDialog-data' }
+        { timeoutMs: phaseTimeout(15_000), message: 'QR polyfill decoding to render result in .QRCodeSuccessDialog-data' }
       );
 
       assert.equal(decodedText, EXPECTED_PAYLOAD, 'Decoded QR payload in dialog text does not match fixture payload');
@@ -495,7 +528,7 @@ test(
           `);
           return regs && regs.length > 0 ? regs : null;
         },
-        { timeoutMs: 15000, message: 'Service worker to register successfully' }
+        { timeoutMs: phaseTimeout(15_000), message: 'Service worker to register successfully' }
       );
 
       assert.ok(swRegistrations && swRegistrations.length >= 1, 'Expected at least one active service worker registration');
@@ -526,7 +559,7 @@ test(
           `);
           return state && state.controlled && state.keys.length > 0 ? state : null;
         },
-        { timeoutMs: 15000, message: 'the service worker to precache the build and control the page' }
+        { timeoutMs: phaseTimeout(15_000), message: 'the service worker to precache the build and control the page' }
       );
 
       assert.equal(cacheState.name, `qr-precache-${manifest.version}`, 'cache name must be version-derived');
@@ -553,7 +586,7 @@ test(
           );
           return Boolean(offlineReady);
         },
-        { timeoutMs: 20000, message: 'the app to load from the service worker cache with the network off' }
+        { timeoutMs: phaseTimeout(20_000), message: 'the app to load from the service worker cache with the network off' }
       );
 
       // And the offline app must still do its job: decode an uploaded QR with no network at all.
@@ -570,7 +603,7 @@ test(
           const text = await cdp.eval('document.querySelector(".QRCodeSuccessDialog-data")?.innerText');
           return text && text.trim().length > 0 ? text.trim() : null;
         },
-        { timeoutMs: 20000, message: 'the offline app to decode the uploaded QR fixture' }
+        { timeoutMs: phaseTimeout(20_000), message: 'the offline app to decode the uploaded QR fixture' }
       );
       assert.equal(offlineDecoded, EXPECTED_PAYLOAD, 'offline ZBar WASM decode from the precache failed');
       if (process.env.QR_SNAPPER_SCREENSHOT) {
@@ -603,7 +636,7 @@ test(
           );
           return ready && fallbackActive;
         },
-        { timeoutMs: 15000, message: '/about.html to load and its CameraFallback to become visible' }
+        { timeoutMs: phaseTimeout(15_000), message: '/about.html to load and its CameraFallback to become visible' }
       );
 
       assert.deepEqual(
@@ -625,7 +658,7 @@ test(
           const text = await cdp.eval('document.querySelector(".QRCodeSuccessDialog-data")?.innerText');
           return text && text.trim().length > 0 ? text.trim() : null;
         },
-        { timeoutMs: 20000, message: '/about.html to decode the uploaded QR fixture' }
+        { timeoutMs: phaseTimeout(20_000), message: '/about.html to decode the uploaded QR fixture' }
       );
       assert.equal(aboutDecoded, EXPECTED_PAYLOAD, '/about.html must decode an uploaded QR, not just render the page');
       assert.deepEqual(pageErrors.slice(errorsBeforeAbout), [], '/about.html threw while decoding');
@@ -647,12 +680,12 @@ test(
           (await navigator.serviceWorker.getRegistrations()).length === 0 &&
           !(await caches.keys()).some(name => name.startsWith('qr-precache-'))
         )()`),
-        { timeoutMs: 10000, message: 'kill navigation to unregister worker and clear app precache' }
+        { timeoutMs: phaseTimeout(10_000), message: 'kill navigation to unregister worker and clear app precache' }
       );
       await cdp.send('Page.navigate', { url: `${origin}/about.html?kill-sw=true` });
       await pollUntil(
         async () => cdp.eval('location.pathname === "/about.html" && document.readyState === "complete"'),
-        { timeoutMs: 10000, message: 'about kill page to load' }
+        { timeoutMs: phaseTimeout(10_000), message: 'about kill page to load' }
       );
       await cdp.eval('new Promise(resolve => setTimeout(resolve, 300))');
       assert.equal(await cdp.eval('(async () => (await navigator.serviceWorker.getRegistrations()).length)()'), 0,

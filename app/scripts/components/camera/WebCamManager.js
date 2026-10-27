@@ -86,10 +86,18 @@ export class WebCamManager {
    */
   getDimensions() {
     const dimensions = this.source.getDimensions();
+
+    // Without a laid-out container or a sized video there is no scale to compute;
+    // dividing by zero produced Infinity/NaN scale factors before HAVE_METADATA
+    // (bead qrcode-xrv).
+    if (!this.width || !this.height || !dimensions.width || !dimensions.height) {
+      return { ...dimensions, scaleFactor: 1 };
+    }
+
     const heightRatio = dimensions.height / this.height;
     const widthRatio = dimensions.width / this.width;
     const scaleFactor = 1 / Math.min(heightRatio, widthRatio);
-    
+
     dimensions.scaleFactor = Number.isFinite(scaleFactor) ? scaleFactor : 1;
     return dimensions;
   }

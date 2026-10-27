@@ -1,3 +1,7 @@
+// HTMLMediaElement.HAVE_METADATA: the first readyState at which videoWidth/
+// videoHeight are meaningful. Below it both read 0.
+const HAVE_METADATA = 1;
+
 /**
  * CameraSource - Manages camera access and video streaming
  * Modernized to use only standard getUserMedia APIs (no deprecated prefixes)
@@ -96,33 +100,105 @@ export class CameraSource {
 
     try {
       const cameraStream = await navigator.mediaDevices.getUserMedia(params);
+
+      // The user may have switched cameras or stopped the stream while
+      // getUserMedia was pending; that request now owns the video element.
+      if (this.currentCamera !== idx) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
       this.stream = cameraStream;
-
-      this.videoElement.addEventListener(
-        "loadeddata",
-        () => {
-          const onframe = () => {
-            if (this.videoElement.videoWidth > 0) {
-              this.onframeready(this.videoElement);
-            }
-            if (this.currentCamera !== -1) {
-              // If the camera is still running
-              this.animationFrameId = requestAnimationFrame(onframe);
-            }
-          };
-
-          this.onDimensionsChanged();
-          this.animationFrameId = requestAnimationFrame(onframe);
-        },
-        { once: true }
-      );
-
       this.videoElement.srcObject = this.stream;
       this.videoElement.load();
+
+      // videoWidth/videoHeight are 0 until the element reaches HAVE_METADATA, so the
+      // canvas must not be sized from them any earlier: a 0x0 source yields a
+      // zero-sized drawing buffer and a crop rectangle outside the video.
+      // Listeners are attached in this same task as load(), before any media event
+      // can be dispatched (bead qrcode-xrv).
+      const dimensionsReady = this.waitForDimensions();
+
       await this.videoElement.play();
+
+      if (!(await dimensionsReady)) {
+        if (this.currentCamera === idx) {
+          console.warn("CameraSource: no video dimensions for camera", idx);
+        }
+        return;
+      }
+
+      // Switched away or stopped while waiting for metadata.
+      if (this.currentCamera !== idx) {
+        return;
+      }
+
+      this.onDimensionsChanged();
+      this.startFrameLoop();
     } catch (error) {
       console.error("Camera access error:", error);
     }
+  }
+
+  /**
+   * Whether the video element has decoded enough to report real dimensions
+   * @returns {boolean}
+   */
+  hasVideoDimensions() {
+    const video = this.videoElement;
+
+    return Boolean(
+      video &&
+        video.readyState >= HAVE_METADATA &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0
+    );
+  }
+
+  /**
+   * Resolve once the video element reports real dimensions, or once the stream
+   * fails outright. Never resolves while the element is still loading metadata.
+   * @returns {Promise<boolean>} True when dimensions are usable
+   */
+  waitForDimensions() {
+    if (this.hasVideoDimensions()) {
+      return Promise.resolve(true);
+    }
+
+    const video = this.videoElement;
+
+    return new Promise((resolve) => {
+      const finish = (ok) => {
+        video.removeEventListener("loadedmetadata", onReady);
+        video.removeEventListener("loadeddata", onReady);
+        video.removeEventListener("error", onError);
+        resolve(ok);
+      };
+
+      const onReady = () => finish(this.hasVideoDimensions());
+      const onError = () => finish(false);
+
+      video.addEventListener("loadedmetadata", onReady);
+      video.addEventListener("loadeddata", onReady);
+      video.addEventListener("error", onError);
+    });
+  }
+
+  /**
+   * Pump video frames to the onframeready callback
+   */
+  startFrameLoop() {
+    const onframe = () => {
+      if (this.videoElement.videoWidth > 0) {
+        this.onframeready(this.videoElement);
+      }
+      if (this.currentCamera !== -1) {
+        // If the camera is still running
+        this.animationFrameId = requestAnimationFrame(onframe);
+      }
+    };
+
+    this.animationFrameId = requestAnimationFrame(onframe);
   }
 
   /**
@@ -135,11 +211,12 @@ export class CameraSource {
     }
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
   }
 
   /**
-   * Get video dimensions
+   * Get video dimensions. Both are 0 until the element reaches HAVE_METADATA.
    * @returns {Object} Width and height of video
    */
   getDimensions() {

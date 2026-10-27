@@ -150,6 +150,15 @@ export class CameraManager {
     const sourceHeight = sourceDimensions.height;
     const sourceWidth = sourceDimensions.width;
 
+    // Before the source reaches HAVE_METADATA (or while the uploaded image is still
+    // decoding) it reports 0x0. Sizing the canvas from that allocates an invalid
+    // drawing buffer and a crop rectangle outside the source, so leave the canvas
+    // alone: both source managers call onDimensionsChanged once real dimensions
+    // exist, which re-runs this method (bead qrcode-xrv).
+    if (!sourceWidth || !sourceHeight || !containerWidth || !containerHeight) {
+      return;
+    }
+
     // Target size in device coordinates
     const overlaySize = this.getOverlayDimensions(
       containerWidth,
@@ -157,8 +166,13 @@ export class CameraManager {
     );
 
     // The canvas should be the same size as the overlay in video size
-    this.dHeight = this.dWidth =
-      overlaySize.width / sourceDimensions.scaleFactor;
+    const targetSize = overlaySize.width / sourceDimensions.scaleFactor;
+
+    if (!Number.isFinite(targetSize) || targetSize <= 0) {
+      return;
+    }
+
+    this.dHeight = this.dWidth = targetSize;
 
     // Set canvas dimensions
     this.cameraCanvas.width = this.dWidth;

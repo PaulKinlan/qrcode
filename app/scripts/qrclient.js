@@ -2,7 +2,7 @@ import * as Comlink from 'comlink';
 
 const proxy = Comlink.wrap(new Worker(new URL('./qrworker.js', import.meta.url), { type: 'module' }));
 
-export const decode = async function (context) {
+export const decode = async function (context, onFailure) {
   try {
     let canvas = context.canvas;
     let width = canvas.width;
@@ -10,6 +10,7 @@ export const decode = async function (context) {
     let imageData = context.getImageData(0, 0, width, height);
     return await proxy.detectUrl(width, height, imageData);
   } catch (err) {
-    console.log(err);
+    onFailure?.(err);
+    return undefined;
   }
 };

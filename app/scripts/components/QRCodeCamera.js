@@ -10,6 +10,7 @@ export class QRCodeCamera {
   constructor() {
     this.cameraManager = new CameraManager('camera');
     this.qrCodeManager = new QRCodeManager('qrcode');
+    this.scanError = document.getElementById('camera-error');
     this.qrCodeHelpManager = new QRCodeHelpManager('about');
     
     this.setupHelpButton();
@@ -34,8 +35,13 @@ export class QRCodeCamera {
       isDecoding = true;
       
       try {
-        const url = await this.qrCodeManager.detectQRCode(context);
-        
+        let failed = false;
+        const url = await this.qrCodeManager.detectQRCode(context, () => {
+          failed = true;
+          this.scanError.hidden = false;
+        });
+        if (!failed) this.scanError.hidden = true;
+
         if (url !== undefined) {
           // QR code found!
           

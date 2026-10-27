@@ -165,6 +165,21 @@
   height: 10%;
 }
 
+.Camera #camera-error {
+  position: absolute;
+  bottom: 3em;
+  left: 0;
+  z-index: 100;
+  margin: 1em;
+  padding: 12px;
+  background: #323232;
+  color: white;
+}
+
+.Camera #camera-error[hidden] {
+  display: none;
+}
+
 .Camera .Camera-instructions {
   position: absolute;
   bottom: 0;

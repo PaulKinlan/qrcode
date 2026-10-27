@@ -13,6 +13,7 @@ delete globalThis.Worker;
 function makeCamera(detectQRCode) {
   const camera = Object.create(QRCodeCamera.prototype);
   camera.cameraManager = {};
+  camera.scanError = { hidden: true };
   camera.qrCodeManager = { detectQRCode };
   camera.setupCameraCallback();
   return camera;
@@ -37,6 +38,19 @@ test('frame decoding drops overlap and resumes after completion', async () => {
   await first;
   await camera.cameraManager.onframe('next');
   assert.deepEqual(contexts, ['first', 'next']);
+});
+
+test('decode failure is visible and a successful retry clears the error', async () => {
+  let attempts = 0;
+  const camera = makeCamera((_context, onFailure) => {
+    if (++attempts === 1) onFailure(new Error('worker failed'));
+    return Promise.resolve(undefined);
+  });
+  await camera.cameraManager.onframe({});
+  assert.equal(camera.scanError.hidden, false);
+  await camera.cameraManager.onframe({});
+  assert.equal(attempts, 2);
+  assert.equal(camera.scanError.hidden, true);
 });
 
 test('frame decoding resumes after a failed detection', async () => {

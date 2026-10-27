@@ -177,7 +177,7 @@ function createDistServer(baseDir) {
  */
 async function pollUntil(
   fn,
-  { timeoutMs = 15000, intervalMs = 50, message = 'Condition timed out' } = {}
+  { timeoutMs = phaseTimeout(15_000), intervalMs = 50, message = 'Condition timed out' } = {}
 ) {
   const start = Date.now();
   let lastError;
@@ -256,7 +256,13 @@ class CDPClient {
     this.#pending.clear();
   }
 
-  static async connect(wsUrl, timeoutMs = 10000) {
+  // One-shot CDP operations have no retry: a bare `cdp.send('Page.navigate', ...)` that times out
+  // rejects the test immediately, unlike an eval inside pollUntil (which is caught and retried
+  // inside a scaled window). So the connect/send/eval defaults go through phaseTimeout too (bead
+  // qrcode-jrq): 10s and 15s were sized on the same idle box the polls were, and a starved VM can
+  // lose a single round-trip for that long. 60s at the default scale is still far below the runner
+  // ceiling, so a genuinely wedged DevTools connection is still caught by the runner, not by this.
+  static async connect(wsUrl, timeoutMs = phaseTimeout(10_000)) {
     const ws = new WebSocket(wsUrl);
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -277,7 +283,7 @@ class CDPClient {
     return new CDPClient(ws);
   }
 
-  send(method, params = {}, timeoutMs = 15000) {
+  send(method, params = {}, timeoutMs = phaseTimeout(15_000)) {
     return new Promise((resolve, reject) => {
       const id = this.#seq++;
       const timer = setTimeout(() => {
@@ -289,7 +295,7 @@ class CDPClient {
     });
   }
 
-  async eval(expression, { awaitPromise = true, timeoutMs = 15000 } = {}) {
+  async eval(expression, { awaitPromise = true, timeoutMs = phaseTimeout(15_000) } = {}) {
     const res = await this.send(
       'Runtime.evaluate',
       {

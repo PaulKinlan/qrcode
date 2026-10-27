@@ -25,6 +25,8 @@ export class QRCodeCallbackController {
         // Recheck at the navigation sink: the URL can change after initialization.
         if (!isSafeUrl(this.callbackUrl)) return;
         this.callbackUrl.searchParams.set('qrcode', this.qrcodeUrl);
+        // Validate the final URL, after inserting the scanned value, at the navigation sink.
+        if (!isSafeUrl(this.callbackUrl)) return;
         location = this.callbackUrl;
       });
 

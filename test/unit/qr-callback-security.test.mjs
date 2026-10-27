@@ -39,6 +39,21 @@ test('unsafe callback URL never exposes a clickable navigation target', () => wi
   }
 }));
 
+test('callback navigation rejects a URL that becomes unsafe during QR insertion', () => withBrowserGlobals(() => {
+  const { element, listeners } = mountCallback('https://example.com/return');
+  const controller = new QRCodeCallbackController(element);
+  controller.setQrCode('https://example.com/qr');
+  const params = controller.callbackUrl.searchParams;
+  const set = params.set.bind(params);
+  params.set = (name, value) => {
+    set(name, value);
+    controller.callbackUrl.href = 'javascript:globalThis.xss=1';
+  };
+
+  listeners.get('click')();
+  assert.equal(globalThis.location, null);
+}));
+
 test('callback navigation revalidates the URL at click time', () => withBrowserGlobals(() => {
   const { element, classes, listeners } = mountCallback('https://example.com/return');
   const controller = new QRCodeCallbackController(element);

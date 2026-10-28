@@ -1,7 +1,8 @@
-// The service worker's kill switch (app/sw.js) is armed by `?kill-sw=true` on the EXACT root path
-// only. It used to match on the whole origin, so the parameter on any other URL of the origin
-// unregistered the worker and deleted the app's precache - an accidental trigger surface for a
-// deliberate escape hatch (bead qrcode-1ks).
+// The service worker's kill switch (app/sw.js) is armed by `?kill-sw=true` on the EXACT root URL of
+// this origin only. It used to match on the whole origin, so the parameter on any other URL of the
+// origin unregistered the worker and deleted the app's precache - an accidental trigger surface for
+// a deliberate escape hatch (bead qrcode-1ks). The scope is origin AND root pathname: the worker's
+// fetch listener sees third-party subresources too, and those can have a '/' pathname (qrcode-6a3).
 //
 // app/sw.js registers its route table at import time, so `self` (and the cache/registration
 // stubs) are defined before the dynamic import. node runs each test file in its own process.
@@ -68,6 +69,22 @@ test('a kill-sw parameter off the root path is served normally and arms nothing'
   assert.equal(unregistered, unregistersBefore, 'off-root kill-sw requests must not unregister');
   assert.equal(cacheMatches - matchesBefore, 3, 'off-root requests must go through the cache-first route');
   assert.deepEqual(deleted, ['qr-precache-old', 'qr-precache-9.9.9-test'], 'off-root requests must not delete caches');
+});
+
+test('a cross-origin request whose pathname is / does not arm the kill switch', async () => {
+  // The worker's fetch listener also sees third-party subresources, and for those the pathname can
+  // be '/': matching on pathname alone armed the kill switch from another origin, which the old
+  // origin-matched route could not do (bead qrcode-6a3).
+  const unregistersBefore = unregistered;
+  const matchesBefore = cacheMatches;
+  for (const url of ['https://evil-cdn.example/?kill-sw=true', 'https://qr-snapper.test.evil.example/?kill-sw=true']) {
+    const event = dispatch(url);
+    assert.equal(event.lifetime, undefined, `${url} must not unregister the worker`);
+    assert.equal(event.response, undefined, 'no route of this worker answers another origin');
+  }
+  assert.equal(unregistered, unregistersBefore);
+  assert.equal(cacheMatches, matchesBefore, 'another origin must not be served from this origin cache');
+  assert.deepEqual(deleted, ['qr-precache-old', 'qr-precache-9.9.9-test'], 'another origin must not delete caches');
 });
 
 test('similar parameter names and values do not trigger the kill switch', async () => {

@@ -41,10 +41,12 @@ const toPrecacheUrl = (entry) => {
 /*
   Escape hatch: unregister this worker and clear its precache on an explicit kill-sw=true request.
 
-  Scoped to the EXACT root pathname. This route used to match on the whole origin, so a
-  `?kill-sw=true` on any URL of this origin - a subresource fetch, a shared or bookmarked link -
-  unregistered the worker and wiped the offline cache (bead qrcode-1ks). Only the root URL
-  (`/?kill-sw=true`) arms it now; every other path keeps the normal behaviour.
+  Scoped to the EXACT same-origin root URL. This route used to match on the whole origin, so a
+  `?kill-sw=true` on any same-origin URL - a subresource fetch, a shared or bookmarked link -
+  unregistered the worker and wiped the offline cache (bead qrcode-1ks). The pathname alone is not
+  a sufficient scope either: the worker's fetch listener also sees third-party subresources, whose
+  pathname can be '/', so the predicate requires this origin as well (bead qrcode-6a3). Only
+  `/?kill-sw=true` on this origin arms it now; every other request keeps the normal behaviour.
 */
 router.get('/', function(event) {
   event.waitUntil((async () => {
@@ -52,7 +54,7 @@ router.get('/', function(event) {
     const keys = await caches.keys();
     await Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX)).map(key => caches.delete(key)));
   })());
-}, {urlMatchProperty: "pathname", matches: url => url.searchParams.get('kill-sw') === 'true'});
+}, {urlMatchProperty: "pathname", matches: url => url.origin === self.location.origin && url.searchParams.get('kill-sw') === 'true'});
 
 /*
   Serve this origin's cached assets first, falling back to the network on a miss.

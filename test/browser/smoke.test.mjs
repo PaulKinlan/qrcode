@@ -677,25 +677,43 @@ test(
         t.diagnostic(`about.html screenshot: ${process.env.QR_SNAPPER_SCREENSHOT}`);
       }
 
-      // The kill navigation must not re-register the worker from the page's registration script.
-      // Test a non-leading parameter on index, then the generated about.html alias too.
-      await cdp.send('Page.navigate', { url: `${origin}/index.html?source=offline&kill-sw=true` });
-      await pollUntil(
-        async () => cdp.eval(`(async () =>
-          location.search === '?source=offline&kill-sw=true' && document.readyState === 'complete' &&
-          (await navigator.serviceWorker.getRegistrations()).length === 0 &&
-          !(await caches.keys()).some(name => name.startsWith('qr-precache-'))
-        )()`),
-        { timeoutMs: phaseTimeout(10_000), message: 'kill navigation to unregister worker and clear app precache' }
+      // 5d. The kill switch is armed only by the exact root URL (bead qrcode-1ks). Check the
+      // negative case FIRST, while a worker and its precache still exist: a kill-sw parameter on
+      // another path must be an ordinary page load, not a silent unregister + cache wipe.
+      const precacheNames = await cdp.eval(
+        '(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'
       );
+      assert.ok(precacheNames.length > 0, 'expected a precache to exist before the kill-switch phase');
+
       await cdp.send('Page.navigate', { url: `${origin}/about.html?kill-sw=true` });
       await pollUntil(
         async () => cdp.eval('location.pathname === "/about.html" && document.readyState === "complete"'),
-        { timeoutMs: phaseTimeout(10_000), message: 'about kill page to load' }
+        { timeoutMs: phaseTimeout(10_000), message: '/about.html?kill-sw=true to load' }
       );
       await cdp.eval('new Promise(resolve => setTimeout(resolve, 300))');
-      assert.equal(await cdp.eval('(async () => (await navigator.serviceWorker.getRegistrations()).length)()'), 0,
-        'about kill page must not re-register the worker');
+      assert.equal(
+        await cdp.eval('(async () => (await navigator.serviceWorker.getRegistrations()).length)()'),
+        1,
+        'a kill-sw parameter off the root path must not unregister the worker'
+      );
+      assert.deepEqual(
+        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'),
+        precacheNames,
+        'a kill-sw parameter off the root path must not touch the app precache'
+      );
+
+      // The root kill URL must unregister the worker and clear the app precache, and the page's
+      // registration script must not immediately re-register it during that same load.
+      await cdp.send('Page.navigate', { url: `${origin}/?source=offline&kill-sw=true` });
+      await pollUntil(
+        async () => cdp.eval(`(async () =>
+          location.pathname === '/' && location.search === '?source=offline&kill-sw=true' &&
+          document.readyState === 'complete' &&
+          (await navigator.serviceWorker.getRegistrations()).length === 0 &&
+          !(await caches.keys()).some(name => name.startsWith('qr-precache-'))
+        )()`),
+        { timeoutMs: phaseTimeout(10_000), message: 'the root kill navigation to unregister the worker and clear the app precache' }
+      );
 
       // Interception keeps the run hermetic; any third-party request is a regression.
       assert.deepEqual(externalRequests, [], 'the app must not request third-party resources');

@@ -17,17 +17,25 @@ const PRECACHE_MANIFEST_URL = '/sw-manifest.json';
 
 /*
   Escape hatch: unregister this worker and clear its precache on an explicit kill-sw=true request.
+
+  Scoped to the EXACT root pathname. This route used to match on the whole origin, so a
+  `?kill-sw=true` on any URL of this origin - a subresource fetch, a shared or bookmarked link -
+  unregistered the worker and wiped the offline cache (bead qrcode-1ks). Only the root URL
+  (`/?kill-sw=true`) arms it now; every other path keeps the normal behaviour.
 */
-router.get(`${self.location.origin}`, function(event) {
+router.get('/', function(event) {
   event.waitUntil((async () => {
     await self.registration.unregister();
     const keys = await caches.keys();
     await Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX)).map(key => caches.delete(key)));
   })());
-}, {urlMatchProperty: "origin", matches: url => url.searchParams.get('kill-sw') === 'true'});
+}, {urlMatchProperty: "pathname", matches: url => url.searchParams.get('kill-sw') === 'true'});
 
 /*
   Serve this origin's cached assets first, falling back to the network on a miss.
+
+  This is the only route that matches on "origin", and it must stay last: it answers every
+  same-origin request, so a narrower route (the kill switch above) has to win first.
 */
 router.get(`${self.location.origin}`, e => {
   e.respondWith(

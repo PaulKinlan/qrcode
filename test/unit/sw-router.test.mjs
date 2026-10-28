@@ -70,8 +70,8 @@ test('post() registers a POST route, not a GET one', () => {
 });
 
 test('the origin-matching route style app/sw.js uses still matches its own origin', () => {
-  // app/sw.js registers `${self.location.origin}` with urlMatchProperty "origin": the escaping fix
-  // must not break the one pattern set that ships.
+  // app/sw.js's cache-first route matches on "origin" (its kill route above it is pathname-scoped,
+  // bead qrcode-1ks): the escaping fix must not break the pattern that ships.
   router.get('https://origin-match.test', noop, { urlMatchProperty: 'origin' });
 
   assert.ok(router.findRoute(url('origin-match.test', '/index.html'), 'get'), 'same-origin request must match');

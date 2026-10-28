@@ -8,9 +8,14 @@
 // Classic, not `type="module"`: it must run while the document is still parsing, before the
 // deferred `scripts/main.js` module starts the app, exactly as the inline block did.
 //
-// The kill-switch navigation (?kill-sw=true) must not undo the worker's own unregister() during
-// page load: see the kill route in app/sw.js.
-if ('serviceWorker' in navigator && new URL(location.href).searchParams.get('kill-sw') !== 'true') {
+// The kill switch is armed only by the EXACT root URL (?kill-sw=true); see the kill route in
+// app/sw.js, which matches on the root pathname. Only that URL may suppress registration: on any
+// other path the parameter no longer unregisters anything, so skipping here would leave the page
+// silently without a worker (bead qrcode-1ks).
+const killSwitch = new URL(location.href);
+const killSwitchArmed = killSwitch.pathname === '/' && killSwitch.searchParams.get('kill-sw') === 'true';
+
+if ('serviceWorker' in navigator && !killSwitchArmed) {
   navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module' })
     .then(function () { console.log("Service Worker Registered"); });
 }

@@ -16,18 +16,51 @@ const PRECACHE_CACHE = `${CACHE_PREFIX}${VERSION}`;
 const PRECACHE_MANIFEST_URL = '/sw-manifest.json';
 
 /*
-  Escape hatch: unregister this worker and clear its precache on an explicit kill-sw=true request.
+  Resolve one manifest entry to a precache URL, refusing anything that leaves this origin.
+
+  The list used to be built by string concatenation (`/${file}`), so an entry such as
+  `//evil.com/x.js` - or `/\evil.com/x.js`, which the URL parser reads the same way - became a
+  third-party URL, and cache.addAll() would fetch and store that response for the fetch handler to
+  serve on same-origin requests (bead qrcode-g3y, threat-model invariant 6: every manifest entry is
+  a same-origin relative path). The manifest is generated from dist/ at build time, so this is
+  defence in depth: a violating entry fails the install loudly instead of caching a foreign file.
 */
-router.get(`${self.location.origin}`, function(event) {
+const toPrecacheUrl = (entry) => {
+  if (typeof entry !== 'string' || entry.trim() === '') {
+    throw new Error(`precache manifest entry must be a non-empty string: ${JSON.stringify(entry)}`);
+  }
+
+  const url = new URL(entry, `${self.location.origin}/`);
+  if (url.origin !== self.location.origin) {
+    throw new Error(`precache manifest entry ${JSON.stringify(entry)} resolves off-origin to ${url.origin}`);
+  }
+
+  return url.href;
+};
+
+/*
+  Escape hatch: unregister this worker and clear its precache on an explicit kill-sw=true request.
+
+  Scoped to the EXACT same-origin root URL. This route used to match on the whole origin, so a
+  `?kill-sw=true` on any same-origin URL - a subresource fetch, a shared or bookmarked link -
+  unregistered the worker and wiped the offline cache (bead qrcode-1ks). The pathname alone is not
+  a sufficient scope either: the worker's fetch listener also sees third-party subresources, whose
+  pathname can be '/', so the predicate requires this origin as well (bead qrcode-6a3). Only
+  `/?kill-sw=true` on this origin arms it now; every other request keeps the normal behaviour.
+*/
+router.get('/', function(event) {
   event.waitUntil((async () => {
     await self.registration.unregister();
     const keys = await caches.keys();
     await Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX)).map(key => caches.delete(key)));
   })());
-}, {urlMatchProperty: "origin", matches: url => url.searchParams.get('kill-sw') === 'true'});
+}, {urlMatchProperty: "pathname", matches: url => url.origin === self.location.origin && url.searchParams.get('kill-sw') === 'true'});
 
 /*
   Serve this origin's cached assets first, falling back to the network on a miss.
+
+  This is the only route that matches on "origin", and it must stay last: it answers every
+  same-origin request, so a narrower route (the kill switch above) has to win first.
 */
 router.get(`${self.location.origin}`, e => {
   e.respondWith(
@@ -67,7 +100,9 @@ self.addEventListener('install', function(e) {
 
     // '/' is the navigable entry point; cache.addAll() fails the install if any asset 404s,
     // which is what turns a stale asset list into a visible failure instead of an offline 404.
-    const urls = ['/', ...manifest.files.map(file => `/${file}`)];
+    // Every manifest entry is resolved through toPrecacheUrl(), so a non-relative entry cannot
+    // pull another origin's content into the precache (bead qrcode-g3y).
+    const urls = ['/', ...manifest.files.map(toPrecacheUrl)];
     const cache = await caches.open(PRECACHE_CACHE);
     await cache.addAll(urls);
   })());

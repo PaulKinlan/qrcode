@@ -678,33 +678,13 @@ test(
       }
 
       // 5d. The kill switch is armed only by the exact same-origin root URL (beads qrcode-1ks,
-      // qrcode-6a3). Check the negative cases FIRST, while a worker and its precache still exist:
-      // (a) a cross-origin request whose pathname is '/' - the worker sees third-party subresources
-      //     too, so pathname alone is not a scope; and (b) a kill-sw parameter on another same-origin
-      //     path. Neither may be an ordinary page load's silent unregister + cache wipe.
+      // qrcode-6a3). Check the negative case FIRST, while a worker and its precache still exist: a
+      // kill-sw parameter on another same-origin path must be an ordinary page load, not a silent
+      // unregister + cache wipe.
       const precacheNames = await cdp.eval(
         '(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'
       );
       assert.ok(precacheNames.length > 0, 'expected a precache to exist before the kill-switch phase');
-
-      // The probe is the one deliberate third-party request in this run: the interceptor fails it,
-      // which is exactly what an offline/unreachable CDN does, and the failure must not kill the
-      // worker. The hermetic assertion below allows this exact host and nothing else.
-      const crossOriginProbe = 'https://third-party.invalid/?kill-sw=true';
-      await cdp.eval(`(async () => {
-        try { await fetch(${JSON.stringify(crossOriginProbe)}, {mode: 'no-cors'}); return 'ok'; }
-        catch { return 'failed'; }
-      })()`);
-      assert.equal(
-        await cdp.eval('(async () => (await navigator.serviceWorker.getRegistrations()).length)()'),
-        1,
-        'a cross-origin /?kill-sw=true request must not unregister the worker'
-      );
-      assert.deepEqual(
-        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'),
-        precacheNames,
-        'a cross-origin /?kill-sw=true request must not touch the app precache'
-      );
 
       await cdp.send('Page.navigate', { url: `${origin}/about.html?kill-sw=true` });
       await pollUntil(
@@ -736,13 +716,14 @@ test(
         { timeoutMs: phaseTimeout(10_000), message: 'the root kill navigation to unregister the worker and clear the app precache' }
       );
 
-      // Interception keeps the run hermetic; any third-party request other than the deliberate
-      // cross-origin kill-switch probe is a regression.
-      assert.deepEqual(
-        externalRequests.filter((requested) => !requested.startsWith('https://third-party.invalid/')),
-        [],
-        'the app must not request third-party resources'
-      );
+      // Interception keeps the run hermetic; any third-party request is a regression. The
+      // cross-origin half of the kill-switch scope (bead qrcode-6a3) cannot be driven from this
+      // page at all: the shipped CSP (default-src 'self', connect-src 'self', img-src 'self' data:
+      // blob:) refuses every cross-origin request, so nothing here can reach the worker's fetch
+      // listener from another origin. test/unit/sw-kill-switch.test.mjs pins that case against the
+      // real route table instead, and this assertion is the browser-level half: no third-party
+      // request is even attempted.
+      assert.deepEqual(externalRequests, [], 'the app must not request third-party resources');
       assert.deepEqual(cspViolations, [], 'the kill-switch pages must not violate the CSP either');
       assert.equal(await cdp.eval('window.__cspViolations'), 0,
         'the kill-switch pages must report no securitypolicyviolation events');

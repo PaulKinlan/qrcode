@@ -1,5 +1,5 @@
 // The service worker's kill switch (app/sw.js) is armed by `?kill-sw=true` on the EXACT root URL of
-// this origin only. It used to match on the whole origin, so the parameter on any other URL of the
+// this origin's navigation requests only. It used to match on the whole origin, so the parameter on any other URL of the
 // origin unregistered the worker and deleted the app's precache - an accidental trigger surface for
 // a deliberate escape hatch (bead qrcode-1ks). The scope is origin AND root pathname: the worker's
 // fetch listener sees third-party subresources too, and those can have a '/' pathname (qrcode-6a3).
@@ -33,11 +33,12 @@ globalThis.caches = {
 
 await import('../../app/sw.js');
 
-function dispatch(url) {
+function dispatch(url, mode = 'navigate') {
   let lifetime;
   let response;
   listeners.get('fetch')({
-    request: new Request(url),
+    // Node's Request constructor cannot represent navigation mode; the router only reads these fields.
+    request: { url, method: 'GET', mode },
     waitUntil(promise) { lifetime = promise; },
     respondWith(promise) { response = promise; },
   });
@@ -55,6 +56,20 @@ test('kill switch matches the root URL in any query position and holds the fetch
   resolveUnregister(true);
   await event.lifetime;
   assert.deepEqual(deleted, ['qr-precache-old', 'qr-precache-9.9.9-test']);
+});
+
+test('root kill-sw subresource requests are served normally and never unregister the worker', async () => {
+  const unregistersBefore = unregistered;
+  const matchesBefore = cacheMatches;
+  const deletionsBefore = deleted.length;
+  for (const mode of ['no-cors', 'cors', 'same-origin']) {
+    const event = dispatch(`${origin}/?kill-sw=true`, mode);
+    assert.equal(event.lifetime, undefined, `${mode} subresource must not unregister`);
+    assert.equal((await event.response).status, 200, `${mode} subresource must use the cache-first route`);
+  }
+  assert.equal(unregistered, unregistersBefore);
+  assert.equal(cacheMatches - matchesBefore, 3);
+  assert.equal(deleted.length, deletionsBefore, 'subresource requests must not delete caches');
 });
 
 test('a kill-sw parameter off the root path is served normally and arms nothing', async () => {

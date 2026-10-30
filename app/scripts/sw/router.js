@@ -2,7 +2,7 @@
 //
 // Route patterns are strings, with `:name` capturing one path segment, matched against either the
 // whole URL (`url.toString()`) or one URL property named by `options.urlMatchProperty` (app/sw.js
-// matches on "origin"). An options.matches(url) predicate can add a condition on top.
+// matches on "origin"). An options.matches(url, event) predicate can add a condition on top.
 //
 // Two properties of the pattern handling are deliberate, and were both bugs before bead qrcode-cl1:
 //
@@ -53,7 +53,7 @@ const FetchRouter = function() {
   // Returns { route, params } - or undefined. Params belong to THIS match: they used to be written
   // onto the shared route object (route.params), so two overlapping fetch events on the same
   // parameterised route raced, and the second match overwrote the first before its callback read it.
-  var matchRoute = function(url, type) {
+  var matchRoute = function(url, type, event) {
     const filteredType = String(type).toLowerCase();
 
     if(filteredType in _routes === false) {
@@ -66,7 +66,7 @@ const FetchRouter = function() {
       const urlPart = (urlMatchProperty in url) ? url[urlMatchProperty] : url.toString();
       const routeMatch = route.regex.regexp.exec(urlPart);
 
-      if(!!routeMatch == false || (route.options.matches && !route.options.matches(url))) continue;
+      if(!!routeMatch == false || (route.options.matches && !route.options.matches(url, event))) continue;
 
       var params = {};
       for(var g in route.regex.groups) {
@@ -108,15 +108,15 @@ const FetchRouter = function() {
     this.registerRoute("post", route, handler, options);
   };
 
-  this.findRoute = function(url, type) {
-    return matchRoute(url, type);
+  this.findRoute = function(url, type, event) {
+    return matchRoute(url, type, event);
   };
 };
 
 self.addEventListener('fetch', function(event) {
   const url = new URL(event.request.url);
 
-  const match = router.findRoute(url, event.request.method);
+  const match = router.findRoute(url, event.request.method, event);
 
   if(match) {
     // Pass this match's params directly: reading them back off the shared route object leaked the

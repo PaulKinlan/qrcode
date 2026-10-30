@@ -46,7 +46,8 @@ const toPrecacheUrl = (entry) => {
   unregistered the worker and wiped the offline cache (bead qrcode-1ks). The pathname alone is not
   a sufficient scope either: the worker's fetch listener also sees third-party subresources, whose
   pathname can be '/', so the predicate requires this origin as well (bead qrcode-6a3). Only
-  `/?kill-sw=true` on this origin arms it now; every other request keeps the normal behaviour.
+  Only a navigation to `/?kill-sw=true` on this origin arms it: a cross-site image or fetch of
+  that URL must not unregister the worker. Every other request keeps the normal behaviour.
 */
 router.get('/', function(event) {
   event.waitUntil((async () => {
@@ -54,7 +55,10 @@ router.get('/', function(event) {
     const keys = await caches.keys();
     await Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX)).map(key => caches.delete(key)));
   })());
-}, {urlMatchProperty: "pathname", matches: url => url.origin === self.location.origin && url.searchParams.get('kill-sw') === 'true'});
+}, {urlMatchProperty: "pathname", matches: (url, event) =>
+  url.origin === self.location.origin &&
+  url.searchParams.get('kill-sw') === 'true' &&
+  event.request.mode === 'navigate'});
 
 /*
   Serve this origin's cached assets first, falling back to the network on a miss.

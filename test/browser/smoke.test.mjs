@@ -703,6 +703,23 @@ test(
         'a kill-sw parameter off the root path must not touch the app precache'
       );
 
+      // A subresource request for the root kill URL must fall through to the ordinary cache-first
+      // route, even though its URL is identical to the destructive navigation below.
+      assert.equal(await cdp.eval(`(async () => {
+        const response = await fetch('/?kill-sw=true', { mode: 'no-cors' });
+        return response.ok;
+      })()`), true, 'the root kill URL should still be served as a subresource');
+      assert.equal(
+        await cdp.eval('(async () => (await navigator.serviceWorker.getRegistrations()).length)()'),
+        1,
+        'a root kill URL fetched as a subresource must not unregister the worker'
+      );
+      assert.deepEqual(
+        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'),
+        precacheNames,
+        'a root kill URL fetched as a subresource must not delete the precache'
+      );
+
       // The root kill URL must unregister the worker and clear the app precache, and the page's
       // registration script must not immediately re-register it during that same load.
       await cdp.send('Page.navigate', { url: `${origin}/?source=offline&kill-sw=true` });

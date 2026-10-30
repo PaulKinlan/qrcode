@@ -8,17 +8,19 @@
 // is on the response body or content-type, and the fallback behaviour itself is pinned so a
 // future reader cannot mistake a 200 for evidence.
 //
-// Cleanup (bead qrcode-1dl): the preview server is a child of THIS process, killed in a
-// finally block, and the script refuses to exit 0 until it has confirmed - by scanning the
-// process table for its own unique port - that no stray server survives. A smoke that leaves
-// an orphan on a CPU-starved VM is a failed smoke.
+// Cleanup (beads qrcode-1dl, qrcode-8xk): the server is spawned as the leader of its OWN
+// process group, and every exit path from this script - graceful end, startup failure, thrown
+// assertion, SIGTERM/SIGINT/SIGHUP (the fleet's mandated `timeout -k` wrapper is exactly a
+// SIGTERM) - kills that whole group. Cleanup is then VERIFIED by scanning /proc for the unique
+// port, never claimed. A hard deadline timer keeps the event loop alive so a bug in this script
+// can never again look like a silent exit 0 (bead qrcode-deq).
 //
 // Usage: npm run build && npm run smoke:preview
 // Not part of any gate tier (it needs a built dist/ and spawns a server); it is the standard
 // hand-off smoke for changes touching the build output or the preview/dev server.
 import { spawn, execFile } from 'node:child_process';
 import { createServer } from 'node:net';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,8 +30,20 @@ const viteBin = join(root, 'node_modules', 'vite', 'bin', 'vite.js');
 
 const log = (...args) => console.log('[preview-smoke]', ...args);
 const fail = (msg) => { throw new Error(msg); };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Hard deadline: a non-unref'd timer, so even if every other await in this script were to hang
+// the process still exits 1 with a message instead of drifting to a silent exit 0 (qrcode-deq).
+const HARD_DEADLINE_MS = 120000;
+const deadline = setTimeout(() => {
+  console.error('[preview-smoke] FAIL: hard deadline exceeded - internal bug, not a pass');
+  process.exit(1);
+}, HARD_DEADLINE_MS);
 
 // An unused port, so parallel lanes' smokes can never collide (tests must be independent).
+// TOCTOU note: another process could grab the port between probe and bind; --strictPort then
+// makes vite exit non-zero, which the startup wait below reports as a FAIL with the server
+// output - never a false green.
 const freePort = () => new Promise((resolve, reject) => {
   const probe = createServer();
   probe.once('error', reject);
@@ -39,38 +53,91 @@ const freePort = () => new Promise((resolve, reject) => {
   });
 });
 
-const get = (port, path) => new Promise((resolve, reject) => {
-  const req = fetch(`http://127.0.0.1:${port}${path}`, { redirect: 'manual' });
-  req.then(async (res) => resolve({
+const get = (port, path) => fetch(`http://127.0.0.1:${port}${path}`, { redirect: 'manual' })
+  .then(async (res) => ({
     status: res.status,
     type: res.headers.get('content-type') || '',
     body: await res.text(),
-  }), reject);
-});
+  }));
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// A pid counts as a stray server only if its OWN argv is node running vite.js: bash wrappers,
+// pgrep itself and this script all contain the port string in their command lines but must not
+// be counted (or filtered away by a loose substring rule - qrcode-an4 review).
+const isViteServer = (pid) => {
+  try {
+    const argv = readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').filter(Boolean);
+    return argv.length >= 2 && /(^|\/)node$/.test(argv[0]) && argv.some((a) => a.endsWith('vite.js'));
+  } catch {
+    return false; // process is already gone
+  }
+};
 
-// Scan the process table for OUR port: unique per run, so another lane's server never matches.
-const straysForPort = (port) => new Promise((resolve) => {
-  execFile('pgrep', ['-af', `vite.js preview --port ${port}`], (err, stdout) => {
-    const lines = (stdout || '').split('\n').filter(Boolean)
-      // pgrep -f can match this script's own command line; only the server counts.
-      .filter((l) => !l.includes('preview-smoke'));
-    resolve(err ? [] : lines);
+// resolve: array of stray pids (possibly empty). reject: the scan itself could not run - an
+// unverifiable scan must FAIL the smoke, never read as "clean" (qrcode-an4 review).
+const straysForPort = (port) => new Promise((resolve, reject) => {
+  execFile('pgrep', ['-f', `vite.js preview --port ${port}`], (err, stdout) => {
+    // pgrep exit 1 means "no matches" - that is a clean scan, not an error.
+    if (err && err.code !== 1) {
+      reject(new Error(`stray scan could not run (pgrep: ${err.code ?? err.message})`));
+      return;
+    }
+    const pids = (stdout || '').split('\n').filter(Boolean).map(Number)
+      .filter((pid) => Number.isInteger(pid) && pid > 0 && pid !== process.pid)
+      .filter(isViteServer);
+    resolve(pids);
   });
 });
 
-async function waitForServer(port, timeoutMs = 20000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
+let child = null;
+let childExit = null; // promise, attached AT SPAWN so it can never miss the exit event (qrcode-deq)
+let childExitResult = null;
+let activePort = null; // set once the port is chosen, so signal handlers can scan for strays
+
+const killGroup = (signal) => {
+  if (!child || childExitResult) return;
+  try { process.kill(-child.pid, signal); } catch { /* group already gone */ }
+};
+
+// The fleet runs everything under `timeout -k 30 N`, which SIGTERMs this script. Default signal
+// behaviour would kill node WITHOUT running finally blocks and orphan the server (qrcode-8xk),
+// so every terminating signal kills the child's process group first and exits non-zero.
+for (const [sig, code] of [['SIGTERM', 143], ['SIGINT', 130], ['SIGHUP', 129]]) {
+  process.on(sig, () => {
+    killGroup('SIGKILL');
+    // Best effort under interruption (the caller's `timeout -k` may SIGKILL us mid-scan):
+    // verify the group kill landed, report, and exit non-zero - an interrupted smoke is a
+    // FAILED smoke, never a silent one.
+    (async () => {
+      await sleep(200);
+      let note = 'stray scan did not complete before exit';
+      try {
+        const strays = activePort === null ? [] : await straysForPort(activePort);
+        note = strays.length === 0 ? 'cleanup verified: no server process survives' : `STRAYS SURVIVE: pids ${strays.join(', ')}`;
+      } catch (err) {
+        note = `stray scan failed: ${err.message}`;
+      }
+      console.error(`[preview-smoke] FAIL: interrupted by ${sig}; killed server process group - ${note}`);
+      process.exit(code);
+    })();
+  });
+}
+
+async function waitForServer(port, timeoutMs = 30000) {
+  const deadlineMs = Date.now() + timeoutMs;
+  while (Date.now() < deadlineMs) {
+    if (childExitResult) {
+      fail(`preview server exited during startup (code ${childExitResult.code}, signal ${childExitResult.signal}). Server output:\n${serverOutput || '(empty)'}`);
+    }
     try {
       const res = await get(port, '/');
       if (res.status === 200) return;
     } catch { /* not up yet */ }
     await sleep(300);
   }
-  fail(`preview server did not answer on :${port} within ${timeoutMs}ms`);
+  fail(`preview server did not answer on :${port} within ${timeoutMs}ms. Server output:\n${serverOutput || '(empty)'}`);
 }
+
+let serverOutput = '';
 
 async function smoke() {
   if (!existsSync(join(dist, 'index.html'))) {
@@ -81,17 +148,26 @@ async function smoke() {
   }
 
   const port = await freePort();
-  const child = spawn(process.execPath, [viteBin, 'preview', '--port', String(port), '--strictPort'], {
+  activePort = port;
+  child = spawn(process.execPath, [viteBin, 'preview', '--port', String(port), '--strictPort'], {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true, // own process group: every kill path can take the whole tree with -pid
   });
-  let serverOutput = '';
   child.stdout.on('data', (d) => { serverOutput += d; });
   child.stderr.on('data', (d) => { serverOutput += d; });
+  // Attached synchronously at spawn: unlike a listener added in a finally block, this cannot
+  // miss an 'exit' that already fired and leave an await unsettled (qrcode-deq).
+  childExit = new Promise((resolve) => {
+    child.once('exit', (code, signal) => {
+      childExitResult = { code, signal };
+      resolve(childExitResult);
+    });
+  });
 
   try {
     await waitForServer(port);
-    log(`vite preview up on :${port}`);
+    log(`vite preview up on :${port} (server pid ${child.pid}, group -${child.pid})`);
 
     // 1. The app entry: HTML, and the real app shell (title from index.html).
     const indexPage = await get(port, '/');
@@ -130,33 +206,40 @@ async function smoke() {
     if (kill.status !== 200 || kill.body !== indexPage.body) {
       fail(`GET /?kill-sw=true expected the app shell body, got ${kill.status}`);
     }
-    log('GET /?kill-sw=true -> 200 app shell (SW route; browser behaviour is covered by test/unit/sw-kill-switch.test.mjs)');
+    log('GET /?kill-sw=true -> 200 app shell (SW behaviour is covered by test/unit/sw-kill-switch.test.mjs)');
 
     log('PASS: all body/content-type assertions hold');
   } finally {
-    child.kill('SIGTERM');
-    const exited = await Promise.race([
-      new Promise((r) => child.once('exit', () => r(true))),
-      sleep(5000).then(() => false),
-    ]);
-    if (!exited) {
-      child.kill('SIGKILL');
-      await new Promise((r) => child.once('exit', r));
+    // Graceful path: TERM the group, escalate to KILL. Uses the spawn-time childExit promise,
+    // so a child that is ALREADY dead settles immediately instead of hanging (qrcode-deq).
+    killGroup('SIGTERM');
+    const exited = await Promise.race([childExit, sleep(5000).then(() => null)]);
+    if (exited === null) {
+      killGroup('SIGKILL');
+      await Promise.race([childExit, sleep(5000).then(() => null)]);
     }
-    // Do not claim cleanup: verify it. Any survivor for our unique port is a hard failure.
+    // Do not claim cleanup: verify it. A survivor OR an unverifiable scan is a hard failure.
     await sleep(300);
-    const strays = await straysForPort(port);
-    if (strays.length > 0) {
-      console.error('[preview-smoke] STRAY SERVERS SURVIVE:', strays.join('\n'));
+    let strays;
+    try {
+      strays = await straysForPort(port);
+    } catch (scanErr) {
+      console.error(`[preview-smoke] FAIL: ${scanErr.message} - cleanup cannot be verified`);
       process.exitCode = 1;
       return;
     }
-    log(`cleanup verified: no process matches 'vite.js preview --port ${port}'`);
-    if (serverOutput && process.env.SMOKE_VERBOSE) console.error(serverOutput);
+    if (strays.length > 0) {
+      console.error(`[preview-smoke] FAIL: stray servers survive for port ${port}: pids ${strays.join(', ')}`);
+      process.exitCode = 1;
+    } else {
+      log(`cleanup verified: /proc scan finds no 'node vite.js preview --port ${port}' process`);
+    }
   }
 }
 
-smoke().catch((err) => {
-  console.error('[preview-smoke] FAIL:', err.message);
-  process.exitCode = 1;
-});
+smoke()
+  .catch((err) => {
+    console.error('[preview-smoke] FAIL:', err.message);
+    process.exitCode = 1;
+  })
+  .finally(() => clearTimeout(deadline));

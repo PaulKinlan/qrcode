@@ -11,6 +11,9 @@
 //    which made every metacharacter in them live.
 //  - The regex is anchored at BOTH ends. It used to be appended with '$' only, so every route was
 //    a suffix match: '/scan-image' also matched '/anything/scan-image'.
+//  - Route patterns must be STRINGS (bead qrcode-3w3). A caller-supplied RegExp used to be stored
+//    as-is: matched unanchored and unescaped, and yielding no :params - silently bypassing both
+//    invariants above. registerRoute now refuses anything that is not a string.
 const REGEXP_METACHARACTERS = /[.*+?^${}()|[\]\\]/g;
 
 const escapeLiteral = (text) => text.replace(REGEXP_METACHARACTERS, '\\$&');
@@ -89,12 +92,15 @@ const FetchRouter = function() {
 
     let regex;
 
-    if(route instanceof RegExp) {
-      regex = {regexp: route};
+    // A raw RegExp would be matched with regexp.exec() unanchored and unescaped, and its groups
+    // map is undefined, so it silently yields no :params - bypassing the escaping and anchoring
+    // invariants this file pins for string patterns (bead qrcode-3w3). Refuse it at registration
+    // instead of storing a route that only looks like it went through parseRoute.
+    if(typeof(route) !== "string") {
+      throw new Error(`FetchRouter: route must be a string pattern, got ${route instanceof RegExp ? "a raw RegExp" : typeof route}`);
     }
-    else if (typeof(route) === "string") {
-      regex = this.parseRoute(route);
-    }
+
+    regex = this.parseRoute(route);
 
      _routes[filteredMethod].push({regex: regex, callback: handler, options: options || {} });
   };

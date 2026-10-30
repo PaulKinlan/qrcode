@@ -115,3 +115,16 @@ test('the fetch listener hands each event its own params', () => {
 test('an unsupported method is refused at registration, not silently stored', () => {
   assert.throws(() => router.registerRoute('put', '/x', noop), /unsupported method "put"/);
 });
+
+test('a raw RegExp route is refused at registration, not silently stored unanchored (qrcode-3w3)', () => {
+  // A RegExp used to be stored as-is: exec() would match unanchored and unescaped, and the
+  // missing groups map meant the route silently yielded no :params - bypassing the escaping and
+  // anchoring invariants every string route goes through parseRoute for.
+  assert.throws(() => router.registerRoute('get', /\/regexp-/, noop, pathnameRoute), /must be a string pattern/);
+  assert.throws(() => router.get(/\/regexp-/, noop, pathnameRoute), /must be a string pattern/);
+  assert.throws(() => router.post(/\/regexp-/, noop, pathnameRoute), /must be a string pattern/);
+  // Non-string, non-RegExp routes are refused too, not stored with an undefined regex.
+  assert.throws(() => router.registerRoute('get', 42, noop, pathnameRoute), /must be a string pattern/);
+  assert.throws(() => router.registerRoute('get', null, noop, pathnameRoute), /must be a string pattern/);
+});
+

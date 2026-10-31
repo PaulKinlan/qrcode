@@ -53,7 +53,12 @@
     <div class="wsk-layout__content">
       <div id="camera" class="Camera">
         <canvas class="Camera-display"></canvas>
-        <img src="/images/help_outline-24px.svg" class="about" />
+        <!-- The only route to the About dialog must be real UI: a <button> is focusable, activates
+             on Enter/Space and carries an accessible name (bead qrcode-e4c). The svg inside is
+             decorative (alt=""); the button's aria-label names the control. -->
+        <button type="button" class="about" aria-label="About QR Snapper">
+          <img src="/images/help_outline-24px.svg" alt="" />
+        </button>
         <div class="CameraRealtime hidden">
           <video class="Camera-video" muted autoplay playsinline></video>
           <div class="Camera-instructions">Point at a QR code</div>
@@ -94,10 +99,12 @@
           </div>
         </div>
       </div>
-      <!-- About Dialog -->
-      <div id="about" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog">
+      <!-- About Dialog. role=dialog + aria-labelledby so AT announces it as a named dialog
+             when focus moves in (bead qrcode-e4c). It is deliberately NOT aria-modal: no
+             focus trap is implemented, so background content stays reachable. -->
+      <div id="about" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog" role="dialog" aria-labelledby="about-heading">
         <div class="wsk-card--heading">
-          <span class="wsk-card--heading-text">About QR Snapper</span>
+          <span class="wsk-card--heading-text" id="about-heading">About QR Snapper</span>
         </div>
         <div class="wsk-card--lower QRCodeAboutDialog-data">
           <p>QR Snapper is the simplest to use QR Scanner available on the web.</p>

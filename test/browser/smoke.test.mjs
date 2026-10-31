@@ -515,6 +515,68 @@ test(
       assert.ok(domState.bodyTextContains, 'Expected document.body.innerText to contain decoded payload');
       assert.ok(wasmRequests.length > 0, 'Expected the browser to load ZBar WASM for fallback decoding');
 
+      // 4b. The About control must be real UI, not a decoration (bead qrcode-e4c): a <button>
+      // with an accessible name, opened with a real Enter keystroke (not a synthetic .click()),
+      // focus landing on the dialog's Close control; Escape closes and hands focus back to the
+      // trigger. This is the headless proof of the keyboard path the unit stub cannot give.
+      const aboutControl = await cdp.eval(`
+        (() => {
+          const el = document.querySelector('.about');
+          return {
+            tag: el ? el.tagName : null,
+            label: el ? el.getAttribute('aria-label') : null,
+          };
+        })()
+      `);
+      assert.equal(aboutControl.tag, 'BUTTON', 'the About control must be a <button>, not an image');
+      assert.equal(aboutControl.label, 'About QR Snapper', 'the About button must expose an accessible name');
+
+      await cdp.eval('document.querySelector(".about").focus()');
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+      });
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+      });
+
+      await pollUntil(
+        async () => {
+          const state = await cdp.eval(`
+            (() => {
+              const dialog = document.querySelector('#about');
+              const active = document.activeElement;
+              return {
+                visible: window.getComputedStyle(dialog).display !== 'none',
+                focusInDialog: dialog.contains(active),
+                activeIsClose: Boolean(active?.classList?.contains('QRCodeAboutDialog-close')),
+              };
+            })()
+          `);
+          return state.visible && state.focusInDialog && state.activeIsClose ? state : null;
+        },
+        { timeoutMs: phaseTimeout(10_000), message: 'Enter on the About button to open the dialog with focus on Close' }
+      );
+
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+      });
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+      });
+
+      await pollUntil(
+        async () => {
+          const state = await cdp.eval(`
+            (() => ({
+              visible: window.getComputedStyle(document.querySelector('#about')).display !== 'none',
+              focusOnTrigger: Boolean(document.activeElement?.classList?.contains('about')),
+            }))()
+          `);
+          return !state.visible && state.focusOnTrigger ? state : null;
+        },
+        { timeoutMs: phaseTimeout(10_000), message: 'Escape to close the About dialog and restore focus to the trigger' }
+      );
+
       // 5. Assert service worker registration
       // Service workers are fully supported in headless Chrome on http://127.0.0.1 (considered secure context)
       const swRegistrations = await pollUntil(

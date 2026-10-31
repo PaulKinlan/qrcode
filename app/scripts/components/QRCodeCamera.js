@@ -18,9 +18,11 @@ export class QRCodeCamera {
 
   setupHelpButton() {
     const helpButton = document.querySelector('.about');
-    helpButton.onclick = () => {
+    // .about is a real <button type=button> (bead qrcode-e4c): Enter/Space activation is the
+    // browser's native click, so one listener serves pointer and keyboard alike.
+    helpButton.addEventListener('click', () => {
       this.qrCodeHelpManager.showDialog();
-    };
+    });
   }
 
   setupCameraCallback() {

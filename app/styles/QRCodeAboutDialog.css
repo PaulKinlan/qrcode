@@ -28,9 +28,6 @@
   overflow-y: scroll;
 }
 
-/* .wsk-button zeroes outline and signals focus only with a faint background tint, which is
-   not enough once focus is moved here programmatically (bead qrcode-e4c, WCAG 2.4.7). */
-.QRCodeAboutDialog .QRCodeAboutDialog-close:focus-visible {
-  outline: 2px solid #2196f3;
-  outline-offset: 2px;
-}
+/* Focus visibility for .wsk-button now lives on the class in app/styles/all.css (bead qrcode-9nf),
+   which covers this Close control and every other dialog button; keeping a second per-control rule
+   here would mean two conventions for the same focus ring. */

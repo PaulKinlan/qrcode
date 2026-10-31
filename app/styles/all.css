@@ -537,6 +537,14 @@ dt {
     border: 0; }
   .wsk-button:hover {
     background-color: rgba(153, 153, 153, 0.2); }
+  /* Focus has to be perceivable, not merely present. The reset above removes the UA outline and the
+     tint below is rgba(0,0,0,0.12) over the white card = 1.32:1, under the 3:1 of WCAG 1.4.11
+     (bead qrcode-9nf). One rule for every .wsk-button, including the dialog controls, instead of a
+     per-control outline per screen: #1976d2 on #ffffff measures 4.6:1. The tint stays as an
+     additive cue; it is not the indicator. */
+  .wsk-button:focus-visible {
+    outline: 2px solid #1976d2;
+    outline-offset: 2px; }
   .wsk-button:focus:not(:active) {
     background-color: rgba(0, 0, 0, 0.12); }
   .wsk-button:active {

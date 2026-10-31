@@ -198,3 +198,20 @@
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
+
+/* Decoder-failure alert (beads qrcode-j75/qrcode-sze): absolute over the camera view so a
+   dead decoder is visible even while frames keep drawing. */
+.Camera #camera-error {
+  position: absolute;
+  bottom: 3em;
+  left: 0;
+  z-index: 100;
+  margin: 1em;
+  padding: 12px;
+  background: #323232;
+  color: white;
+}
+
+.Camera #camera-error[hidden] {
+  display: none;
+}

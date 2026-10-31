@@ -13,6 +13,7 @@ delete globalThis.Worker;
 function makeCamera(detectQRCode) {
   const camera = Object.create(QRCodeCamera.prototype);
   camera.cameraManager = {};
+  camera.scanError = { hidden: true };
   camera.qrCodeManager = { detectQRCode };
   camera.setupCameraCallback();
   return camera;
@@ -46,6 +47,34 @@ test('frame decoding resumes after a failed detection', async () => {
     return Promise.resolve(undefined);
   });
   await assert.rejects(camera.cameraManager.onframe({}), /decode failed/);
+  await camera.cameraManager.onframe({});
+  assert.equal(attempts, 2);
+});
+
+test('decode failure is visible and a successful retry clears the error', async () => {
+  let attempts = 0;
+  const camera = makeCamera((_context, onFailure) => {
+    if (++attempts === 1) onFailure(new Error('worker failed'));
+    return Promise.resolve(undefined);
+  });
+  await camera.cameraManager.onframe({});
+  assert.equal(camera.scanError.hidden, false);
+  await camera.cameraManager.onframe({});
+  assert.equal(attempts, 2);
+  assert.equal(camera.scanError.hidden, true);
+});
+
+// Bead qrcode-dqr: #camera-error is optional markup. A decoder failure on a page without it
+// must not throw (which would escape onframe as an unhandled rejection per frame).
+test('decode failure without a #camera-error element does not throw and the loop survives', async () => {
+  let attempts = 0;
+  const camera = makeCamera((_context, onFailure) => {
+    attempts += 1;
+    onFailure(new Error('worker failed'));
+    return Promise.resolve(undefined);
+  });
+  camera.scanError = null;
+  await camera.cameraManager.onframe({});
   await camera.cameraManager.onframe({});
   assert.equal(attempts, 2);
 });

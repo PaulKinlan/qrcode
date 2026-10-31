@@ -26,7 +26,11 @@ main {
 }
 
 html, body {
-  color: #9e9e9e;
+  /* #9e9e9e on #424242 was 3.75:1 - below the 4.5:1 AA minimum for normal-size copy (bead
+     qrcode-6pr). #bdbdbd (material grey 400) on the same background is 5.35:1. Every
+     currently-painted surface sets its own colour (see test/unit/body-contrast.test.mjs,
+     which pins this pair); this fixes the default anything inheriting body colour gets. */
+  color: #bdbdbd;
   background-color: #424242;
   height: 100%;
   font-family: "Helvetica", "Arial", sans-serif;

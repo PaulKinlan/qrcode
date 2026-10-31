@@ -1,6 +1,8 @@
 .QRCodeAboutDialog {
   height: auto !important;
-  display: none;
+  /* No author display rule: #about is a <dialog> (bead qrcode-319). A closed dialog is
+     display:none by the UA stylesheet, and an author display:none would override the UA's
+     open display (author styles beat UA styles). showModal()/close() manage visibility. */
   position: absolute !important;
   margin: auto auto;
   width: 80%;
@@ -11,6 +13,15 @@
   left: 50%;
   transform: translate(-50%, -50%);
   top: 50%;
+  /* UA <dialog> chrome would change the card's rendering vs the div it replaced. */
+  border: none;
+  padding: 0;
+}
+
+/* Modality affordance: showModal makes the rest of the page inert; dim it so that is
+   visible, not silent. */
+.QRCodeAboutDialog::backdrop {
+  background: rgba(33, 33, 33, 0.5);
 }
 
 .QRCodeAboutDialog-data {

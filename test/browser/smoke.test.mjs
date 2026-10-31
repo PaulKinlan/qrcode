@@ -587,9 +587,13 @@ test(
         { timeoutMs: phaseTimeout(10_000), message: 'Escape to close the dialog even with focus blurred to body' }
       );
 
-      // 4b-2 (bead qrcode-319, finding 2): Tab from Close must stay INSIDE the dialog - the
-      // two links sit before Close in DOM order and must be reachable forward, not only via
-      // Shift+Tab. Reopen (autofocus puts focus back on Close), then Tab.
+      // 4b-2 (bead qrcode-319, finding 2): forward Tab must reach the dialog's links, which sit
+      // before Close in DOM order. Chromium's canonical modal traversal (verified against a
+      // bare-page dialog with only an opener/input and two links: identical sequence) is:
+      // Tab from the last focusable steps to BODY for one hop, the next Tab RE-ENTERS the
+      // modal scope at its first focusable, and the cycle then stays inside the dialog -
+      // outside content is never reachable by forward Tab. Assert that contract, not a
+      // single-step wrap no real modal dialog performs.
       await cdp.eval('document.querySelector(".about").focus()');
       await cdp.send('Input.dispatchKeyEvent', {
         type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r',
@@ -601,26 +605,37 @@ test(
         async () => cdp.eval('document.activeElement?.classList?.contains("QRCodeAboutDialog-close") === true'),
         { timeoutMs: phaseTimeout(10_000), message: 'the reopened dialog to autofocus its Close button' }
       );
-      await cdp.send('Input.dispatchKeyEvent', {
-        type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
-      });
-      await cdp.send('Input.dispatchKeyEvent', {
-        type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
-      });
-      const tabContained = await pollUntil(
-        async () => {
-          const state = await cdp.eval(`
-            (() => {
-              const dialog = document.querySelector('#about');
-              const active = document.activeElement;
-              return { inside: dialog.contains(active), tag: active?.tagName };
-            })()
-          `);
-          return state.inside ? state : null;
-        },
-        { timeoutMs: phaseTimeout(5_000), message: 'Tab from Close to stay inside the dialog (link reachable forward)' }
+      const dispatchTab = async () => {
+        await cdp.send('Input.dispatchKeyEvent', {
+          type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
+        });
+        await cdp.send('Input.dispatchKeyEvent', {
+          type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
+        });
+      };
+      const focusState = () =>
+        cdp.eval(`
+          (() => {
+            const dialog = document.querySelector('#about');
+            const active = document.activeElement;
+            return { inside: dialog.contains(active), onBody: active === document.body, tag: active?.tagName };
+          })()
+        `);
+      await dispatchTab();
+      const firstHop = await focusState();
+      assert.ok(
+        firstHop.onBody || firstHop.inside,
+        `Tab from Close must hop to body or stay inside the dialog, got ${JSON.stringify(firstHop)}`
       );
-      assert.equal(tabContained.tag, 'A', 'Tab from Close must land on the first dialog link, not outside');
+      await dispatchTab();
+      const secondHop = await focusState();
+      assert.ok(
+        secondHop.inside && secondHop.tag === 'A',
+        `the next Tab must re-enter the dialog on its first link, got ${JSON.stringify(secondHop)}`
+      );
+      await dispatchTab();
+      const thirdHop = await focusState();
+      assert.ok(thirdHop.inside, `the Tab cycle must stay inside the dialog, got ${JSON.stringify(thirdHop)}`);
 
       // Escape (native cancel) closes; focus returns to the trigger.
       await cdp.send('Input.dispatchKeyEvent', {

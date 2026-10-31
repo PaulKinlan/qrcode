@@ -99,10 +99,12 @@
           </div>
         </div>
       </div>
-      <!-- About Dialog. role=dialog + aria-labelledby so AT announces it as a named dialog
-             when focus moves in (bead qrcode-e4c). It is deliberately NOT aria-modal: no
-             focus trap is implemented, so background content stays reachable. -->
-      <div id="about" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog" role="dialog" aria-labelledby="about-heading">
+      <!-- About Dialog: a native <dialog> opened with showModal() (beads qrcode-e4c,
+             qrcode-319). The platform gives us Escape-to-close wherever focus is, Tab
+             containment (the in-dialog links are reachable forward), focus return to the
+             trigger on close, and initial focus via autofocus on the Close button - all
+             previously hand-rolled. aria-labelledby names it; the dialog role is implicit. -->
+      <dialog id="about" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog" aria-labelledby="about-heading">
         <div class="wsk-card--heading">
           <span class="wsk-card--heading-text" id="about-heading">About QR Snapper</span>
         </div>
@@ -114,10 +116,10 @@
         </div>
         <div class="wsk-card--bottom">
           <div>
-            <button class="wsk-button QRCodeAboutDialog-close">Close</button>
+            <button class="wsk-button QRCodeAboutDialog-close" autofocus>Close</button>
           </div>
         </div>
-      </div>
+      </dialog>
     </div>
   </div>
 

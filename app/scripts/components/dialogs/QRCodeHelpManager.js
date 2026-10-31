@@ -1,16 +1,16 @@
 /**
  * QRCodeHelpManager - Manages the About/Help dialog
  *
- * The dialog is keyboard-operable (bead qrcode-e4c): opening moves focus into it, Escape
- * closes it, and closing returns focus to the control that opened it (WCAG 2.1.1, 2.1.2,
- * 2.4.3). The trigger is captured in showDialog, not closedialog, so it survives the whole
- * interaction regardless of where the user focused in between.
+ * #about is a native <dialog> opened with showModal() (bead qrcode-319). The platform owns
+ * the interaction contract this class used to hand-roll: Escape closes wherever focus is
+ * (cancel event), Tab stays contained in the dialog, focus returns to the trigger on close,
+ * and the autofocus Close button receives initial focus. Keeping the guards here is the only
+ * logic left: showModal()/close() both throw on a double call.
  */
 export class QRCodeHelpManager {
   constructor(element) {
     this.root = document.getElementById(element);
     this.qrhelpClose = this.root.querySelector('.QRCodeAboutDialog-close');
-    this.returnFocusTo = null;
 
     this.setupEventListeners();
   }
@@ -19,33 +19,23 @@ export class QRCodeHelpManager {
     this.qrhelpClose.addEventListener('click', () => {
       this.closeDialog();
     });
-
-    this.root.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        this.closeDialog();
-      }
-    });
   }
 
   /**
-   * Show the help dialog and move focus to its Close control.
+   * Show the help dialog as a modal.
    */
   showDialog() {
-    // Capture the trigger only on the actual open, so a repeated showDialog while already
-    // open cannot re-point focus return at the dialog's own Close button.
-    if (this.root.style.display !== 'block') {
-      this.returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!this.root.open) {
+      this.root.showModal();
     }
-    this.root.style.display = 'block';
-    this.qrhelpClose.focus();
   }
 
   /**
-   * Close the help dialog and hand focus back to the trigger.
+   * Close the help dialog (native focus return hands focus back to the trigger).
    */
   closeDialog() {
-    this.root.style.display = 'none';
-    this.returnFocusTo?.focus();
-    this.returnFocusTo = null;
+    if (this.root.open) {
+      this.root.close();
+    }
   }
 }

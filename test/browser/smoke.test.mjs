@@ -560,6 +560,69 @@ test(
         { timeoutMs: phaseTimeout(10_000), message: 'Enter on the About button to open the dialog with focus on Close' }
       );
 
+      // 4b-1 (bead qrcode-319, finding 1): a real pointer click on the dialog body moves focus
+      // off the Close button (inside a native modal dialog Chromium puts it on the dialog
+      // element itself - a synthetic .click() would not move focus at all and could never
+      // reproduce this) - and Escape must still close the dialog from wherever focus landed.
+      const paraRect = await cdp.eval(`
+        (() => {
+          const r = document.querySelector('.QRCodeAboutDialog-data p').getBoundingClientRect();
+          return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        })()
+      `);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: paraRect.x, y: paraRect.y, button: 'left', clickCount: 1 });
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: paraRect.x, y: paraRect.y, button: 'left', clickCount: 1 });
+      await pollUntil(
+        async () => cdp.eval('document.activeElement === document.querySelector("#about")'),
+        { timeoutMs: phaseTimeout(5_000), message: 'the pointer click on dialog copy to move focus to the dialog element' }
+      );
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+      });
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+      });
+      await pollUntil(
+        async () => cdp.eval('window.getComputedStyle(document.querySelector("#about")).display === "none"'),
+        { timeoutMs: phaseTimeout(10_000), message: 'Escape to close the dialog even with focus blurred to body' }
+      );
+
+      // 4b-2 (bead qrcode-319, finding 2): Tab from Close must stay INSIDE the dialog - the
+      // two links sit before Close in DOM order and must be reachable forward, not only via
+      // Shift+Tab. Reopen (autofocus puts focus back on Close), then Tab.
+      await cdp.eval('document.querySelector(".about").focus()');
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r',
+      });
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+      });
+      await pollUntil(
+        async () => cdp.eval('document.activeElement?.classList?.contains("QRCodeAboutDialog-close") === true'),
+        { timeoutMs: phaseTimeout(10_000), message: 'the reopened dialog to autofocus its Close button' }
+      );
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
+      });
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
+      });
+      const tabContained = await pollUntil(
+        async () => {
+          const state = await cdp.eval(`
+            (() => {
+              const dialog = document.querySelector('#about');
+              const active = document.activeElement;
+              return { inside: dialog.contains(active), tag: active?.tagName };
+            })()
+          `);
+          return state.inside ? state : null;
+        },
+        { timeoutMs: phaseTimeout(5_000), message: 'Tab from Close to stay inside the dialog (link reachable forward)' }
+      );
+      assert.equal(tabContained.tag, 'A', 'Tab from Close must land on the first dialog link, not outside');
+
+      // Escape (native cancel) closes; focus returns to the trigger.
       await cdp.send('Input.dispatchKeyEvent', {
         type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
       });

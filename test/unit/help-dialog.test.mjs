@@ -1,23 +1,31 @@
-// Unit tier: the About dialog manager owns the keyboard/focus contract (bead qrcode-e4c) —
-// opening moves focus into the dialog, Escape closes it, and closing returns focus to the
-// control that opened it. The manager only touches getElementById, querySelector,
-// addEventListener, style.display, focus() and document.activeElement, so a small DOM stub
-// keeps those assertions in the fast tier (`npm run test:fast` runs no browser). The real
-// keystrokes are driven headlessly in test/browser/smoke.test.mjs.
-//
-// Every test builds its OWN stub document (fresh root/close/trigger): the manager reads
-// `root.style.display` to decide whether it is opening, so a shared root would leak one
-// test's open dialog into the next and mask the focus-return path.
+// Unit tier: the About dialog is a native <dialog> managed by QRCodeHelpManager (beads
+// qrcode-e4c, qrcode-319). Everything a keyboard user touches - Escape-to-close, Tab
+// containment, focus return to the trigger, autofocus Close - is platform behaviour of
+// showModal(), exercised by the real-keystroke phase in test/browser/smoke.test.mjs. What is
+// left to unit-test in the fast tier is this class's own contract: the modal open/close
+// guards (showModal() and close() both throw on a double call, so the manager must not make
+// one). Each test uses its own stub element: the open state is what the guards read, so a
+// shared stub would leak between tests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-
 import { QRCodeHelpManager } from '../../app/scripts/components/dialogs/QRCodeHelpManager.js';
 
-class StubElement {
+class StubDialog {
   constructor() {
-    this.style = { display: '' };
+    this.open = false;
+    this.showModalCalls = 0;
+    this.closeCalls = 0;
     this.listeners = new Map();
-    this.focusCalls = 0;
+  }
+
+  showModal() {
+    this.showModalCalls += 1;
+    this.open = true;
+  }
+
+  close() {
+    this.closeCalls += 1;
+    this.open = false;
   }
 
   addEventListener(type, handler) {
@@ -28,75 +36,43 @@ class StubElement {
   dispatch(type, event) {
     for (const handler of this.listeners.get(type) ?? []) handler(event);
   }
-
-  focus() {
-    this.focusCalls += 1;
-    document.activeElement = this;
-  }
 }
 
-/**
- * One independent harness per test: a fresh dialog root, its Close control, and a manager
- * wired to them through a fresh global `document`.
- */
 function makeHarness() {
-  const close = new StubElement();
-  const root = new StubElement();
+  const close = new StubDialog();
+  close.addEventListener = StubDialog.prototype.addEventListener;
+  const root = new StubDialog();
   root.querySelector = (selector) => (selector === '.QRCodeAboutDialog-close' ? close : null);
-
-  globalThis.HTMLElement = StubElement;
-  globalThis.document = { activeElement: null, getElementById: (id) => (id === 'about' ? root : null) };
-
-  return { close, root, manager: new QRCodeHelpManager('about') };
+  globalThis.document = { getElementById: (id) => (id === 'about' ? root : null) };
+  return { root, close, manager: new QRCodeHelpManager('about') };
 }
 
-test('showDialog reveals the dialog and moves focus to its Close control', () => {
-  const { close, root, manager } = makeHarness();
-  document.activeElement = new StubElement();
+test('showDialog opens the dialog modally exactly once while it is already open', () => {
+  const { root, manager } = makeHarness();
 
   manager.showDialog();
+  manager.showDialog();
 
-  assert.equal(root.style.display, 'block');
-  assert.equal(document.activeElement, close);
-  assert.ok(close.focusCalls > 0, 'the manager must call focus() on the Close control');
+  assert.equal(root.showModalCalls, 1, 'a repeated showDialog while open must not call showModal again');
+  assert.equal(root.open, true);
 });
 
-test('closeDialog hides the dialog and returns focus to the opening control', () => {
-  const { close, root, manager } = makeHarness();
-  const trigger = new StubElement();
-  document.activeElement = trigger;
+test('closeDialog closes the dialog and is safe while it is already closed', () => {
+  const { root, manager } = makeHarness();
   manager.showDialog();
-  assert.equal(document.activeElement, close);
 
   manager.closeDialog();
+  manager.closeDialog();
 
-  assert.equal(root.style.display, 'none');
-  assert.equal(document.activeElement, trigger);
-  assert.ok(trigger.focusCalls > 0, 'the manager must call focus() on the trigger');
+  assert.equal(root.closeCalls, 1, 'a repeated closeDialog while closed must not call close again');
+  assert.equal(root.open, false);
 });
 
-test('Escape closes the dialog and restores focus; other keys are ignored', () => {
-  const { root, manager } = makeHarness();
-  const trigger = new StubElement();
-  document.activeElement = trigger;
-  manager.showDialog();
-
-  root.dispatch('keydown', { key: 'Tab' });
-  assert.equal(root.style.display, 'block', 'a non-Escape keydown must not close the dialog');
-
-  root.dispatch('keydown', { key: 'Escape' });
-  assert.equal(root.style.display, 'none');
-  assert.equal(document.activeElement, trigger);
-});
-
-test('clicking Close closes the dialog and restores focus to the trigger', () => {
+test('a pointer click on Close closes the dialog', () => {
   const { close, root, manager } = makeHarness();
-  const trigger = new StubElement();
-  document.activeElement = trigger;
   manager.showDialog();
 
   close.dispatch('click', {});
 
-  assert.equal(root.style.display, 'none');
-  assert.equal(document.activeElement, trigger);
+  assert.equal(root.open, false);
 });

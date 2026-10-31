@@ -16,3 +16,10 @@
 .QRCodeAboutDialog-data {
   overflow-y: scroll;
 }
+
+/* .wsk-button zeroes outline and signals focus only with a faint background tint, which is
+   not enough once focus is moved here programmatically (bead qrcode-e4c, WCAG 2.4.7). */
+.QRCodeAboutDialog .QRCodeAboutDialog-close:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: 2px;
+}

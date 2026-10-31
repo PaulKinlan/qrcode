@@ -531,7 +531,33 @@ test(
       assert.equal(aboutControl.tag, 'BUTTON', 'the About control must be a <button>, not an image');
       assert.equal(aboutControl.label, 'About QR Snapper', 'the About button must expose an accessible name');
 
-      await cdp.eval('document.querySelector(".about").focus()');
+      // Reachability must be proven with real keystrokes (bead qrcode-o4r): a programmatic
+      // .focus() succeeds even on a tabindex=-1 element, so it cannot see a loss of keyboard
+      // reachability (WCAG 2.1.1) - exactly half this control's contract. Walk the tab order
+      // from a fresh load until the About button is focused; it is the first focusable in DOM
+      // order, so this lands on the first Tab, and a tabindex=-1 regression turns the tier red.
+      const pressTab = async () => {
+        await cdp.send('Input.dispatchKeyEvent', {
+          type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
+        });
+        await cdp.send('Input.dispatchKeyEvent', {
+          type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
+        });
+      };
+      let aboutTabbed = false;
+      for (let i = 0; i < 10 && !aboutTabbed; i++) {
+        if (await cdp.eval('document.activeElement?.classList?.contains("about") === true')) {
+          aboutTabbed = true;
+          break;
+        }
+        await pressTab();
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      assert.ok(
+        aboutTabbed,
+        'the About button must be reachable with real Tab keystrokes (a tabindex=-1 regression must fail here)'
+      );
+
       // text:'\r' is required: without it Chromium delivers the keydown (a document-level
       // listener sees it) but does not synthesise the button's activation click, so the dialog
       // never opens. This matches what real key delivery and Puppeteer both send for Enter.
@@ -605,14 +631,6 @@ test(
         async () => cdp.eval('document.activeElement?.classList?.contains("QRCodeAboutDialog-close") === true'),
         { timeoutMs: phaseTimeout(10_000), message: 'the reopened dialog to autofocus its Close button' }
       );
-      const dispatchTab = async () => {
-        await cdp.send('Input.dispatchKeyEvent', {
-          type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
-        });
-        await cdp.send('Input.dispatchKeyEvent', {
-          type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
-        });
-      };
       const focusState = () =>
         cdp.eval(`
           (() => {
@@ -621,19 +639,19 @@ test(
             return { inside: dialog.contains(active), onBody: active === document.body, tag: active?.tagName };
           })()
         `);
-      await dispatchTab();
+      await pressTab();
       const firstHop = await focusState();
       assert.ok(
         firstHop.onBody || firstHop.inside,
         `Tab from Close must hop to body or stay inside the dialog, got ${JSON.stringify(firstHop)}`
       );
-      await dispatchTab();
+      await pressTab();
       const secondHop = await focusState();
       assert.ok(
         secondHop.inside && secondHop.tag === 'A',
         `the next Tab must re-enter the dialog on its first link, got ${JSON.stringify(secondHop)}`
       );
-      await dispatchTab();
+      await pressTab();
       const thirdHop = await focusState();
       assert.ok(thirdHop.inside, `the Tab cycle must stay inside the dialog, got ${JSON.stringify(thirdHop)}`);
 

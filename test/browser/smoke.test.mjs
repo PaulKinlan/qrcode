@@ -532,8 +532,11 @@ test(
       assert.equal(aboutControl.label, 'About QR Snapper', 'the About button must expose an accessible name');
 
       await cdp.eval('document.querySelector(".about").focus()');
+      // text:'\r' is required: without it Chromium delivers the keydown (a document-level
+      // listener sees it) but does not synthesise the button's activation click, so the dialog
+      // never opens. This matches what real key delivery and Puppeteer both send for Enter.
       await cdp.send('Input.dispatchKeyEvent', {
-        type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+        type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r',
       });
       await cdp.send('Input.dispatchKeyEvent', {
         type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,

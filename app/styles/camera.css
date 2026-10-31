@@ -177,15 +177,23 @@
   z-index: 100;
 }
 
-/* The About control is a <button> wrapping the help svg (bead qrcode-e4c). The reset keeps the
-   geometry the bare img had; the icon itself is display:block to kill inline-baseline spacing. */
+/* The About control is a <button> wrapping the help svg (bead qrcode-e4c). Bead qrcode-vsb:
+   the glyph is white (explicit fill in the svg) and the button carries its own #0d47a1
+   circular surface - a mini-FAB like the app's other camera controls - so the painted pair is
+   backdrop-independent: white on #0d47a1 is 6.13:1 over any camera frame or canvas. */
 .Camera .about {
   position: absolute;
   margin: 1em;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #0d47a1;
   padding: 0;
   border: none;
-  background: none;
   cursor: pointer;
 }
 

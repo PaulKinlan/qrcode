@@ -7,9 +7,13 @@
 // produced no visible focus at all - WCAG 2.4.7. This is the third control on the camera screen;
 // .Camera .about and .wsk-button got the same treatment earlier (beads qrcode-e4c, qrcode-9nf).
 //
-// The test reads the rule out of the shipped stylesheet and does the arithmetic a browser audit
-// would, so it fails if the ring is removed, recoloured below 3:1, or moved onto the invisible
-// input. Pure file read plus arithmetic: no DOM, no browser, no network - fast tier.
+// The first fix drew the ring as an outline, and it painted nothing: the label fills its parent
+// .wsk-button--fab, which is a 56px round box with `overflow: hidden`, so an outline outside the
+// label's box is clipped away entirely - computed style said 2px solid white while the screenshot
+// showed no ring (review finding qrcode-e45). Hence: the ring is an INSET shadow, and these tests
+// pin both the paint properties and that invariant.
+//
+// Pure file reads plus arithmetic: no DOM, no browser, no network - it belongs in the fast tier.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,12 +22,11 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const cameraCss = readFileSync(join(root, 'app', 'styles', 'camera.css'), 'utf8');
+const allCss = readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8');
 
-// The surfaces the ring can sit against: the toggle's own background
-// (.Camera .CameraRealtime .Camera-toggle { background-color: #0288d1 }), and black, which stands in
-// for the letterboxed camera view the rest of the ring is drawn over.
+// The surface the ring sits on: the toggle's own background
+// (.Camera .CameraRealtime .Camera-toggle { background-color: #0288d1 }).
 const TOGGLE = { r: 0x02, g: 0x88, b: 0xd1 };
-const VIDEO_LETTERBOX = { r: 0, g: 0, b: 0 };
 const MIN_RATIO = 3; // WCAG 1.4.11 non-text contrast / 2.4.11 focus appearance
 const MIN_WIDTH_PX = 2;
 
@@ -43,23 +46,16 @@ function contrast(a, b) {
 }
 
 /** The declaration block for exactly this selector, or null. Throws if the selector is absent. */
-function ruleBlock(css, selector) {
+function ruleBlock(css, selector, file = 'app/styles/camera.css') {
   const start = css.indexOf(`${selector} {`);
   assert.notEqual(
     start,
     -1,
-    `expected a "${selector}" rule in app/styles/camera.css - if the focus indicator moved, update this test rather than deleting it`
+    `expected a "${selector}" rule in ${file} - if the focus indicator moved, update this test rather than deleting it`
   );
   const blockStart = css.indexOf('{', start);
   const blockEnd = css.indexOf('}', blockStart);
   return css.slice(blockStart + 1, blockEnd);
-}
-
-/** Parse `outline: <width> solid <colour>` into parts. */
-function parseOutline(block) {
-  const shorthand = block.match(/outline:\s*([0-9.]+)px\s+(?:solid\s+)?([^;]+);/);
-  assert.ok(shorthand, 'the focus rule must set an outline shorthand with a width and a colour');
-  return { width: Number(shorthand[1]), colour: shorthand[2].trim() };
 }
 
 function hexToRgb(value) {
@@ -75,23 +71,38 @@ function hexToRgb(value) {
   };
 }
 
-test('the camera flip toggle gets a visible focus ring on the label the user sees', () => {
+test('the camera flip toggle gets a visible inset focus ring on the label the user sees', () => {
   const block = ruleBlock(cameraCss, TOGGLE_FOCUS_SELECTOR);
-  const { width, colour } = parseOutline(block);
-
+  const shadow = block.match(/box-shadow:\s*inset\s+0\s+0\s+0\s+([0-9.]+)px\s+(#[0-9a-f]{3,6});/i);
   assert.ok(
-    Number.isFinite(width) && width >= MIN_WIDTH_PX,
+    shadow,
+    'the ring must be an inset box-shadow on the label: an outline is clipped by .wsk-button--fab overflow:hidden (qrcode-e45)'
+  );
+
+  const width = Number(shadow[1]);
+  assert.ok(
+    width >= MIN_WIDTH_PX,
     `focus ring width is ${width}px - it needs to be at least ${MIN_WIDTH_PX}px to be a visible indicator`
   );
 
-  const ring = hexToRgb(colour);
-  for (const [name, surface] of [['the toggle surface', TOGGLE], ['the letterboxed video', VIDEO_LETTERBOX]]) {
-    const ratio = contrast(ring, surface);
-    assert.ok(
-      ratio >= MIN_RATIO,
-      `focus ring ${colour} against ${name} is ${ratio}:1 - below the ${MIN_RATIO}:1 non-text minimum (bead qrcode-a96)`
-    );
-  }
+  const ratio = contrast(hexToRgb(shadow[2]), TOGGLE);
+  assert.ok(
+    ratio >= MIN_RATIO,
+    `focus ring ${shadow[2]} on the toggle surface is ${ratio}:1 - below the ${MIN_RATIO}:1 non-text minimum (bead qrcode-a96)`
+  );
+});
+
+test('the ring is painted inside the box, because the fab ancestor clips everything outside it', () => {
+  // The invariant the first fix broke: the label fills a round fab with overflow:hidden, so a ring
+  // drawn outside the label's box is invisible. Both halves are pinned - the clipping ancestor
+  // still exists, and the rule still paints inside.
+  const fab = ruleBlock(allCss, '.wsk-button--fab', 'app/styles/all.css');
+  assert.match(fab, /overflow:\s*hidden/, 'if the fab stops clipping, revisit this rule and this test together');
+  assert.match(fab, /border-radius:\s*50%/);
+
+  const block = ruleBlock(cameraCss, TOGGLE_FOCUS_SELECTOR);
+  assert.doesNotMatch(block, /outline\s*:/, 'an outline here is clipped away by the fab; use the inset shadow');
+  assert.match(block, /box-shadow:\s*inset/i, 'the ring must be inset into the label box');
 });
 
 test('the ring is declared on the visible label, not on the positioned input', () => {

@@ -207,6 +207,17 @@
   outline-offset: 2px;
 }
 
+/* The flip toggle is the third keyboard control (bead qrcode-a96). Its input is positioned rather
+   than display:none, so it keeps a place in the tab order, but the visible affordance is the
+   sibling label - a ring on the input itself would paint on a zero-sized box. The `outline: none`
+   reset on `.Camera-toggle-input + label` is why nothing showed before; this rule puts the ring
+   back on the thing the user can actually see. Same ring as .about above and .wsk-button in
+   all.css. */
+.Camera .CameraRealtime .Camera-toggle-input:focus-visible + label {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 /* Decoder-failure alert (beads qrcode-j75/qrcode-sze): absolute over the camera view so a
    dead decoder is visible even while frames keep drawing. */
 .Camera #camera-error {

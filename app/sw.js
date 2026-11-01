@@ -51,7 +51,11 @@ const killPageHeaders = {
   // needs is inline CSS and one same-origin form submission.
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; " +
     "form-action 'self'; frame-ancestors 'none'",
-  'Referrer-Policy': 'no-referrer',
+  // 'same-origin', not 'no-referrer': the confirmation is only honoured when the destructive
+  // navigation comes FROM this page (see isOwnConfirmationPage below), so the form submission has
+  // to carry this page's own URL as its referrer. Nothing leaves the origin either way (bead
+  // qrcode-8vv).
+  'Referrer-Policy': 'same-origin',
   'X-Content-Type-Options': 'nosniff',
   'Cache-Control': 'no-store'
 };
@@ -100,21 +104,46 @@ ${body}
    - with `confirm=1`, which the page's form submits, it does the cleanup and answers with the
      result. Doing the work inside respondWith (not waitUntil) means the page the user lands on is
      the one produced AFTER the cleanup, so it cannot claim success before it is true.
+
+  `confirm=1` alone is not enough to prove consent, because it is a public URL token: a crafted
+  link to `/?kill-sw=true&confirm=1` would otherwise wipe the offline copy with no page and no
+  click at all (review finding qrcode-8vv). The destructive navigation must therefore come FROM the
+  confirmation page - its referrer has to be this origin's root kill-sw page, which is exactly what
+  the page's own form submission carries. Anything else (no referrer, another site, a same-origin
+  page that is not the ask page) is answered with the confirmation page instead: it fails safe,
+  and nothing is destroyed without a real click on the button.
 */
+const isOwnConfirmationPage = (referrer) => {
+  if (typeof referrer !== 'string' || referrer === '') return false;
+
+  try {
+    const url = new URL(referrer);
+    return url.origin === self.location.origin &&
+      url.pathname === '/' &&
+      url.searchParams.get('kill-sw') === 'true';
+  } catch {
+    // An unparseable referrer is not proof of consent.
+    return false;
+  }
+};
+
+const askPage = () => killPage('Turn off offline mode?', 'Turn off offline mode?',
+  '<p>This link asks the app to remove its offline copy: the service worker is unregistered ' +
+  'and the cached files are deleted. Scanning still works, but the app will need a network ' +
+  'connection until you open it online again.</p>' +
+  '<form method="get" action="/">' +
+  '<input type="hidden" name="kill-sw" value="true">' +
+  '<input type="hidden" name="confirm" value="1">' +
+  '<button type="submit">Turn off offline mode</button>' +
+  '</form>' +
+  '<p><a href="/">Keep offline mode</a></p>');
+
 router.get('/', function(event) {
   const url = new URL(event.request.url);
+  const confirmed = url.searchParams.get('confirm') === '1';
 
-  if (url.searchParams.get('confirm') !== '1') {
-    event.respondWith(killPage('Turn off offline mode?', 'Turn off offline mode?',
-      '<p>This link asks the app to remove its offline copy: the service worker is unregistered ' +
-      'and the cached files are deleted. Scanning still works, but the app will need a network ' +
-      'connection until you open it online again.</p>' +
-      '<form method="get" action="/">' +
-      '<input type="hidden" name="kill-sw" value="true">' +
-      '<input type="hidden" name="confirm" value="1">' +
-      '<button type="submit">Turn off offline mode</button>' +
-      '</form>' +
-      '<p><a href="/">Keep offline mode</a></p>'));
+  if (!confirmed || !isOwnConfirmationPage(event.request.referrer)) {
+    event.respondWith(askPage());
     return;
   }
 

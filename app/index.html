@@ -15,9 +15,13 @@
        No 'unsafe-inline': every script here is a same-origin URL. The service-worker
        registration used to be an inline block and was the only reason the policy needed it, so
        it now lives in /scripts/sw-register.js (bead qrcode-3bc).
-       test/build/dist-artifacts.test.mjs fails the build if an inline <script> comes back. -->
+       test/build/dist-artifacts.test.mjs fails the build if an inline <script> comes back.
+
+       form-action 'self' is explicit because form-action does NOT fall back to default-src
+       (unlike most fetch directives): without it the no-JS camera fallback's <form> - and any
+       form ever injected or added - could submit to any origin (bead qrcode-4b9). -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; img-src 'self' data: blob:; connect-src 'self'">
+    content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; form-action 'self'; img-src 'self' data: blob:; connect-src 'self'">
   <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
   <!-- Add to homescreen -->

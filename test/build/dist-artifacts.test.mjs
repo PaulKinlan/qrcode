@@ -89,7 +89,9 @@ test('both pages ship a CSP that allows their own WebAssembly', () => {
     assert.match(policy, /script-src[^;]*'self'/, `${page} CSP should still restrict scripts to 'self'`);
     // Baseline policy protects non-script fetches and injection surfaces too. Keep the
     // upload preview's blob: images and the app's own data: images, not data: scripts.
-    for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'none'", "img-src 'self' data: blob:", "connect-src 'self'"]) {
+    // form-action does not inherit default-src, so it must be pinned in its own right
+    // (bead qrcode-4b9): the no-JS fallback form POSTs to same-origin /scan-image.
+    for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "img-src 'self' data: blob:", "connect-src 'self'"]) {
       assert.ok(policy.split(';').map((part) => part.trim()).includes(directive), `${page} CSP should contain ${directive}`);
     }
     const scriptSrc = policy.match(/(?:^|;)\s*script-src\s+([^;]*)/)?.[1] ?? '';

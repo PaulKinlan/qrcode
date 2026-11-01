@@ -116,6 +116,17 @@ The application uses modern browser APIs:
 * **Clipboard API** - Copy URLs to clipboard
 * **Service Workers** - Offline support and caching
 
+### Offline mode and the kill switch
+
+The page registers `/sw.js` on load, which precaches the app shell so scanning works offline. To
+turn offline mode off, navigate to `/?kill-sw=true`. That URL shows a confirmation page and changes
+nothing until you submit its form (which adds `confirm=1`, i.e. `/?kill-sw=true&confirm=1`): only
+then does the worker unregister itself and delete the app's `qr-precache-*` caches. The confirmation
+exists because unregistering and deleting the cache cannot be undone from the page, so a shared,
+shortened or bookmarked link to that URL must not be able to wipe the offline copy on a single
+click. The app needs a network connection until it has been opened online again, which re-registers
+the worker.
+
 ### Development Notes
 
 * The project uses Vite as the build tool (replaced Gulp)

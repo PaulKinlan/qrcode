@@ -676,6 +676,45 @@ test(
         { timeoutMs: phaseTimeout(10_000), message: 'Escape to close the About dialog and restore focus to the trigger' }
       );
 
+      // 4b-3 (bead qrcode-s4g): light dismiss. closedby="any" hands the platform the last
+      // modal behaviour the stylesheet already advertised: it paints a dimming ::backdrop,
+      // so a click/tap on that backdrop must close the dialog. Proven with real pointer
+      // input at a viewport point outside the dialog rect - the top-layer ::backdrop is what
+      // hit-testing lands on, exactly as with the in-dialog focus click above. No Escape is
+      // dispatched in this phase, so only light dismiss can close the dialog.
+      assert.equal(
+        await cdp.eval('document.querySelector("#about").getAttribute("closedby")'),
+        'any',
+        'the About dialog must declare closedby="any" (platform light dismiss)'
+      );
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r',
+      });
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+      });
+      await pollUntil(
+        async () => cdp.eval('window.getComputedStyle(document.querySelector("#about")).display !== "none"'),
+        { timeoutMs: phaseTimeout(10_000), message: 'the About dialog to reopen for the light-dismiss phase' }
+      );
+      const backdropPoint = await cdp.eval(`
+        (() => {
+          const r = document.querySelector('#about').getBoundingClientRect();
+          // The card is 80% wide and centred, so the gutter beside it is real backdrop; the
+          // clamps keep the point inside the window even if layout ever changes.
+          return {
+            x: Math.max(2, Math.round(r.left - 24)),
+            y: Math.round(Math.min(Math.max(r.top + r.height / 2, 2), window.innerHeight - 2)),
+          };
+        })()
+      `);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: backdropPoint.x, y: backdropPoint.y, button: 'left', clickCount: 1 });
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: backdropPoint.x, y: backdropPoint.y, button: 'left', clickCount: 1 });
+      await pollUntil(
+        async () => cdp.eval('window.getComputedStyle(document.querySelector("#about")).display === "none"'),
+        { timeoutMs: phaseTimeout(10_000), message: 'a backdrop click to light-dismiss the dialog (closedby="any")' }
+      );
+
       // 5. Assert service worker registration
       // Service workers are fully supported in headless Chrome on http://127.0.0.1 (considered secure context)
       const swRegistrations = await pollUntil(

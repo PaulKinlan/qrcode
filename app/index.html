@@ -61,7 +61,7 @@
              on Enter/Space and carries an accessible name (bead qrcode-e4c). The svg inside is
              decorative (alt=""); the button's aria-label names the control. -->
         <button type="button" class="about" aria-label="About QR Snapper">
-          <img src="/images/help_outline-24px.svg" alt="" />
+          <img src="/images/help_outline-24px.svg" alt="" width="24" height="24" />
         </button>
         <div class="CameraRealtime hidden">
           <video class="Camera-video" muted autoplay playsinline></video>
@@ -69,8 +69,8 @@
           <div class="Camera-toggle wsk-button wsk-button--fab">
             <input type="checkbox" id="checkbox-1" class="Camera-toggle-input" />
             <label for="checkbox-1">
-              <img class="front" src="/images/ic_camera_front_24px.svg">
-              <img class="rear" src="/images/ic_camera_rear_24px.svg">
+              <img class="front" src="/images/ic_camera_front_24px.svg" width="24" height="24">
+              <img class="rear" src="/images/ic_camera_rear_24px.svg" width="24" height="24">
             </label>
           </div>
         </div>
@@ -80,7 +80,7 @@
           <form method="post" action="/scan-image" class="CameraFallback-form">
             <input type="file" accept="image/*" capture="camera" id="qrcode-input" name="qrcode"
               class="CameraFallback-input">
-            <label for="qrcode-input"><img src="/images/ic_file_upload_24px.svg"></label>
+            <label for="qrcode-input"><img src="/images/ic_file_upload_24px.svg" width="24" height="24"></label>
             <img class="CameraFallback-image">
           </form>
         </div>

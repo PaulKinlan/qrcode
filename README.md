@@ -127,6 +127,13 @@ shortened or bookmarked link to that URL must not be able to wipe the offline co
 click. The app needs a network connection until it has been opened online again, which re-registers
 the worker.
 
+`confirm=1` on its own is not consent: it is a public URL token, so a crafted link to
+`/?kill-sw=true&confirm=1` would otherwise wipe the offline copy with no page shown and no click.
+The destructive navigation is therefore also required to come from the confirmation page itself —
+its referrer must be this origin's `/?kill-sw=true` page, which is what the page's own form
+submission carries. Any other navigation, including one with no referrer, is answered with the
+confirmation page instead, so the worst a crafted link can do is ask.
+
 ### Development Notes
 
 * The project uses Vite as the build tool (replaced Gulp)

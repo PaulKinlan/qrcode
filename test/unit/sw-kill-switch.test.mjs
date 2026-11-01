@@ -54,12 +54,15 @@ globalThis.caches = {
 
 await import('../../app/sw.js');
 
-function dispatch(url, mode = 'navigate') {
+/** The confirmation page's own URL, i.e. the referrer its form submission carries. */
+const CONFIRMATION_PAGE = `${origin}/?kill-sw=true`;
+
+function dispatch(url, mode = 'navigate', referrer = '') {
   let lifetime;
   let response;
   listeners.get('fetch')({
     // Node's Request constructor cannot represent navigation mode; the router only reads these fields.
-    request: { url, method: 'GET', mode },
+    request: { url, method: 'GET', mode, referrer },
     waitUntil(promise) { lifetime = promise; },
     respondWith(promise) { response = promise; },
   });
@@ -106,6 +109,9 @@ test('the confirmation page asks with a script-free same-origin GET form, and su
   assert.match(policy, /default-src 'none'/);
   assert.match(policy, /form-action 'self'/, 'the confirm form must be allowed to submit to this origin');
   assert.equal(headers.get('cache-control'), 'no-store');
+  // The consent is bound to this page: the form submission must carry it as its referrer, so the
+  // page may not forbid referrers (bead qrcode-8vv).
+  assert.equal(headers.get('referrer-policy'), 'same-origin');
 
   // The form the page renders must be the URL the route treats as confirmed. Deriving the
   // submission from the page (rather than writing it out again) is what keeps the two in step.
@@ -122,7 +128,7 @@ test('the confirmation page asks with a script-free same-origin GET form, and su
   assert.equal(state.unregistered, 0, 'rendering the page must not have destroyed anything');
   assert.deepEqual(state.deleted, []);
 
-  const confirmed = dispatch(submission.href);
+  const confirmed = dispatch(submission.href, 'navigate', `${origin}/?kill-sw=true`);
   await settle();
   const done = await confirmed.response;
   assert.equal(done.status, 200);
@@ -134,7 +140,7 @@ test('the confirmation page asks with a script-free same-origin GET form, and su
 
 test('the confirmed kill switch cleans up before answering, and only for this app\'s caches', async () => {
   resetState();
-  const event = dispatch(`${origin}/?kill-sw=true&confirm=1`);
+  const event = dispatch(`${origin}/?kill-sw=true&confirm=1`, 'navigate', CONFIRMATION_PAGE);
   assert.equal(event.lifetime, undefined, 'the page the user lands on is the response, not a side task');
 
   // The response must not resolve until the cleanup is done: a "done" page that arrives first
@@ -152,11 +158,36 @@ test('only the literal confirm=1 arm the destructive step', async () => {
   resetState();
   for (const query of ['kill-sw=true&confirm=0', 'kill-sw=true&confirm=true',
     'kill-sw=true&confirm=yes', 'kill-sw=true&confirm=', 'kill-sw=true&confirm=11']) {
-    const event = dispatch(`${origin}/?${query}`);
+    const event = dispatch(`${origin}/?${query}`, 'navigate', CONFIRMATION_PAGE);
     assert.match(await (await event.response).text(), /Turn off offline mode\?/, `${query} must only ask`);
   }
   assert.equal(state.unregistered, 0, 'no near-miss value may unregister the worker');
   assert.deepEqual(state.deleted, []);
+});
+
+test('the confirm token alone is not consent: the navigation must come from the confirmation page', async () => {
+  // qrcode-8vv: ?kill-sw=true&confirm=1 is a public URL token, so a crafted link or cross-origin
+  // form would otherwise wipe the offline copy with no page and no click. Only the confirmation
+  // page's own form submission, which carries that page as its referrer, may destroy anything.
+  resetState();
+  const notFromThePage = [
+    ['no referrer at all', ''],
+    ['a cross-origin referrer', 'https://evil.example/?kill-sw=true'],
+    ['a lookalike origin', 'https://qr-snapper.test.evil.example/?kill-sw=true'],
+    ['this origin but not the ask page', `${origin}/`],
+    ['this origin, another page', `${origin}/about.html?kill-sw=true`],
+    ['this origin, the ask page on another path', `${origin}/index.html?kill-sw=true`],
+    ['a malformed referrer', 'not a url'],
+  ];
+
+  for (const [label, referrer] of notFromThePage) {
+    const event = dispatch(`${origin}/?kill-sw=true&confirm=1`, 'navigate', referrer);
+    assert.match(await (await event.response).text(), /Turn off offline mode\?/,
+      `${label} must only be shown the ask page`);
+  }
+
+  assert.equal(state.unregistered, 0, 'no unconfirmed navigation may unregister the worker');
+  assert.deepEqual(state.deleted, [], 'no unconfirmed navigation may delete the precache');
 });
 
 test('a failed cleanup is reported honestly instead of claiming success', async () => {
@@ -166,7 +197,7 @@ test('a failed cleanup is reported honestly instead of claiming success', async 
   const realError = console.error;
   console.error = (...args) => logged.push(args);
   try {
-    const event = dispatch(`${origin}/?kill-sw=true&confirm=1`);
+    const event = dispatch(`${origin}/?kill-sw=true&confirm=1`, 'navigate', CONFIRMATION_PAGE);
     const response = await event.response;
     assert.equal(response.status, 200);
     assert.match(await response.text(), /could not be turned off/);

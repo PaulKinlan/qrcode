@@ -129,8 +129,12 @@ router.get('/', function(event) {
         '<p><a href="/">Open the app</a> (online) to turn offline mode back on.</p>');
     } catch (error) {
       console.error('kill switch failed', error);
+      // Wording matters here: unregister() may already have succeeded when cache deletion failed,
+      // so "reload to try again" would be a lie - the worker is gone and a reload cannot retry the
+      // cleanup. Say what is actually uncertain instead.
       return killPage('Offline mode could not be turned off', 'Offline mode could not be turned off',
-        '<p>Something went wrong while removing the offline copy. Reload this page to try again.</p>');
+        '<p>Something went wrong while removing the offline copy, so some offline files may still ' +
+        'be stored on this device. Open the app online and turn it off again.</p>');
     }
   })());
 }, {urlMatchProperty: "pathname", matches: (url, event) =>

@@ -881,17 +881,63 @@ test(
         'a root kill URL fetched as a subresource must not delete the precache'
       );
 
-      // The root kill URL must unregister the worker and clear the app precache, and the page's
-      // registration script must not immediately re-register it during that same load.
+      // The root kill URL now ASKS before it destroys (bead qrcode-78c): a plain navigation must
+      // render the confirmation page and change nothing - no unregister, no cache deletion - so a
+      // shared, shortened or bookmarked link cannot wipe the installed app's offline copy on one
+      // click. This is the browser-level half of test/unit/sw-kill-switch.test.mjs, which pins the
+      // same two steps against the worker's route table directly.
       await cdp.send('Page.navigate', { url: `${origin}/?source=offline&kill-sw=true` });
       await pollUntil(
+        async () => cdp.eval(`document.readyState === 'complete' && Boolean(document.body) &&
+          document.body.innerText.includes('Turn off offline mode?')`),
+        { timeoutMs: phaseTimeout(10_000), message: 'the root kill navigation to render the confirmation page' }
+      );
+      assert.equal(
+        await cdp.eval('(async () => (await navigator.serviceWorker.getRegistrations()).length)()'),
+        1,
+        'the kill-switch confirmation page must not unregister the worker before the user confirms'
+      );
+      assert.deepEqual(
+        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'),
+        precacheNames,
+        'the kill-switch confirmation page must not touch the app precache before the user confirms'
+      );
+      assert.equal(
+        await cdp.eval('document.querySelectorAll("script").length'),
+        0,
+        'the confirmation page must not need a script: it is a plain same-origin GET form'
+      );
+
+      // Submitting that form is the consent step. Reading the fields back out of the page (rather
+      // than writing the query out again here) keeps this assertion honest if the form changes.
+      const confirmation = await cdp.eval(`(() => {
+        const form = document.querySelector('form');
+        if (!form) return null;
+        const fields = [...form.querySelectorAll('input')].map(input => [input.name, input.value]).sort();
+        const button = form.querySelector('button');
+        button.click();
+        return { method: form.method, action: form.getAttribute('action'), fields, label: button.textContent.trim() };
+      })()`);
+      assert.ok(confirmation, 'the confirmation page must offer a form to submit');
+      assert.equal(confirmation.method, 'get', 'the confirmation form must be a GET to this origin');
+      assert.equal(confirmation.action, '/', 'the confirmation form must submit to the app root');
+      assert.deepEqual(
+        confirmation.fields,
+        [['confirm', '1'], ['kill-sw', 'true']],
+        'the confirmation form must carry the kill-sw and confirm tokens'
+      );
+
+      // Only now may the worker unregister and the precache go, and the page the user lands on must
+      // report it after the work rather than before it.
+      await pollUntil(
         async () => cdp.eval(`(async () =>
-          location.pathname === '/' && location.search === '?source=offline&kill-sw=true' &&
           document.readyState === 'complete' &&
+          Boolean(document.body) &&
+          document.body.innerText.includes('Offline mode is off') &&
           (await navigator.serviceWorker.getRegistrations()).length === 0 &&
           !(await caches.keys()).some(name => name.startsWith('qr-precache-'))
         )()`),
-        { timeoutMs: phaseTimeout(10_000), message: 'the root kill navigation to unregister the worker and clear the app precache' }
+        { timeoutMs: phaseTimeout(10_000), message: 'the confirmed kill switch to unregister the worker and clear the app precache' }
       );
 
       // Interception keeps the run hermetic; any third-party request is a regression. The
@@ -900,11 +946,11 @@ test(
       // blob:) refuses every cross-origin request, so nothing here can reach the worker's fetch
       // listener from another origin. test/unit/sw-kill-switch.test.mjs pins that case against the
       // real route table instead, and this assertion is the browser-level half: no third-party
-      // request is even attempted.
+      // request is even attempted. The confirmation page declares its own policy as an HTTP header
+      // (it is synthesised by the worker, so index.html's <meta> policy does not apply); that header
+      // is pinned in the unit tier, and cspViolations above covers the app's own documents.
       assert.deepEqual(externalRequests, [], 'the app must not request third-party resources');
       assert.deepEqual(cspViolations, [], 'the kill-switch pages must not violate the CSP either');
-      assert.equal(await cdp.eval('window.__cspViolations'), 0,
-        'the kill-switch pages must report no securitypolicyviolation events');
     } finally {
       // 6. Bounded, leak-free cleanup
       if (cdp) {

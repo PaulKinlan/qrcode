@@ -104,8 +104,12 @@
              qrcode-319). The platform gives us Escape-to-close wherever focus is, Tab
              containment (the in-dialog links are reachable forward), focus return to the
              trigger on close, and initial focus via autofocus on the Close button - all
-             previously hand-rolled. aria-labelledby names it; the dialog role is implicit. -->
-      <dialog id="about" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog" aria-labelledby="about-heading">
+             previously hand-rolled. closedby="any" (bead qrcode-s4g) adds platform light
+             dismiss: a click/tap on the ::backdrop closes the dialog, matching the dimming
+             modality affordance the stylesheet paints; Escape and the Close button are
+             unaffected, and engines without closedby keep today's behaviour. aria-labelledby
+             names it; the dialog role is implicit. -->
+      <dialog id="about" closedby="any" class="wsk-card wsk-shadow--z3 QRCodeAboutDialog" aria-labelledby="about-heading">
         <div class="wsk-card--heading">
           <span class="wsk-card--heading-text" id="about-heading">About QR Snapper</span>
         </div>

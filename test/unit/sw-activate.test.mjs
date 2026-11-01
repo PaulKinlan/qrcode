@@ -44,7 +44,12 @@ globalThis.caches = {
 globalThis.self = {
   location: { origin: 'https://qr-snapper.test' },
   registration: { unregister: () => { unregistered = true; } },
-  clients: { claim: async () => { claimed = true; } },
+  clients: {
+    // No controlled window: the ordinary activation case, and the one this suite pins. The
+    // with-open-clients case (bead qrcode-kkh) lives in test/unit/sw-update.test.mjs.
+    matchAll: async () => [],
+    claim: async () => { claimed = true; },
+  },
   addEventListener(type, handler) {
     listeners.set(type, handler);
   },
@@ -69,7 +74,7 @@ test('activate deletes only this app stale caches, and claims clients', async ()
   await dispatch('activate');
 
   assert.deepEqual(deleted, ['qr-precache-0.2.4'], 'only our own stale version may be removed');
-  assert.ok(claimed, 'activate should claim existing clients so an update takes effect immediately');
+  assert.ok(claimed, 'with no controlled client in the picture, activate claims so a first visit is offline-capable');
   assert.equal(unregistered, false, 'a routine activate must not unregister the worker');
 });
 

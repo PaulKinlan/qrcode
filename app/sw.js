@@ -158,6 +158,24 @@ router.get(`${self.location.origin}`, e => {
 
 self.addEventListener('activate', function(event) {
   event.waitUntil((async () => {
+    // Never take over documents from the release that is being replaced (bead qrcode-kkh).
+    //
+    // A window client this registration already controls was loaded from the PRECACHE_CACHE of the
+    // worker we are replacing. Two things would go wrong if we proceeded with one still open:
+    //   1. claiming it hands it to THIS worker, whose fetch route only ever reads PRECACHE_CACHE by
+    //      name, so every asset the old document asks for by its old URL is a miss; and
+    //   2. deleting the predecessor's cache is what made those misses fatal offline - the old worker
+    //      would have served them from there.
+    // Either alone breaks the document, and together they produced a tab running one build's module
+    // graph against another build's cache. The predecessor cache and its clients are left alone; the
+    // next activation (once those documents are gone) cleans up. install() below no longer calls
+    // skipWaiting(), so the normal path never reaches here with a controlled client - this is the
+    // guard for a browser that force-activates a waiting worker anyway.
+    const controlledClients = await self.clients.matchAll({type: 'window'});
+    if (controlledClients.length > 0) {
+      return;
+    }
+
     // A versioned cache name means every release would otherwise leave its predecessor behind.
     // Only OUR caches may be removed: CacheStorage is per origin, and other applications or user
     // storage on the same origin must survive this worker activating (review finding qrcode-kr4 -
@@ -165,13 +183,22 @@ self.addEventListener('activate', function(event) {
     const keys = await caches.keys();
     const stale = keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== PRECACHE_CACHE);
     await Promise.all(stale.map(key => caches.delete(key)));
+
+    // Claiming is what makes a FIRST visit offline-capable in its first document: with no controlled
+    // client there is no other build in the picture (see the guard above), so taking over is safe.
     await self.clients.claim();
   })());
 });
 
 self.addEventListener('install', function(e) {
-  self.skipWaiting();
-
+  // Deliberately NO self.skipWaiting() (bead qrcode-kkh). Install finishes and the worker WAITS, so
+  // the browser keeps the previous release's worker - and its precache - serving the documents it
+  // already loaded, and the new release takes over once those documents are gone. skipWaiting()
+  // activated this worker immediately, which is what produced documents running one build against
+  // another build's cache.
+  //
+  // The cache list below is still fully populated during install, so an activation that follows a
+  // finished install never has to precache anything.
   e.waitUntil((async () => {
     const response = await fetch(PRECACHE_MANIFEST_URL, {cache: 'no-store'});
     if (!response.ok) {

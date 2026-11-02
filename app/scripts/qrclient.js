@@ -20,6 +20,28 @@ workerDied.catch(() => {});
 
 const proxy = Comlink.wrap(worker);
 
+// A failed decode is surfaced in the UI through onFailure, but it also has to leave a trail in
+// devtools (bead qrcode-krv): without one, a dead worker, a failed wasm load and an unreadable
+// canvas look identical to an ordinary "no QR here" miss. The scan loop calls decode() once per
+// animation frame, so an unchanged failure would print up to 60 identical lines a second; report
+// each DISTINCT failure once and count the repeats instead of repeating the line.
+let reportedFailure = null;
+let suppressedRepeats = 0;
+
+const reportFailure = (err) => {
+  const key = `${err?.name ?? 'Error'}: ${err?.message ?? String(err)}`;
+  if (key === reportedFailure) {
+    suppressedRepeats += 1;
+    return;
+  }
+  if (reportedFailure !== null && suppressedRepeats > 0) {
+    console.warn(`QR decoder: ${suppressedRepeats} further identical failure(s) suppressed`);
+  }
+  console.warn('QR decoder failure:', err);
+  reportedFailure = key;
+  suppressedRepeats = 0;
+};
+
 /**
  * Decode a camera frame.
  * @param {CanvasRenderingContext2D} context - Canvas context with the frame to scan
@@ -37,6 +59,7 @@ export const decode = async function (context, onFailure) {
     let imageData = context.getImageData(0, 0, width, height);
     return await Promise.race([proxy.detectUrl(width, height, imageData), workerDied]);
   } catch (err) {
+    reportFailure(err);
     onFailure?.(err);
     return undefined;
   }

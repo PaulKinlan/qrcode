@@ -49,6 +49,18 @@ test('every static icon declares width and height so its box is reserved before 
   }
 });
 
+test('the camera-flip checkbox has a name and its two icons are explicitly decorative', () => {
+  const input = indexHtml.match(/<input\b[^>]*\bid=["']checkbox-1["'][^>]*>/i)?.[0];
+  assert.ok(input, 'camera-flip checkbox must exist');
+  assert.match(input, /\baria-label=["']Flip camera["']/i, 'camera-flip checkbox must expose a name');
+
+  for (const iconClass of ['front', 'rear']) {
+    const icon = imgTags.find((tag) => attr(tag, 'class') === iconClass);
+    assert.ok(icon, `camera-flip ${iconClass} icon must exist`);
+    assert.equal(attr(icon, 'alt'), '', `camera-flip ${iconClass} icon must have explicit alt=""`);
+  }
+});
+
 test('the declared size is the icons\' own 24x24 grid, and they stay decorative', () => {
   for (const tag of imgTags.filter((entry) => attr(entry, 'src') !== null)) {
     const src = attr(tag, 'src');

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {isSafeUrl} from '../../app/scripts/utils/url-utils.js';
 
 // QRCodeManager imports qrclient, whose worker is constructed at module evaluation.
 globalThis.Worker = class {
@@ -108,13 +109,38 @@ test('a missing heading does not lose the scanned content or callback state', ()
 test('web URLs still open immediately and keep the usual heading', () => {
   const mounted = mount();
   try {
-    const url = new URL('https://example.com/path');
+    for (const scheme of ['http:', 'https:']) {
+      const url = new URL(`${scheme}//example.com/path`);
+      mounted.manager.currentUrl = url;
+      mounted.manager.showDialog(url);
+      assert.equal(mounted.heading.textContent, 'QR Code found');
+      window.confirm = () => { throw new Error('web URLs should not prompt'); };
+      mounted.navigate.click();
+      assert.equal(window.location, url);
+      assert.equal(mounted.root.open, false);
+    }
+  } finally { mounted.restore(); }
+});
+
+test('unknown non-web protocols stay labelled and require consent if ever allowlisted', () => {
+  const mounted = mount();
+  const logged = console.error;
+  try {
+    const url = new URL('geo:0,0?q=map');
     mounted.manager.currentUrl = url;
     mounted.manager.showDialog(url);
-    assert.equal(mounted.heading.textContent, 'QR Code found');
-    window.confirm = () => { throw new Error('web URLs should not prompt'); };
+    assert.match(mounted.heading.textContent, /geo: opens external app/);
+    const before = window.location;
+    let prompted = 0;
+    window.confirm = (message) => {
+      prompted++;
+      assert.match(message, /external app \(geo:\)/);
+      return false;
+    };
+    console.error = () => {};
     mounted.navigate.click();
-    assert.equal(window.location, url);
-    assert.equal(mounted.root.open, false);
-  } finally { mounted.restore(); }
+    assert.equal(window.location, before, 'neither rejection nor a declined prompt may navigate');
+    assert.equal(prompted, Number(isSafeUrl(url)),
+      'if geo: is ever allowlisted, its external-app handoff must ask first');
+  } finally { console.error = logged; mounted.restore(); }
 });

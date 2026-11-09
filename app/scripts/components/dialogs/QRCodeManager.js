@@ -7,6 +7,7 @@ const EXTERNAL_APPS = {
   'tel:': 'phone app',
   'sms:': 'messaging app',
 };
+const isWebProtocol = (protocol) => protocol === 'http:' || protocol === 'https:';
 
 /**
  * QRCodeManager - Manages the QR code success dialog and actions
@@ -111,8 +112,9 @@ export class QRCodeManager {
       }
 
       const protocol = this.currentUrl.protocol;
-      const externalApp = EXTERNAL_APPS[protocol];
-      if (externalApp && !window.confirm(
+      const externalApp = EXTERNAL_APPS[protocol] || 'external app';
+      // The label table is optional; every allowed non-web protocol must still ask.
+      if (!isWebProtocol(protocol) && !window.confirm(
         `Open your ${externalApp} (${protocol}) with this QR content?\n\n` +
         'It may prefill a recipient or message. Check the scanned content before continuing.'
       )) return;
@@ -157,10 +159,10 @@ export class QRCodeManager {
    */
   showDialog(normalizedUrl) {
     this.qrcodeData.innerText = normalizedUrl;
-    const externalApp = EXTERNAL_APPS[normalizedUrl.protocol];
+    const externalApp = EXTERNAL_APPS[normalizedUrl.protocol] || 'external app';
     const heading = this.root.querySelector('.wsk-card--heading-text');
     if (heading) {
-      heading.textContent = externalApp
+      heading.textContent = !isWebProtocol(normalizedUrl.protocol)
         ? `QR Code found · ${normalizedUrl.protocol} opens ${externalApp}`
         : 'QR Code found';
     }

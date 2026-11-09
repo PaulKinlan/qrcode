@@ -8,7 +8,7 @@ const lock = JSON.parse(readFileSync(new URL('../../package-lock.json', import.m
 
 function assertRuntimePins(dependencies) {
   for (const [name, version] of Object.entries(dependencies)) {
-    assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/,
+    assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/,
       `${name} must use an exact runtime version, not a range`);
     assert.equal(lock.packages[''].dependencies[name], version,
       `${name} must agree with the lockfile root`);

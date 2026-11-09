@@ -79,7 +79,21 @@ test('long consent preview shows head, tail and omitted count while transferring
   assert.match(prompt, /TAIL-MARK/);
   assert.doesNotMatch(prompt, /MIDDLE-SECRET/, 'unshown middle must not be mistaken for disclosed text');
   assert.match(prompt, new RegExp(`${payload.length} characters`));
-  assert.match(prompt, new RegExp(`${payload.length - 120} characters in the middle are not shown but will also be sent`));
+  assert.match(prompt, new RegExp(`The middle is not shown \\(${payload.length - 120} characters\\), but it will also be sent`));
+  assert.equal(globalThis.location.searchParams.get('qrcode'), payload);
+}));
+
+test('one omitted character has grammatical consent copy at the elision boundary', () => withBrowserGlobals(() => {
+  const { element, listeners } = mountCallback('https://example.com/return');
+  const payload = `${'a'.repeat(80)}Z${'b'.repeat(40)}`;
+  const controller = new QRCodeCallbackController(element);
+  controller.setQrCode(payload);
+  let prompt;
+  window.confirm = (text) => { prompt = text; return true; };
+  listeners.get('click')();
+  assert.match(prompt, /121 characters/);
+  assert.match(prompt, /The middle is not shown \(1 character\), but it will also be sent/);
+  assert.doesNotMatch(prompt, /\(1 characters\)/);
   assert.equal(globalThis.location.searchParams.get('qrcode'), payload);
 }));
 

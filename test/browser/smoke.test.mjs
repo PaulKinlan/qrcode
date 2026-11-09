@@ -908,7 +908,7 @@ test(
       // kill-sw parameter on another same-origin path must be an ordinary page load, not a silent
       // unregister + cache wipe.
       const precacheNames = await cdp.eval(
-        '(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'
+        '(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-") && !name.endsWith("-consent")))()'
       );
       assert.ok(precacheNames.length > 0, 'expected a precache to exist before the kill-switch phase');
 
@@ -924,7 +924,7 @@ test(
         'a kill-sw parameter off the root path must not unregister the worker'
       );
       assert.deepEqual(
-        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'),
+        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-") && !name.endsWith("-consent")))()'),
         precacheNames,
         'a kill-sw parameter off the root path must not touch the app precache'
       );
@@ -941,7 +941,7 @@ test(
         'a root kill URL fetched as a subresource must not unregister the worker'
       );
       assert.deepEqual(
-        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'),
+        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-") && !name.endsWith("-consent")))()'),
         precacheNames,
         'a root kill URL fetched as a subresource must not delete the precache'
       );
@@ -963,9 +963,14 @@ test(
         'the kill-switch confirmation page must not unregister the worker before the user confirms'
       );
       assert.deepEqual(
-        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-")))()'),
+        await cdp.eval('(async () => (await caches.keys()).filter(name => name.startsWith("qr-precache-") && !name.endsWith("-consent")))()'),
         precacheNames,
         'the kill-switch confirmation page must not touch the app precache before the user confirms'
+      );
+      assert.equal(
+        await cdp.eval('(async () => (await caches.keys()).filter(name => name.endsWith("-consent")).length)()'),
+        1,
+        'the confirmation page must persist its token separately from the app precache'
       );
       assert.equal(
         await cdp.eval('document.querySelectorAll("script").length'),
@@ -986,10 +991,15 @@ test(
       assert.ok(confirmation, 'the confirmation page must offer a form to submit');
       assert.equal(confirmation.method, 'get', 'the confirmation form must be a GET to this origin');
       assert.equal(confirmation.action, '/', 'the confirmation form must submit to the app root');
+      assert.match(
+        confirmation.fields.find(([name]) => name === 'consent')?.[1],
+        /^[0-9a-f]{32}$/,
+        'the confirmation form must carry a worker-minted consent token'
+      );
       assert.deepEqual(
-        confirmation.fields,
+        confirmation.fields.filter(([name]) => name !== 'consent'),
         [['confirm', '1'], ['kill-sw', 'true']],
-        'the confirmation form must carry the kill-sw and confirm tokens'
+        'the confirmation form must still carry the kill-sw and confirm tokens'
       );
 
       // Only now may the worker unregister and the precache go, and the page the user lands on must

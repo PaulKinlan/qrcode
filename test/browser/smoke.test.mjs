@@ -497,6 +497,12 @@ test(
       assert.ok(uploadTabbed, 'upload input must be reachable with a real Tab key');
       assert.match(await cdp.eval('getComputedStyle(document.querySelector(\'label[for="qrcode-input"]\')).boxShadow'),
         /inset/, 'upload label must display a visible focus ring');
+      if (process.env.QR_SNAPPER_SCREENSHOT) {
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        const focusScreenshot = `${process.env.QR_SNAPPER_SCREENSHOT}.upload-focus.png`;
+        writeFileSync(focusScreenshot, Buffer.from(data, 'base64'));
+        t.diagnostic(`upload keyboard-focus screenshot: ${focusScreenshot}`);
+      }
 
       // Click the upload control like a user would, then feed the QR fixture through CDP.
       await cdp.eval('document.querySelector(\'label[for="qrcode-input"]\')?.click()');

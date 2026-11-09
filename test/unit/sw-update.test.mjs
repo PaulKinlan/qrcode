@@ -9,9 +9,9 @@
 // Two invariants are pinned here:
 //   1. install() never calls skipWaiting(), so the new worker waits for the previous release's
 //      documents to go away instead of being activated underneath them.
-//   2. activate() leaves the predecessor cache AND its clients alone while this registration still
-//      controls a window, and only then deletes the stale cache and claims (which is what keeps a
-//      first visit offline-capable in its first document - there is no controlled client then).
+//   2. activate() leaves the predecessor cache AND its clients alone while any predecessor window
+//      remains, and only then deletes stale caches and claims. A first install has no predecessor
+//      cache and can claim its uncontrolled first-visit window immediately.
 //
 // app/sw.js is a service worker: it reads self, caches and the build-injected __APP_VERSION__ at
 // import time, so the stubs are installed before the dynamic import. Node runs each test file in
@@ -29,13 +29,21 @@ const manifestUrls = [];
 let skipWaitingCalls = 0;
 let claimCalls = 0;
 let windowClients = [];
+let cachedKeys = [PREDECESSOR_CACHE, PRECACHE_CACHE, 'unrelated-app-user-data'];
 
 globalThis.__APP_VERSION__ = VERSION;
 globalThis.self = {
   location: { origin: 'https://qr-snapper.test' },
   registration: { unregister() { return Promise.resolve(true); } },
   clients: {
-    matchAll() { return Promise.resolve(windowClients); },
+    // A predecessor-controlled tab is NOT controlled by the newly activating worker.
+    // Match the browser default: without includeUncontrolled it is omitted.
+    matchAll({type, includeUncontrolled = false} = {}) {
+      return Promise.resolve(windowClients.filter(client =>
+        (type === undefined || client.type === type) &&
+        (includeUncontrolled || client.controlledBySelf)
+      ));
+    },
     claim() { claimCalls++; return Promise.resolve(); },
   },
   addEventListener(type, handler) { listeners.set(type, handler); },
@@ -44,7 +52,7 @@ globalThis.self = {
 };
 globalThis.caches = {
   async keys() {
-    return [PREDECESSOR_CACHE, PRECACHE_CACHE, 'unrelated-app-user-data'];
+    return cachedKeys;
   },
   async delete(name) {
     deleted.push(name);
@@ -82,10 +90,11 @@ test('install lets the new worker wait instead of activating under the old relea
   );
 });
 
-test('activate with no controlled window removes the predecessor cache and claims clients', async () => {
+test('activate with no open window removes the predecessor cache and claims clients', async () => {
   deleted.length = 0;
   claimCalls = 0;
   windowClients = [];
+  cachedKeys = [PREDECESSOR_CACHE, PRECACHE_CACHE, 'unrelated-app-user-data'];
 
   await dispatch('activate');
 
@@ -93,10 +102,11 @@ test('activate with no controlled window removes the predecessor cache and claim
   assert.equal(claimCalls, 1, 'a first visit must be controlled (and so offline-capable) in its first document');
 });
 
-test('activate keeps the predecessor cache and its clients while a window is still controlled', async () => {
+test('activate preserves predecessor cache and client even though the new worker does not control that window', async () => {
   deleted.length = 0;
   claimCalls = 0;
-  windowClients = [{ id: 'client-on-the-previous-release', type: 'window' }];
+  cachedKeys = [PREDECESSOR_CACHE, PRECACHE_CACHE, 'unrelated-app-user-data'];
+  windowClients = [{ id: 'client-on-the-previous-release', type: 'window', controlledBySelf: false }];
 
   await dispatch('activate');
 
@@ -106,4 +116,16 @@ test('activate keeps the predecessor cache and its clients while a window is sti
     'deleting the cache a still-open document is being served from is what made its asset misses fatal'
   );
   assert.equal(claimCalls, 0, 'claiming would hand that document to a worker whose cache does not contain its assets');
+});
+
+test('first install claims its uncontrolled first-visit window without a predecessor cache', async () => {
+  deleted.length = 0;
+  claimCalls = 0;
+  cachedKeys = [PRECACHE_CACHE, 'unrelated-app-user-data'];
+  windowClients = [{ id: 'first-visit', type: 'window', controlledBySelf: false }];
+
+  await dispatch('activate');
+
+  assert.deepEqual(deleted, []);
+  assert.equal(claimCalls, 1, 'first visit must become offline-capable without a reload');
 });

@@ -41,6 +41,11 @@ export class QRCodeManager {
   }
 
   setupEventListeners() {
+    // Escape, back and light-dismiss bypass closeDialog().
+    this.root.addEventListener('close', () => {
+      this.qrcodeData.innerText = '';
+    });
+
     // Ignore button - close dialog
     this.qrcodeIgnore.addEventListener('click', () => {
       this.closeDialog();
@@ -133,20 +138,20 @@ export class QRCodeManager {
    * @param {URL} normalizedUrl - The detected and normalized URL
    */
   showDialog(normalizedUrl) {
-    this.root.style.display = 'block';
     this.qrcodeData.innerText = normalizedUrl;
     const externalApp = EXTERNAL_APPS[normalizedUrl.protocol];
     this.root.querySelector('.wsk-card--heading-text').textContent = externalApp
       ? `QR Code found · ${normalizedUrl.protocol} opens ${externalApp}`
       : 'QR Code found';
     this.callbackController.setQrCode(normalizedUrl);
+    if (!this.root.open) this.root.showModal();
   }
 
   /**
    * Close the QR code dialog
    */
   closeDialog() {
-    this.root.style.display = 'none';
+    if (this.root.open) this.root.close();
     this.qrcodeData.innerText = '';
   }
 }

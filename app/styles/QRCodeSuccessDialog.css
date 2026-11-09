@@ -1,6 +1,5 @@
 .QRCodeSuccessDialog {
     height: auto !important;
-    display: none;
     position: absolute !important;
     margin: auto auto;
     width: 80%;
@@ -11,6 +10,12 @@
     left: 50%;
     transform: translate(-50%, -50%);
     top: 50%;
+    border: none;
+    padding: 0;
+}
+
+.QRCodeSuccessDialog::backdrop {
+  background: rgba(33, 33, 33, 0.5);
 }
 
 .QRCodeSuccessDialog .QRCodeSuccessDialog-share.hidden {

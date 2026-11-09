@@ -31,8 +31,9 @@ export class QRCodeCamera {
   setupCameraCallback() {
     let isDecoding = false;
     this.cameraManager.onframe = async (context) => {
-      // Drop incoming frames while the worker is decoding the previous one.
-      if (isDecoding) {
+      // Keep the camera preview running, but do not decode or vibrate behind a modal result.
+      // Scanning resumes naturally after Ignore, Escape, back or light-dismiss.
+      if (isDecoding || this.qrCodeManager.root.open) {
         return;
       }
 

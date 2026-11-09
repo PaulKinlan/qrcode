@@ -86,15 +86,15 @@
           </div>
         </div>
       </div>
-      <div id="qrcode" class="wsk-card wsk-shadow--z3 QRCodeSuccessDialog">
+      <dialog id="qrcode" closedby="any" class="wsk-card wsk-shadow--z3 QRCodeSuccessDialog" aria-labelledby="qrcode-heading">
         <div class="wsk-card--heading">
-          <span class="wsk-card--heading-text">QR Code found</span>
+          <span class="wsk-card--heading-text" id="qrcode-heading">QR Code found</span>
         </div>
         <div class="wsk-card--lower QRCodeSuccessDialog-data">
         </div>
         <div class="wsk-card--bottom">
           <div>
-            <button class="wsk-button QRCodeSuccessDialog-ignore">Ignore</button>
+            <button class="wsk-button QRCodeSuccessDialog-ignore" autofocus>Ignore</button>
             <button class="wsk-button QRCodeSuccessDialog-navigate">Open</button>
             <button class="wsk-button QRCodeSuccessDialog-callback hidden">
               <div class="QRCodeSuccessDialogCallback-name">Return</div>
@@ -104,7 +104,7 @@
             <button class="wsk-button QRCodeSuccessDialog-share hidden">Share</button>
           </div>
         </div>
-      </div>
+      </dialog>
       <!-- About Dialog: a native <dialog> opened with showModal() (beads qrcode-e4c,
              qrcode-319). The platform gives us Escape-to-close wherever focus is, Tab
              containment (the in-dialog links are reachable forward), focus return to the

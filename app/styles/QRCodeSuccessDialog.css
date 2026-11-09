@@ -1,6 +1,8 @@
 .QRCodeSuccessDialog {
     height: auto !important;
-    display: none;
+    /* Override the UA's bottom:0: paired with top:50% it otherwise shrinks
+       the card to half the viewport and autofocus scrolls its heading away. */
+    bottom: auto;
     position: absolute !important;
     margin: auto auto;
     width: 80%;
@@ -11,6 +13,12 @@
     left: 50%;
     transform: translate(-50%, -50%);
     top: 50%;
+    border: none;
+    padding: 0;
+}
+
+.QRCodeSuccessDialog::backdrop {
+  background: rgba(33, 33, 33, 0.5);
 }
 
 .QRCodeSuccessDialog .QRCodeSuccessDialog-share.hidden {

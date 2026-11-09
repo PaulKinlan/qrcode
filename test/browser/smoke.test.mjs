@@ -530,16 +530,43 @@ test(
           const dataElement = dialog.querySelector('.QRCodeSuccessDialog-data');
           return {
             dialogVisible: computed.display !== 'none' && computed.visibility !== 'hidden',
+            dialogOpen: dialog.open,
+            dialogModal: dialog.matches(':modal'),
+            dialogClosedBy: dialog.getAttribute('closedby'),
+            focusInDialog: dialog.contains(document.activeElement),
             dialogDataText: dataElement ? dataElement.innerText.trim() : '',
             bodyTextContains: document.body.innerText.includes(${JSON.stringify(EXPECTED_PAYLOAD)}),
           };
         })()
       `);
 
+      assert.equal(await cdp.eval('document.querySelector("#qrcode").scrollTop'), 0,
+        'autofocus must not scroll the result heading out of view');
       assert.ok(domState.dialogVisible, 'Expected #qrcode dialog to be visible in DOM');
+      assert.equal(domState.dialogOpen, true, 'result must open as a native dialog');
+      assert.equal(domState.dialogModal, true, 'result must be in the modal top layer');
+      assert.equal(domState.dialogClosedBy, 'any', 'result must support platform light dismiss');
+      assert.equal(domState.focusInDialog, true, 'initial focus must enter the modal result');
       assert.equal(domState.dialogDataText, EXPECTED_PAYLOAD);
       assert.ok(domState.bodyTextContains, 'Expected document.body.innerText to contain decoded payload');
       assert.ok(wasmRequests.length > 0, 'Expected the browser to load ZBar WASM for fallback decoding');
+      if (process.env.QR_SNAPPER_SCREENSHOT) {
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        const resultScreenshot = `${process.env.QR_SNAPPER_SCREENSHOT}.result-modal.png`;
+        writeFileSync(resultScreenshot, Buffer.from(data, 'base64'));
+        t.diagnostic(`modal QR result screenshot: ${resultScreenshot}`);
+      }
+      // A modal makes the background About button inert until this result closes.
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+      });
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+      });
+      await pollUntil(
+        async () => cdp.eval('!document.querySelector("#qrcode").open'),
+        { timeoutMs: phaseTimeout(10_000), message: 'Escape to dismiss the modal QR result' }
+      );
 
       // 4b. The About control must be real UI, not a decoration (bead qrcode-e4c): a <button>
       // with an accessible name, opened with a real Enter keystroke (not a synthetic .click()),

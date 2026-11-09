@@ -14,7 +14,7 @@ function makeCamera(detectQRCode) {
   const camera = Object.create(QRCodeCamera.prototype);
   camera.cameraManager = {};
   camera.scanError = { hidden: true };
-  camera.qrCodeManager = { detectQRCode };
+  camera.qrCodeManager = { detectQRCode, root: { open: false } };
   camera.setupCameraCallback();
   return camera;
 }
@@ -38,6 +38,22 @@ test('frame decoding drops overlap and resumes after completion', async () => {
   await first;
   await camera.cameraManager.onframe('next');
   assert.deepEqual(contexts, ['first', 'next']);
+});
+
+test('frame decoding pauses while the result dialog is open and resumes on dismissal', async () => {
+  let attempts = 0;
+  const camera = makeCamera(async () => {
+    attempts += 1;
+    return new URL('https://example.com/');
+  });
+  camera.qrCodeManager.showDialog = () => { camera.qrCodeManager.root.open = true; };
+  await camera.cameraManager.onframe({});
+  assert.equal(camera.qrCodeManager.root.open, true);
+  await camera.cameraManager.onframe({});
+  assert.equal(attempts, 1, 'do not decode further frames behind the modal');
+  camera.qrCodeManager.root.open = false;
+  await camera.cameraManager.onframe({});
+  assert.equal(attempts, 2, 'scanning resumes when the result is dismissed');
 });
 
 test('frame decoding resumes after a failed detection', async () => {

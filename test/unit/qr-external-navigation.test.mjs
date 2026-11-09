@@ -10,7 +10,7 @@ globalThis.Worker = class {
 const {QRCodeManager} = await import('../../app/scripts/components/dialogs/QRCodeManager.js');
 delete globalThis.Worker;
 
-function mount() {
+function mount({headingPresent = true} = {}) {
   const buttons = new Map();
   const makeButton = () => ({
     classList: {remove() {}},
@@ -28,7 +28,7 @@ function mount() {
     showModal() { this.open = true; },
     close() { this.open = false; this.listeners.close?.(); },
     querySelector(selector) {
-      if (selector === '.wsk-card--heading-text') return heading;
+      if (selector === '.wsk-card--heading-text') return headingPresent ? heading : null;
       if (selector === '.QRCodeSuccessDialog-data') return data;
       if (selector === '.QRCodeSuccessDialog-callback') return callback;
       return buttons.get(selector.replace('.QRCodeSuccessDialog-', ''));
@@ -82,6 +82,26 @@ test('external protocols disclose their scheme and require a second decision bef
       assert.equal(mounted.root.open, false);
       window.location = before;
     }
+  } finally { mounted.restore(); }
+});
+
+test('a missing heading does not lose the scanned content or callback state', () => {
+  const mounted = mount({headingPresent: false});
+  try {
+    const url = new URL('mailto:person@example.com?body=hello');
+    mounted.manager.currentUrl = url;
+    assert.doesNotThrow(() => mounted.manager.showDialog(url));
+    assert.equal(mounted.root.open, true, 'a missing heading must not prevent showModal');
+    assert.equal(mounted.data.innerText, url);
+    assert.equal(mounted.manager.callbackController.qrcodeUrl, url,
+      'a missing heading must not skip the callback payload update');
+    const before = window.location;
+    let prompt;
+    window.confirm = (text) => { prompt = text; return false; };
+    mounted.navigate.click();
+    assert.match(prompt, /email app \(mailto:\)/);
+    assert.equal(window.location, before, 'cancel must still block the external handoff');
+    assert.equal(mounted.root.open, true, 'cancel must keep the native result dialog open');
   } finally { mounted.restore(); }
 });
 

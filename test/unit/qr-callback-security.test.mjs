@@ -165,6 +165,25 @@ test('all bidi controls are shown as escapes without changing the transmitted va
   assert.equal(globalThis.location.searchParams.get('qrcode'), payload);
 }));
 
+test('invisible marks and line separators stay visible escapes inside consent preview', () => withBrowserGlobals(() => {
+  const { element, listeners } = mountCallback('https://example.com/return');
+  const controller = new QRCodeCallbackController(element);
+  const controls = '\u200b\u2060\ufeff\u00ad\u2028\u2029\u{e0100}';
+  const payload = `start${controls}end`;
+  controller.setQrCode(payload);
+  let prompt;
+  window.confirm = (text) => { prompt = text; return true; };
+  listeners.get('click')();
+  for (const char of controls) {
+    const hex = char.codePointAt(0).toString(16);
+    const escape = hex.length > 4 ? `\\u{${hex}}` : `\\u${hex.padStart(4, '0')}`;
+    assert.ok(prompt.includes(escape), `${escape} must be visible`);
+    assert.ok(!prompt.includes(char), `${escape} must not be a raw invisible or line separator`);
+  }
+  assert.equal(prompt.split('\n').length, 3, 'untrusted line separators may not create new prompt lines');
+  assert.equal(globalThis.location.searchParams.get('qrcode'), payload);
+}));
+
 test('callback navigation revalidates URL at click time and displays the current destination', () => withBrowserGlobals(() => {
   const { element, listeners } = mountCallback('https://example.com/return');
   const controller = new QRCodeCallbackController(element);

@@ -35,8 +35,12 @@ export class QRCodeCallbackController {
         const callbackUrl = new URL(this.callbackUrl);
         const qrCode = String(this.qrcodeUrl);
         const characters = Array.from(qrCode); // Keep surrogate pairs intact at the preview boundary.
-        const show = (part) => JSON.stringify(part.join('')).replace(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,
-          (char) => `\\u${char.codePointAt(0).toString(16).padStart(4, '0')}`);
+        // Keep invisible formatting marks and line separators inside the quoted preview.
+        const show = (part) => JSON.stringify(part.join('')).replace(/[\p{Default_Ignorable_Code_Point}\u2028\u2029]/gu,
+          (char) => {
+            const hex = char.codePointAt(0).toString(16);
+            return hex.length > 4 ? `\\u{${hex}}` : `\\u${hex.padStart(4, '0')}`;
+          });
         const preview = characters.length <= 120
           ? show(characters)
           : `Starts ${show(characters.slice(0, 80))}\nEnds ${show(characters.slice(-40))}\n` +

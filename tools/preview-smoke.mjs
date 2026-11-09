@@ -57,6 +57,7 @@ const get = (port, path) => fetch(`http://127.0.0.1:${port}${path}`, { redirect:
   .then(async (res) => ({
     status: res.status,
     type: res.headers.get('content-type') || '',
+    headers: res.headers,
     body: await res.text(),
   }));
 
@@ -199,7 +200,22 @@ async function smoke() {
       log('GET /definitely-not-a-real-path-xyz -> 200 with the index body (SPA fallback confirmed: status alone proves nothing)');
     }
 
-    // 4. The kill route is a service-worker navigation route, not a server route: over plain
+    // 4. Framing policy (bead qrcode-22b): frame-ancestors is header-only, so the served document
+    //    - not a <meta> tag - has to refuse framing. Asserted on the response, not on the config.
+    for (const header of ['content-security-policy', 'x-frame-options']) {
+      if (!indexPage.headers.get(header)) {
+        fail(`GET / is missing the ${header} header: the document is framable`);
+      }
+    }
+    if (!/frame-ancestors 'none'/.test(indexPage.headers.get('content-security-policy'))) {
+      fail(`GET / Content-Security-Policy has no frame-ancestors 'none' (got '${indexPage.headers.get('content-security-policy')}')`);
+    }
+    if (indexPage.headers.get('x-frame-options') !== 'DENY') {
+      fail(`GET / X-Frame-Options expected DENY, got '${indexPage.headers.get('x-frame-options')}'`);
+    }
+    log("GET / -> frame-ancestors 'none' + X-Frame-Options: DENY (not framable)");
+
+    // 5. The kill route is a service-worker navigation route, not a server route: over plain
     //    HTTP it must serve the app shell (the SW intercepts it only in a browser). Assert the
     //    BODY is the app shell - the old status-only check could not fail.
     const kill = await get(port, '/?kill-sw=true');

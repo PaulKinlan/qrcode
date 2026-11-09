@@ -153,6 +153,31 @@ when a browser strips referrers; it is kept briefly in the offline worker's stor
 restart does not strand an open confirmation page. A link with `confirm=1` but no valid proof
 only shows the confirmation page, so the worst a crafted link can do is ask.
 
+### Framing (clickjacking)
+
+The app document must not be framed by another origin. The result panel carries buttons that act on
+what was just scanned - **Open** navigates to the decoded URL and **Return** sends it to the
+x-callback-url destination - so a framing page can place an overlay over them and turn a user's
+click into a transfer they did not intend. Camera permission alone does not protect against this:
+the attacker only needs one click.
+
+`frame-ancestors` is a response-header directive. A `<meta http-equiv="Content-Security-Policy">`
+is **ignored** for it, so it cannot be set from `app/index.html` - and adding it there would look
+fixed while doing nothing. The policy ships in three places instead:
+
+* `app/_headers` - the static-host form (Netlify and Cloudflare Pages read `_headers`); it is
+  copied into `dist/` by the build.
+* `server.headers` / `preview.headers` in `vite.config.js` - so `npm run dev`, `npm run preview`
+  and every smoke run against them send the headers too.
+* Any other host or reverse proxy - **you have to add them yourself.** The two headers are:
+
+  ```
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  ```
+
+  `X-Frame-Options` is there for engines that do not implement `frame-ancestors`.
+
 ### Development Notes
 
 * The project uses Vite as the build tool (replaced Gulp)

@@ -14,8 +14,9 @@ const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
 // hand-typed list, which silently broke offline install whenever an asset was renamed.
 function generatePrecacheManifest() {
   const MANIFEST_NAME = 'sw-manifest.json';
-  // Never precache the worker itself (the browser owns its update cycle) or the manifest.
-  const EXCLUDED = new Set(['sw.js', MANIFEST_NAME]);
+  // Never precache the worker itself (the browser owns its update cycle), the manifest, or the
+  // static-host header file (a deployment artefact the app never fetches).
+  const EXCLUDED = new Set(['sw.js', MANIFEST_NAME, '_headers']);
 
   return {
     name: 'generate-precache-manifest',
@@ -109,7 +110,8 @@ export const PUBLIC_FILES = [
   'manifest.webapp',
   'robots.txt',
   'scripts/sw-register.js', // served as-is: index.html loads it as a CLASSIC script (bead qrcode-3bc)
-  'webstore-manifest.json'
+  'webstore-manifest.json',
+  '_headers' // framing policy for a static host that reads it (bead qrcode-22b)
 ];
 
 // Plugin to copy additional public files
@@ -158,6 +160,17 @@ function copyPublicFiles() {
     }
   };
 }
+
+// The app document must never be framed (bead qrcode-22b): a framing page can overlay the
+// result panel and clickjack the "Return" (x-callback) and "Open" buttons. frame-ancestors is
+// header-only - a <meta> CSP is ignored for it - so the policy has to come from whatever serves
+// the document. This is the one place the app can state it for the servers it owns (dev and
+// preview); app/_headers carries the same two headers for a static host that reads that file,
+// and README says a different host has to add them itself.
+export const FRAMING_HEADERS = {
+  'Content-Security-Policy': "frame-ancestors 'none'",
+  'X-Frame-Options': 'DENY'
+};
 
 export default defineConfig({
   root: 'app',
@@ -222,10 +235,12 @@ export default defineConfig({
   },
   server: {
     port: 8080,
-    strictPort: false
+    strictPort: false,
+    headers: FRAMING_HEADERS
   },
   preview: {
     port: 8080,
-    strictPort: false
+    strictPort: false,
+    headers: FRAMING_HEADERS
   }
 });

@@ -1,0 +1,8 @@
+# The app document must not be framed (bead qrcode-22b): frame-ancestors is header-only, so a
+# <meta> CSP cannot carry it, and the result panel's "Return" (x-callback) and "Open" buttons are
+# clickjackable once the document can be framed. This file is the static-host form of the policy
+# (Netlify / Cloudflare Pages read `_headers`); any other host must send the same two headers
+# itself - see the "Framing" section in README.md.
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY

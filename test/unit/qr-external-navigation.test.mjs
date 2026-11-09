@@ -22,7 +22,11 @@ function mount() {
   const callback = makeButton();
   callback.querySelector = () => ({innerText: ''});
   const root = {
-    style: {display: 'none'},
+    open: false,
+    listeners: {},
+    addEventListener(type, fn) { this.listeners[type] = fn; },
+    showModal() { this.open = true; },
+    close() { this.open = false; this.listeners.close?.(); },
     querySelector(selector) {
       if (selector === '.wsk-card--heading-text') return heading;
       if (selector === '.QRCodeSuccessDialog-data') return data;
@@ -71,11 +75,11 @@ test('external protocols disclose their scheme and require a second decision bef
       assert.match(prompt, new RegExp(`${url.protocol}`));
       assert.match(prompt, /prefill a recipient or message/);
       assert.equal(window.location, before, 'cancel must not navigate');
-      assert.equal(mounted.root.style.display, 'block', 'cancel preserves the result dialog');
+      assert.equal(mounted.root.open, true, 'cancel preserves the result dialog');
       window.confirm = () => true;
       mounted.navigate.click();
       assert.equal(window.location, url, 'accept navigates to the exact parsed payload');
-      assert.equal(mounted.root.style.display, 'none');
+      assert.equal(mounted.root.open, false);
       window.location = before;
     }
   } finally { mounted.restore(); }
@@ -91,6 +95,6 @@ test('web URLs still open immediately and keep the usual heading', () => {
     window.confirm = () => { throw new Error('web URLs should not prompt'); };
     mounted.navigate.click();
     assert.equal(window.location, url);
-    assert.equal(mounted.root.style.display, 'none');
+    assert.equal(mounted.root.open, false);
   } finally { mounted.restore(); }
 });

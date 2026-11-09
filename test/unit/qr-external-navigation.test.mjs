@@ -91,7 +91,7 @@ test('a missing heading does not lose the scanned content or callback state', ()
     const url = new URL('mailto:person@example.com?body=hello');
     mounted.manager.currentUrl = url;
     assert.doesNotThrow(() => mounted.manager.showDialog(url));
-    assert.equal(mounted.root.style.display, 'block');
+    assert.equal(mounted.root.open, true, 'a missing heading must not prevent showModal');
     assert.equal(mounted.data.innerText, url);
     assert.equal(mounted.manager.callbackController.qrcodeUrl, url,
       'a missing heading must not skip the callback payload update');
@@ -101,7 +101,7 @@ test('a missing heading does not lose the scanned content or callback state', ()
     mounted.navigate.click();
     assert.match(prompt, /email app \(mailto:\)/);
     assert.equal(window.location, before, 'cancel must still block the external handoff');
-    assert.equal(mounted.root.style.display, 'block');
+    assert.equal(mounted.root.open, true, 'cancel must keep the native result dialog open');
   } finally { mounted.restore(); }
 });
 

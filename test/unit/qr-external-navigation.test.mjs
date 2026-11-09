@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {isSafeUrl} from '../../app/scripts/utils/url-utils.js';
 
 // QRCodeManager imports qrclient, whose worker is constructed at module evaluation.
 globalThis.Worker = class {
@@ -121,7 +122,7 @@ test('web URLs still open immediately and keep the usual heading', () => {
   } finally { mounted.restore(); }
 });
 
-test('unknown protocols get an external-app heading even before the safety allowlist permits them', () => {
+test('unknown non-web protocols stay labelled and require consent if ever allowlisted', () => {
   const mounted = mount();
   const logged = console.error;
   try {
@@ -130,9 +131,16 @@ test('unknown protocols get an external-app heading even before the safety allow
     mounted.manager.showDialog(url);
     assert.match(mounted.heading.textContent, /geo: opens external app/);
     const before = window.location;
-    window.confirm = () => { throw new Error('an unsafe protocol must be blocked before consent'); };
+    let prompted = 0;
+    window.confirm = (message) => {
+      prompted++;
+      assert.match(message, /external app \(geo:\)/);
+      return false;
+    };
     console.error = () => {};
     mounted.navigate.click();
-    assert.equal(window.location, before, 'the current allowlist still rejects geo:');
+    assert.equal(window.location, before, 'neither rejection nor a declined prompt may navigate');
+    assert.equal(prompted, Number(isSafeUrl(url)),
+      'if geo: is ever allowlisted, its external-app handoff must ask first');
   } finally { console.error = logged; mounted.restore(); }
 });

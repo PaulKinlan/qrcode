@@ -40,7 +40,8 @@ export class QRCodeCallbackController {
         const preview = characters.length <= 120
           ? show(characters)
           : `Starts ${show(characters.slice(0, 80))}\nEnds ${show(characters.slice(-40))}\n` +
-            `${characters.length - 120} characters in the middle are not shown but will also be sent.`;
+            `The middle is not shown (${characters.length - 120} ` +
+            `character${characters.length - 120 === 1 ? '' : 's'}), but it will also be sent.`;
         if (!window.confirm(`Send scanned content (${characters.length} characters) to ${callbackUrl.origin}?\n\n${preview}`)) return;
         callbackUrl.searchParams.set('qrcode', qrCode);
         location = callbackUrl;

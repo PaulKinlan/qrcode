@@ -122,25 +122,44 @@ test('web URLs still open immediately and keep the usual heading', () => {
   } finally { mounted.restore(); }
 });
 
-test('unknown non-web protocols stay labelled and require consent if ever allowlisted', () => {
+test('unknown non-web protocols show an app heading and require consent only if allowlisted', () => {
   const mounted = mount();
-  const logged = console.error;
+  const loggedError = console.error;
+  const loggedWarn = console.warn;
   try {
+    console.warn = () => {};
     const url = new URL('geo:0,0?q=map');
+    const allowed = isSafeUrl(url);
     mounted.manager.currentUrl = url;
     mounted.manager.showDialog(url);
-    assert.match(mounted.heading.textContent, /geo: opens external app/);
+    if (allowed) assert.match(mounted.heading.textContent, /geo: opens .+/);
+    else assert.equal(mounted.heading.textContent, 'QR Code found', 'refused schemes must not promise an app handoff');
     const before = window.location;
     let prompted = 0;
     window.confirm = (message) => {
       prompted++;
-      assert.match(message, /external app \(geo:\)/);
+      assert.match(message, /\(geo:\)/);
       return false;
     };
     console.error = () => {};
     mounted.navigate.click();
     assert.equal(window.location, before, 'neither rejection nor a declined prompt may navigate');
-    assert.equal(prompted, Number(isSafeUrl(url)),
+    assert.equal(prompted, Number(allowed),
       'if geo: is ever allowlisted, its external-app handoff must ask first');
-  } finally { console.error = logged; mounted.restore(); }
+  } finally { console.error = loggedError; console.warn = loggedWarn; mounted.restore(); }
+});
+
+test('refused URL schemes never promise an external-app handoff', () => {
+  const mounted = mount();
+  const loggedWarn = console.warn;
+  try {
+    console.warn = () => {};
+    for (const value of ['javascript:alert(1)', 'data:text/html,<b>x</b>', 'file:///etc/passwd', 'ftp://example.com/x']) {
+      const url = new URL(value);
+      mounted.manager.currentUrl = url;
+      mounted.manager.showDialog(url);
+      assert.equal(mounted.heading.textContent, 'QR Code found', `${url.protocol} is not allowed`);
+      assert.equal(mounted.root.open, true);
+    }
+  } finally { console.warn = loggedWarn; mounted.restore(); }
 });

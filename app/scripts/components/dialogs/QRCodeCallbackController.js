@@ -25,8 +25,14 @@ export class QRCodeCallbackController {
         if (!this.isWebCallback(this.callbackUrl) || !this.qrcodeUrl) return;
         const callbackUrl = new URL(this.callbackUrl);
         const qrCode = String(this.qrcodeUrl);
-        const preview = JSON.stringify(qrCode.slice(0, 120).replace(/[\u202a-\u202e\u2066-\u2069]/g, ''));
-        if (!window.confirm(`Send scanned content to ${callbackUrl.origin}?\n\n${preview}${qrCode.length > 120 ? '…' : ''}`)) return;
+        const characters = Array.from(qrCode); // Keep surrogate pairs intact at the preview boundary.
+        const show = (part) => JSON.stringify(part.join('')).replace(/[\u202a-\u202e\u2066-\u2069]/g,
+          (char) => `\\u${char.codePointAt(0).toString(16).padStart(4, '0')}`);
+        const preview = characters.length <= 120
+          ? show(characters)
+          : `Starts ${show(characters.slice(0, 80))}\nEnds ${show(characters.slice(-40))}\n` +
+            `${characters.length - 120} characters in the middle are not shown but will also be sent.`;
+        if (!window.confirm(`Send scanned content (${characters.length} characters) to ${callbackUrl.origin}?\n\n${preview}`)) return;
         callbackUrl.searchParams.set('qrcode', qrCode);
         location = callbackUrl;
       });

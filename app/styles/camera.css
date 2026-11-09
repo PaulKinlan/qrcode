@@ -31,7 +31,7 @@
   width: 0.1px;
   height: 0.1px;
   opacity: 0;
-  overflow: hidden;
+  overflow: clip;
   position: absolute;
   z-index: -1;
   visibility: hidden;

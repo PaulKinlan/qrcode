@@ -108,13 +108,31 @@ test('a missing heading does not lose the scanned content or callback state', ()
 test('web URLs still open immediately and keep the usual heading', () => {
   const mounted = mount();
   try {
-    const url = new URL('https://example.com/path');
+    for (const scheme of ['http:', 'https:']) {
+      const url = new URL(`${scheme}//example.com/path`);
+      mounted.manager.currentUrl = url;
+      mounted.manager.showDialog(url);
+      assert.equal(mounted.heading.textContent, 'QR Code found');
+      window.confirm = () => { throw new Error('web URLs should not prompt'); };
+      mounted.navigate.click();
+      assert.equal(window.location, url);
+      assert.equal(mounted.root.open, false);
+    }
+  } finally { mounted.restore(); }
+});
+
+test('unknown protocols get an external-app heading even before the safety allowlist permits them', () => {
+  const mounted = mount();
+  const logged = console.error;
+  try {
+    const url = new URL('geo:0,0?q=map');
     mounted.manager.currentUrl = url;
     mounted.manager.showDialog(url);
-    assert.equal(mounted.heading.textContent, 'QR Code found');
-    window.confirm = () => { throw new Error('web URLs should not prompt'); };
+    assert.match(mounted.heading.textContent, /geo: opens external app/);
+    const before = window.location;
+    window.confirm = () => { throw new Error('an unsafe protocol must be blocked before consent'); };
+    console.error = () => {};
     mounted.navigate.click();
-    assert.equal(window.location, url);
-    assert.equal(mounted.root.open, false);
-  } finally { mounted.restore(); }
+    assert.equal(window.location, before, 'the current allowlist still rejects geo:');
+  } finally { console.error = logged; mounted.restore(); }
 });

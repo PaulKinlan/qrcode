@@ -5,7 +5,6 @@
 export class CameraFallbackManager {
   constructor(element) {
     this.element = element;
-    this.uploadForm = element.querySelector('.CameraFallback-form');
     this.inputElement = element.querySelector('.CameraFallback-input');
     this.image = new Image();
 
@@ -13,12 +12,6 @@ export class CameraFallbackManager {
   }
 
   setupEventListeners() {
-    // Prevent form submission
-    this.uploadForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      return false;
-    });
-
     // Handle image file selection
     this.inputElement.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) {

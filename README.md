@@ -129,10 +129,11 @@ the worker.
 
 `confirm=1` on its own is not consent: it is a public URL token, so a crafted link to
 `/?kill-sw=true&confirm=1` would otherwise wipe the offline copy with no page shown and no click.
-The destructive navigation is therefore also required to come from the confirmation page itself —
-its referrer must be this origin's `/?kill-sw=true` page, which is what the page's own form
-submission carries. Any other navigation, including one with no referrer, is answered with the
-confirmation page instead, so the worst a crafted link can do is ask.
+The destructive navigation therefore also needs proof from the confirmation page: either its
+same-origin referrer or the page's random, single-use form token. The token lets confirmation work
+when a browser strips referrers; it is kept briefly in the offline worker's storage so a worker
+restart does not strand an open confirmation page. A link with `confirm=1` but no valid proof
+only shows the confirmation page, so the worst a crafted link can do is ask.
 
 ### Development Notes
 

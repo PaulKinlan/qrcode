@@ -8,6 +8,61 @@ import {router} from  './scripts/sw/router.js';
 const VERSION = __APP_VERSION__;
 const CACHE_PREFIX = 'qr-precache-';
 const PRECACHE_CACHE = `${CACHE_PREFIX}${VERSION}`;
+// Consent survives a worker restart while an offline confirmation page is open. The same
+// version prefix lets the existing kill/activation cleanup remove this cache with the precache.
+const CONSENT_CACHE = `${PRECACHE_CACHE}-consent`;
+const CONSENT_URL = `${self.location.origin}/__kill-sw-consent`;
+const CONSENT_TTL_MS = 10 * 60 * 1000;
+const CONSENT_MAX = 4;
+let consentQueue = Promise.resolve();
+
+// Serialize read-modify-write operations so concurrent asks/submissions cannot lose a token.
+const withConsentStore = (operation) => {
+  const result = consentQueue.then(operation);
+  consentQueue = result.catch(() => {});
+  return result;
+};
+
+const readConsent = async (cache) => {
+  try {
+    const response = await cache.match(CONSENT_URL);
+    const tokens = response ? await response.json() : [];
+    return Array.isArray(tokens) ? tokens : [];
+  } catch {
+    return []; // Corrupt or evicted storage must never grant consent.
+  }
+};
+
+const writeConsent = (cache, tokens) => cache.put(CONSENT_URL,
+  new Response(JSON.stringify(tokens), {headers: {'Content-Type': 'application/json'}}));
+
+const mintConsent = () => withConsentStore(async () => {
+  const cache = await caches.open(CONSENT_CACHE);
+  const now = Date.now();
+  const tokens = (await readConsent(cache))
+    .filter((entry) => entry && typeof entry.token === 'string' && entry.expires > now)
+    .slice(-(CONSENT_MAX - 1));
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(16)),
+    (byte) => byte.toString(16).padStart(2, '0')).join('');
+  tokens.push({token, expires: now + CONSENT_TTL_MS});
+  await writeConsent(cache, tokens);
+  return token;
+});
+
+const consumeConsent = (candidate) => {
+  if (typeof candidate !== 'string' || !/^[0-9a-f]{32}$/.test(candidate)) return Promise.resolve(false);
+  return withConsentStore(async () => {
+    const cache = await caches.open(CONSENT_CACHE);
+    const now = Date.now();
+    const tokens = (await readConsent(cache))
+      .filter((entry) => entry && typeof entry.token === 'string' && entry.expires > now);
+    const index = tokens.findIndex((entry) => entry.token === candidate);
+    if (index < 0) return false;
+    tokens.splice(index, 1);
+    await writeConsent(cache, tokens); // Burn before any destructive work; replay must only ask.
+    return true;
+  });
+};
 
 /*
   The precache list is generated at build time by walking dist/ (vite.config.js,
@@ -51,10 +106,8 @@ const killPageHeaders = {
   // needs is inline CSS and one same-origin form submission.
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; " +
     "form-action 'self'; frame-ancestors 'none'",
-  // 'same-origin', not 'no-referrer': the confirmation is only honoured when the destructive
-  // navigation comes FROM this page (see isOwnConfirmationPage below), so the form submission has
-  // to carry this page's own URL as its referrer. Nothing leaves the origin either way (bead
-  // qrcode-8vv).
+  // Same-origin Referer remains one consent proof; a persisted single-use form token is the
+  // fallback when privacy settings suppress it (beads qrcode-8vv, qrcode-3bd).
   'Referrer-Policy': 'same-origin',
   'X-Content-Type-Options': 'nosniff',
   'Cache-Control': 'no-store'
@@ -108,10 +161,10 @@ ${body}
   `confirm=1` alone is not enough to prove consent, because it is a public URL token: a crafted
   link to `/?kill-sw=true&confirm=1` would otherwise wipe the offline copy with no page and no
   click at all (review finding qrcode-8vv). The destructive navigation must therefore come FROM the
-  confirmation page - its referrer has to be this origin's root kill-sw page, which is exactly what
-  the page's own form submission carries. Anything else (no referrer, another site, a same-origin
-  page that is not the ask page) is answered with the confirmation page instead: it fails safe,
-  and nothing is destroyed without a real click on the button.
+  confirmation page. Its same-origin referrer is one proof; browsers that strip Referer use a
+  worker-minted, single-use consent token stored until the form is submitted, even if the worker
+  restarts. A public or forged URL without either proof only shows the ask page. The token is never
+  a static/documented URL parameter; used tokens are burned before destructive work.
 */
 const isOwnConfirmationPage = (referrer) => {
   if (typeof referrer !== 'string' || referrer === '') return false;
@@ -127,27 +180,34 @@ const isOwnConfirmationPage = (referrer) => {
   }
 };
 
-const askPage = () => killPage('Turn off offline mode?', 'Turn off offline mode?',
-  '<p>This link asks the app to remove its offline copy: the service worker is unregistered ' +
-  'and the cached files are deleted. Scanning still works, but the app will need a network ' +
-  'connection until you open it online again.</p>' +
-  '<form method="get" action="/">' +
-  '<input type="hidden" name="kill-sw" value="true">' +
-  '<input type="hidden" name="confirm" value="1">' +
-  '<button type="submit">Turn off offline mode</button>' +
-  '</form>' +
-  '<p><a href="/">Keep offline mode</a></p>');
+const askPage = async () => {
+  // Storage can be disabled; keep the old Referer-only path usable rather than failing the page.
+  const token = await mintConsent().catch(() => null);
+  return killPage('Turn off offline mode?', 'Turn off offline mode?',
+    '<p>This link asks the app to remove its offline copy: the service worker is unregistered ' +
+    'and the cached files are deleted. Scanning still works, but the app will need a network ' +
+    'connection until you open it online again.</p>' +
+    '<form method="get" action="/">' +
+    '<input type="hidden" name="kill-sw" value="true">' +
+    '<input type="hidden" name="confirm" value="1">' +
+    (token ? `<input type="hidden" name="consent" value="${token}">` : '') +
+    '<button type="submit">Turn off offline mode</button>' +
+    '</form>' +
+    '<p><a href="/">Keep offline mode</a></p>');
+};
 
 router.get('/', function(event) {
   const url = new URL(event.request.url);
   const confirmed = url.searchParams.get('confirm') === '1';
 
-  if (!confirmed || !isOwnConfirmationPage(event.request.referrer)) {
-    event.respondWith(askPage());
-    return;
-  }
-
   event.respondWith((async () => {
+    // A public confirm=1 URL is never consent. The form's unguessable, single-use token is
+    // a fallback when Referer is stripped; an existing valid Referer still works unchanged.
+    const fromAskPage = isOwnConfirmationPage(event.request.referrer);
+    const tokenValid = confirmed && !fromAskPage && await consumeConsent(url.searchParams.get('consent'))
+      .catch(() => false);
+    if (!confirmed || (!fromAskPage && !tokenValid)) return askPage();
+
     try {
       await self.registration.unregister();
       const keys = await caches.keys();

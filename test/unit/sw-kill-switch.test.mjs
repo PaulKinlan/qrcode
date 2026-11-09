@@ -8,7 +8,7 @@
 // page, so a single navigable link - shared, shortened, bookmarked, or on another site - must not
 // run the cleanup: the route now asks first and only acts on the confirm form's `confirm=1`
 // (bead qrcode-78c). These tests pin both halves: nothing is destroyed without the confirm token,
-// and the confirm token the page actually submits does run the cleanup.
+// and a confirmed submission with the page's referrer OR one-use consent token runs cleanup.
 //
 // app/sw.js registers its route table at import time, so `self` (and the cache/registration
 // stubs) are defined before the dynamic import. node runs each test file in its own process.
@@ -28,7 +28,9 @@ const state = {
   failWith: null,
 };
 
+const consentCaches = new Map();
 const resetState = () => {
+  consentCaches.clear();
   state.unregistered = 0;
   state.deleted = [];
   state.cacheMatches = 0;
@@ -47,9 +49,17 @@ globalThis.self = {
   addEventListener(type, handler) { listeners.set(type, handler); },
 };
 globalThis.caches = {
-  async keys() { return ['qr-precache-old', 'qr-precache-9.9.9-test', 'unrelated-app']; },
-  async delete(key) { state.deleted.push(key); return true; },
+  async keys() { return ['qr-precache-old', 'qr-precache-9.9.9-test', 'unrelated-app', ...consentCaches.keys()]; },
+  async delete(key) { state.deleted.push(key); consentCaches.delete(key); return true; },
   async match() { state.cacheMatches++; return new Response('cached'); },
+  async open(name) {
+    if (!consentCaches.has(name)) consentCaches.set(name, new Map());
+    const entries = consentCaches.get(name);
+    return {
+      async match(key) { return entries.get(key)?.clone(); },
+      async put(key, value) { entries.set(key, value.clone()); },
+    };
+  },
 };
 
 await import('../../app/sw.js');
@@ -109,8 +119,7 @@ test('the confirmation page asks with a script-free same-origin GET form, and su
   assert.match(policy, /default-src 'none'/);
   assert.match(policy, /form-action 'self'/, 'the confirm form must be allowed to submit to this origin');
   assert.equal(headers.get('cache-control'), 'no-store');
-  // The consent is bound to this page: the form submission must carry it as its referrer, so the
-  // page may not forbid referrers (bead qrcode-8vv).
+  // The old referrer proof remains valid; privacy settings that strip it use the form token.
   assert.equal(headers.get('referrer-policy'), 'same-origin');
 
   // The form the page renders must be the URL the route treats as confirmed. Deriving the
@@ -119,7 +128,10 @@ test('the confirmation page asks with a script-free same-origin GET form, and su
   assert.ok(form, 'the page must offer a form to submit');
   const pairs = [...form[2].matchAll(/<input type="hidden" name="([^"]+)" value="([^"]+)">/gi)]
     .map(([, name, value]) => [name, value]);
-  assert.deepEqual(pairs.sort(), [['confirm', '1'], ['kill-sw', 'true']]);
+  assert.equal(pairs.length, 3, 'confirmation form also carries a one-use consent token');
+  const token = pairs.find(([name]) => name === 'consent')?.[1];
+  assert.match(token, /^[0-9a-f]{32}$/);
+  assert.deepEqual(pairs.filter(([name]) => name !== 'consent').sort(), [['confirm', '1'], ['kill-sw', 'true']]);
   assert.match(html, /href="\/"[^>]*>Keep offline mode/, 'cancelling must go back to the app');
 
   const submission = new URL(form[1], origin);
@@ -134,8 +146,69 @@ test('the confirmation page asks with a script-free same-origin GET form, and su
   assert.equal(done.status, 200);
   assert.match(await done.text(), /Offline mode is off/);
   assert.equal(state.unregistered, 1);
-  assert.deepEqual(state.deleted, ['qr-precache-old', 'qr-precache-9.9.9-test'],
-    'only this app\'s precaches may be deleted');
+  assert.deepEqual(state.deleted, ['qr-precache-old', 'qr-precache-9.9.9-test', 'qr-precache-9.9.9-test-consent'],
+    'only this app\'s precaches and its consent cache may be deleted');
+});
+
+test('empty-Referer form submission completes with its single-use consent token', async () => {
+  resetState();
+  const ask = await (await dispatch(CONFIRMATION_PAGE).response).text();
+  const token = ask.match(/name="consent" value="([0-9a-f]{32})"/)?.[1];
+  assert.ok(token, 'the ask page must mint a token that survives until submission');
+  const confirmed = dispatch(`${CONFIRMATION_PAGE}&confirm=1&consent=${token}`, 'navigate', '');
+  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
+  assert.match(await (await confirmed.response).text(), /Offline mode is off/);
+  assert.equal(state.unregistered, 1);
+  assert.deepEqual(state.deleted, ['qr-precache-old', 'qr-precache-9.9.9-test',
+    'qr-precache-9.9.9-test-consent']);
+
+  const replay = dispatch(`${CONFIRMATION_PAGE}&confirm=1&consent=${token}`, 'navigate', '');
+  assert.match(await (await replay.response).text(), /Turn off offline mode\?/,
+    'consumed token must not remove the offline copy a second time');
+  assert.equal(state.unregistered, 1);
+});
+
+test('consent tokens survive in CacheStorage and are scoped to a short lifetime', async () => {
+  resetState();
+  const originalNow = Date.now;
+  let now = originalNow();
+  Date.now = () => now;
+  try {
+    const first = (await (await dispatch(CONFIRMATION_PAGE).response).text())
+      .match(/name="consent" value="([0-9a-f]{32})"/)?.[1];
+    const second = (await (await dispatch(CONFIRMATION_PAGE).response).text())
+      .match(/name="consent" value="([0-9a-f]{32})"/)?.[1];
+    assert.ok(first && second && first !== second, 'each ask page needs its own random token');
+    const stored = consentCaches.get('qr-precache-9.9.9-test-consent');
+    assert.ok(stored?.size, 'tokens must persist in CacheStorage across worker restarts');
+    now += 11 * 60 * 1000;
+    const expired = dispatch(`${CONFIRMATION_PAGE}&confirm=1&consent=${first}`, 'navigate', '');
+    assert.match(await (await expired.response).text(), /Turn off offline mode\?/);
+    assert.equal(state.unregistered, 0, 'an expired token cannot trigger cleanup');
+  } finally { Date.now = originalNow; }
+});
+
+test('forged or absent tokens without a valid Referer cannot remove the offline copy', async () => {
+  resetState();
+  for (const suffix of ['&confirm=1', '&confirm=1&consent=deadbeef',
+    '&confirm=1&consent=00000000000000000000000000000000']) {
+    const event = dispatch(`${CONFIRMATION_PAGE}${suffix}`, 'navigate', '');
+    assert.match(await (await event.response).text(), /Turn off offline mode\?/);
+  }
+  assert.equal(state.unregistered, 0);
+  assert.deepEqual(state.deleted, []);
+});
+
+test('multiple open confirmation pages keep their own valid token', async () => {
+  resetState();
+  const first = (await (await dispatch(CONFIRMATION_PAGE).response).text())
+    .match(/name="consent" value="([0-9a-f]{32})"/)?.[1];
+  await (await dispatch(CONFIRMATION_PAGE).response).text();
+  const confirmed = dispatch(`${CONFIRMATION_PAGE}&confirm=1&consent=${first}`, 'navigate', '');
+  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
+  assert.match(await (await confirmed.response).text(), /Offline mode is off/);
 });
 
 test('the confirmed kill switch cleans up before answering, and only for this app\'s caches', async () => {
@@ -165,10 +238,10 @@ test('only the literal confirm=1 arm the destructive step', async () => {
   assert.deepEqual(state.deleted, []);
 });
 
-test('the confirm token alone is not consent: the navigation must come from the confirmation page', async () => {
+test('the public confirm token alone is not consent: unproven navigations only ask', async () => {
   // qrcode-8vv: ?kill-sw=true&confirm=1 is a public URL token, so a crafted link or cross-origin
-  // form would otherwise wipe the offline copy with no page and no click. Only the confirmation
-  // page's own form submission, which carries that page as its referrer, may destroy anything.
+  // form would otherwise wipe the offline copy with no page and no click. A valid referrer or
+  // one-use token from the confirmation page must also be present.
   resetState();
   const notFromThePage = [
     ['no referrer at all', ''],

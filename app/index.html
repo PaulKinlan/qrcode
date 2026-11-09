@@ -79,9 +79,9 @@
         <div id="camera-fallback" class="CameraFallback hidden">
           <form method="post" action="/scan-image" class="CameraFallback-form">
             <input type="file" accept="image/*" capture="camera" id="qrcode-input" name="qrcode"
-              class="CameraFallback-input">
-            <label for="qrcode-input"><img src="/images/ic_file_upload_24px.svg" width="24" height="24"></label>
-            <img class="CameraFallback-image">
+              class="CameraFallback-input" aria-label="Upload a QR code image">
+            <label for="qrcode-input"><img src="/images/ic_file_upload_24px.svg" alt="" width="24" height="24"></label>
+            <img class="CameraFallback-image" alt="">
           </form>
         </div>
       </div>

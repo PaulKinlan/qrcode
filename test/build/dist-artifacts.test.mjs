@@ -89,13 +89,24 @@ test('both pages ship a CSP that allows their own WebAssembly', () => {
     assert.match(policy, /script-src[^;]*'self'/, `${page} CSP should still restrict scripts to 'self'`);
     // Baseline policy protects non-script fetches and injection surfaces too. Keep the
     // upload preview's blob: images and the app's own data: images, not data: scripts.
-    // form-action does not inherit default-src, so it must be pinned in its own right
-    // (bead qrcode-4b9): the no-JS fallback form POSTs to same-origin /scan-image.
+    // form-action does not inherit default-src, so keep it pinned for future/injected forms
+    // (beads qrcode-4b9, qrcode-9kf); the upload picker itself has no form or POST route.
     for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "img-src 'self' data: blob:", "connect-src 'self'"]) {
       assert.ok(policy.split(';').map((part) => part.trim()).includes(directive), `${page} CSP should contain ${directive}`);
     }
     const scriptSrc = policy.match(/(?:^|;)\s*script-src\s+([^;]*)/)?.[1] ?? '';
     assert.doesNotMatch(scriptSrc, /(?:^|\s)data:(?:\s|$)/, `${page} CSP must not allow data: scripts`);
+  }
+});
+
+test('the shipped image picker cannot submit a selected image when scripts fail', () => {
+  for (const page of ['index.html', 'about.html']) {
+    const html = readFileSync(join(dist, page), 'utf8');
+    assert.match(html, /<input\b[^>]*\bid="qrcode-input"/, `${page} still has the local image picker`);
+    assert.match(html, /<noscript>[^]*?JavaScript is required to scan QR codes\.[^]*?<\/noscript>/,
+      `${page} explains why scanning is unavailable without JavaScript`);
+    assert.doesNotMatch(html, /<form\b/i, `${page} must not ship a submit-capable image-upload form`);
+    assert.doesNotMatch(html, /scan-image/, `${page} must not offer a server upload action`);
   }
 });
 

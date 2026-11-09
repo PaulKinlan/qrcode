@@ -18,8 +18,8 @@
        test/build/dist-artifacts.test.mjs fails the build if an inline <script> comes back.
 
        form-action 'self' is explicit because form-action does NOT fall back to default-src
-       (unlike most fetch directives): without it the no-JS camera fallback's <form> - and any
-       form ever injected or added - could submit to any origin (bead qrcode-4b9). -->
+       (unlike most fetch directives): it constrains any future or injected form to this origin
+       even though the image picker no longer uses a form (beads qrcode-4b9, qrcode-9kf). -->
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; form-action 'self'; img-src 'self' data: blob:; connect-src 'self'">
   <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
@@ -76,13 +76,14 @@
         </div>
         <div class="Camera-overlay"></div>
         <p id="camera-error" role="alert" hidden>Scanning failed. Please try again.</p>
+        <noscript><p>JavaScript is required to scan QR codes. Images are processed on your device.</p></noscript>
         <div id="camera-fallback" class="CameraFallback hidden">
-          <form method="post" action="/scan-image" class="CameraFallback-form">
-            <input type="file" accept="image/*" capture="camera" id="qrcode-input" name="qrcode"
+          <div class="CameraFallback-form">
+            <input type="file" accept="image/*" capture="camera" id="qrcode-input"
               class="CameraFallback-input" aria-label="Upload a QR code image">
             <label for="qrcode-input"><img src="/images/ic_file_upload_24px.svg" alt="" width="24" height="24"></label>
             <img class="CameraFallback-image" alt="">
-          </form>
+          </div>
         </div>
       </div>
       <div id="qrcode" class="wsk-card wsk-shadow--z3 QRCodeSuccessDialog">

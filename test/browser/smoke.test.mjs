@@ -540,6 +540,8 @@ test(
         })()
       `);
 
+      assert.equal(await cdp.eval('document.querySelector("#qrcode").scrollTop'), 0,
+        'autofocus must not scroll the result heading out of view');
       assert.ok(domState.dialogVisible, 'Expected #qrcode dialog to be visible in DOM');
       assert.equal(domState.dialogOpen, true, 'result must open as a native dialog');
       assert.equal(domState.dialogModal, true, 'result must be in the modal top layer');

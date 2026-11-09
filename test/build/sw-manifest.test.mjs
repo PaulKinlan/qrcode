@@ -10,6 +10,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { PRECACHE_EXCLUDED, PRECACHE_MANIFEST_NAME } from '../../vite.config.js';
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const dist = join(root, 'dist');
 const manifestPath = join(dist, 'sw-manifest.json');
@@ -33,8 +35,11 @@ function walkDist(dir = dist, prefix = '') {
 
 test('the precache manifest is derived from dist/, with nothing hand-maintained', () => {
   const manifest = readManifest();
+  // The exclusion set is the build's own (exported from vite.config.js), so this test can never
+  // disagree with the plugin about which artefacts are precacheable (bead qrcode-22b: app/_headers
+  // ships in dist/ but must not be precached).
   const expected = walkDist().filter(
-    (file) => file !== 'sw.js' && file !== 'sw-manifest.json' && !file.endsWith('.map')
+    (file) => !PRECACHE_EXCLUDED.has(file) && !file.endsWith('.map')
   );
 
   assert.deepEqual(
@@ -54,7 +59,8 @@ test('the precache manifest carries the package.json version and is not self-ref
   assert.equal(manifest.version, pkg.version, 'the cache version must come from package.json');
   // Precaching the worker would freeze its own update cycle; the manifest is generated beside it.
   assert.ok(!manifest.files.includes('sw.js'), 'sw.js must never be precached');
-  assert.ok(!manifest.files.includes('sw-manifest.json'), 'the manifest must not list itself');
+  assert.ok(!manifest.files.includes(PRECACHE_MANIFEST_NAME), 'the manifest must not list itself');
+  assert.ok(!manifest.files.includes('_headers'), 'the static-host header file must never be precached');
   // The app entry and the decoder worker are what offline scanning actually needs.
   assert.ok(manifest.files.includes('index.html'));
   assert.ok(manifest.files.includes('scripts/main.js'));

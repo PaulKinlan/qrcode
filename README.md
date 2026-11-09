@@ -10,7 +10,25 @@ QR Snapper offers a seamless QR code scanning experience directly in your browse
 
 * **Real-time QR Code Scanning:** Instantly decode QR codes using your device's camera.
 * **Cross-Platform Compatibility:** Tested and optimized for major browsers (Chrome, Firefox, Safari) and mobile devices.
-* **x-callback-url support:** Allows other applications to receive decoded QR code data after you confirm the callback destination and scanned content. Callback destinations must use HTTP(S).
+* **x-callback-url support:** Allows other applications to receive decoded QR code data after you confirm the callback destination and scanned content. Callback destinations must be HTTPS, or plain HTTP when the target is on this machine (see below).
+
+### x-callback-url
+
+Open the app with a `x-callback-url` query parameter naming the URL that should receive the scan:
+
+```
+https://qr-snapper.example/?x-callback-url=https%3A%2F%2Fexample.com%2Freturn
+```
+
+After a code is scanned the app shows a **Return** button naming the callback destination. It does not
+send anything until you confirm, and the confirmation shows what will be sent (the whole value, or its
+start and end plus the count of characters omitted from the preview for long values). On confirm the
+scanned value is added as `?qrcode=...` and the browser navigates to the callback URL.
+
+The destination must be `https:`. A plaintext `http:` destination is rejected, because the scanned
+payload would travel in the clear and be readable by anything on the path. The one exception is a
+destination on this machine - `http://localhost`, `http://127.0.0.1`, `http://[::1]` - where the
+request never leaves the device; that keeps local development and desktop-app round trips working.
 
 ## Build Instructions
 
@@ -134,6 +152,31 @@ same-origin referrer or the page's random, single-use form token. The token lets
 when a browser strips referrers; it is kept briefly in the offline worker's storage so a worker
 restart does not strand an open confirmation page. A link with `confirm=1` but no valid proof
 only shows the confirmation page, so the worst a crafted link can do is ask.
+
+### Framing (clickjacking)
+
+The app document must not be framed by another origin. The result panel carries buttons that act on
+what was just scanned - **Open** navigates to the decoded URL and **Return** sends it to the
+x-callback-url destination - so a framing page can place an overlay over them and turn a user's
+click into a transfer they did not intend. Camera permission alone does not protect against this:
+the attacker only needs one click.
+
+`frame-ancestors` is a response-header directive. A `<meta http-equiv="Content-Security-Policy">`
+is **ignored** for it, so it cannot be set from `app/index.html` - and adding it there would look
+fixed while doing nothing. The policy ships in three places instead:
+
+* `app/_headers` - the static-host form (Netlify and Cloudflare Pages read `_headers`); it is
+  copied into `dist/` by the build.
+* `server.headers` / `preview.headers` in `vite.config.js` - so `npm run dev`, `npm run preview`
+  and every smoke run against them send the headers too.
+* Any other host or reverse proxy - **you have to add them yourself.** The two headers are:
+
+  ```
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  ```
+
+  `X-Frame-Options` is there for engines that do not implement `frame-ancestors`.
 
 ### Development Notes
 

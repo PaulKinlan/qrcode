@@ -12,11 +12,18 @@ const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
 // (bead qrcode-gro): the list is walked out of dist/ after the bundle is written, and the
 // version is injected from package.json below. app/scripts/sw/fileManifest.js used to hold a
 // hand-typed list, which silently broke offline install whenever an asset was renamed.
-function generatePrecacheManifest() {
-  const MANIFEST_NAME = 'sw-manifest.json';
-  // Never precache the worker itself (the browser owns its update cycle) or the manifest.
-  const EXCLUDED = new Set(['sw.js', MANIFEST_NAME]);
+//
+// Exported because test/build/sw-manifest.test.mjs re-walks dist/ and compares it with the
+// manifest: the walk and the plugin must exclude the same files, or the test reads a difference
+// as "the list is not the build output" (bead qrcode-22b hit exactly that when app/_headers
+// started shipping) - one source of truth, not two exclusion lists to keep in step.
+export const PRECACHE_MANIFEST_NAME = 'sw-manifest.json';
 
+// Never precache the worker itself (the browser owns its update cycle), the manifest, or the
+// static-host header file (`_headers` is a deployment artefact the app never fetches).
+export const PRECACHE_EXCLUDED = new Set(['sw.js', PRECACHE_MANIFEST_NAME, '_headers']);
+
+function generatePrecacheManifest() {
   return {
     name: 'generate-precache-manifest',
     apply: 'build',
@@ -36,14 +43,14 @@ function generatePrecacheManifest() {
       walk(distDir, '');
       files.sort();
 
-      const precache = files.filter((file) => !EXCLUDED.has(file) && !file.endsWith('.map'));
+      const precache = files.filter((file) => !PRECACHE_EXCLUDED.has(file) && !file.endsWith('.map'));
       if (precache.length === 0) {
         // An empty manifest installs a worker that caches nothing: fail the build, loudly.
         throw new Error('precache manifest: dist/ produced no files to precache');
       }
 
       writeFileSync(
-        join(distDir, MANIFEST_NAME),
+        join(distDir, PRECACHE_MANIFEST_NAME),
         `${JSON.stringify({ version: pkg.version, files: precache }, null, 2)}\n`
       );
       console.log(`precache manifest: ${precache.length} files for v${pkg.version}`);
@@ -109,7 +116,8 @@ export const PUBLIC_FILES = [
   'manifest.webapp',
   'robots.txt',
   'scripts/sw-register.js', // served as-is: index.html loads it as a CLASSIC script (bead qrcode-3bc)
-  'webstore-manifest.json'
+  'webstore-manifest.json',
+  '_headers' // framing policy for a static host that reads it (bead qrcode-22b)
 ];
 
 // Plugin to copy additional public files
@@ -158,6 +166,17 @@ function copyPublicFiles() {
     }
   };
 }
+
+// The app document must never be framed (bead qrcode-22b): a framing page can overlay the
+// result panel and clickjack the "Return" (x-callback) and "Open" buttons. frame-ancestors is
+// header-only - a <meta> CSP is ignored for it - so the policy has to come from whatever serves
+// the document. This is the one place the app can state it for the servers it owns (dev and
+// preview); app/_headers carries the same two headers for a static host that reads that file,
+// and README says a different host has to add them itself.
+export const FRAMING_HEADERS = {
+  'Content-Security-Policy': "frame-ancestors 'none'",
+  'X-Frame-Options': 'DENY'
+};
 
 export default defineConfig({
   root: 'app',
@@ -222,10 +241,12 @@ export default defineConfig({
   },
   server: {
     port: 8080,
-    strictPort: false
+    strictPort: false,
+    headers: FRAMING_HEADERS
   },
   preview: {
     port: 8080,
-    strictPort: false
+    strictPort: false,
+    headers: FRAMING_HEADERS
   }
 });

@@ -4,6 +4,15 @@
  */
 import { isSafeUrl } from '../../utils/url-utils.js';
 
+// A plaintext http: callback is only tolerated for a target on this machine, where the request
+// never leaves the device. The scanned payload is the user's data and must not go out in clear.
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '[::1]']);
+
+function isLoopbackHost(hostname) {
+  // 127.0.0.0/8 is loopback (RFC 1122); WHATWG URL keeps IPv6 brackets in hostname.
+  return LOOPBACK_HOSTNAMES.has(hostname) || /^127(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
 export class QRCodeCallbackController {
   constructor(element) {
     this.element = element;
@@ -51,7 +60,9 @@ export class QRCodeCallbackController {
   }
 
   isWebCallback(url) {
-    return isSafeUrl(url) && (url.protocol === 'https:' || url.protocol === 'http:');
+    if (!isSafeUrl(url)) return false;
+    if (url.protocol === 'https:') return true;
+    return url.protocol === 'http:' && isLoopbackHost(url.hostname);
   }
 
   /**

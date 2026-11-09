@@ -53,6 +53,16 @@ export class QRCodeManager {
 
     // Share button
     this.qrcodeShare?.addEventListener('click', async () => {
+      // Same protocol gate as Open (bead qrcode-4ow). The share sheet is another sink for the
+      // scanned payload: handing it a javascript:/data:/file: value the app itself refuses to
+      // navigate to is an inconsistency, not a policy, and the user picking the target
+      // application does not make the value safe.
+      if (!isSafeUrl(this.currentUrl)) {
+        console.error('Unsafe URL detected, share blocked');
+        this.closeDialog();
+        return;
+      }
+
       if (navigator.share) {
         try {
           await navigator.share({
@@ -73,6 +83,14 @@ export class QRCodeManager {
 
     // Copy button
     this.qrcodeCopy?.addEventListener('click', async () => {
+      // Gated for the same reason as Share (bead qrcode-4ow): the clipboard is a sink, and a
+      // refused scheme must not leave the app by another route.
+      if (!isSafeUrl(this.currentUrl)) {
+        console.error('Unsafe URL detected, copy blocked');
+        this.closeDialog();
+        return;
+      }
+
       if (navigator.clipboard && navigator.clipboard.writeText) {
         try {
           await navigator.clipboard.writeText(this.currentUrl);

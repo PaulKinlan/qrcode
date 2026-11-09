@@ -102,7 +102,8 @@ p {
   font-weight: 400;
   line-height: 24px;
   letter-spacing: 0.04em;
-  margin: 0 0 16px 0; }
+  margin: 0 0 16px 0;
+  text-wrap: pretty; }
 
 a {
   font-weight: bold; }

@@ -16,7 +16,9 @@ export function createNativeDetector(detectorInstance, fallback) {
       useNative = false;
       return fallback(width, height, imageData);
     }
-    // A native miss is only authoritative for this decoder, not for ZBar.
-    return barcodes[0]?.rawValue ?? fallback(width, height, imageData);
+    // The constructor requests QR only, but do not trust a decoder returning another format.
+    // A native QR miss is only authoritative for this decoder, not for ZBar.
+    return barcodes.find((barcode) => barcode?.format === 'qr_code')?.rawValue
+      ?? fallback(width, height, imageData);
   };
 }

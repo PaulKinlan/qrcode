@@ -2,6 +2,12 @@ import { decode } from '../../qrclient.js';
 import { QRCodeCallbackController } from './QRCodeCallbackController.js';
 import { isSafeUrl, normalizeUrl } from '../../utils/url-utils.js';
 
+const EXTERNAL_APPS = {
+  'mailto:': 'email app',
+  'tel:': 'phone app',
+  'sms:': 'messaging app',
+};
+
 /**
  * QRCodeManager - Manages the QR code success dialog and actions
  */
@@ -81,6 +87,13 @@ export class QRCodeManager {
         return;
       }
 
+      const protocol = this.currentUrl.protocol;
+      const externalApp = EXTERNAL_APPS[protocol];
+      if (externalApp && !window.confirm(
+        `Open your ${externalApp} (${protocol}) with this QR content?\n\n` +
+        'It may prefill a recipient or message. Check the scanned content before continuing.'
+      )) return;
+
       window.location = this.currentUrl;
       this.closeDialog();
     });
@@ -122,6 +135,10 @@ export class QRCodeManager {
   showDialog(normalizedUrl) {
     this.root.style.display = 'block';
     this.qrcodeData.innerText = normalizedUrl;
+    const externalApp = EXTERNAL_APPS[normalizedUrl.protocol];
+    this.root.querySelector('.wsk-card--heading-text').textContent = externalApp
+      ? `QR Code found · ${normalizedUrl.protocol} opens ${externalApp}`
+      : 'QR Code found';
     this.callbackController.setQrCode(normalizedUrl);
   }
 

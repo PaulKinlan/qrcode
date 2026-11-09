@@ -140,9 +140,12 @@ export class QRCodeManager {
   showDialog(normalizedUrl) {
     this.qrcodeData.innerText = normalizedUrl;
     const externalApp = EXTERNAL_APPS[normalizedUrl.protocol];
-    this.root.querySelector('.wsk-card--heading-text').textContent = externalApp
-      ? `QR Code found · ${normalizedUrl.protocol} opens ${externalApp}`
-      : 'QR Code found';
+    const heading = this.root.querySelector('.wsk-card--heading-text');
+    if (heading) {
+      heading.textContent = externalApp
+        ? `QR Code found · ${normalizedUrl.protocol} opens ${externalApp}`
+        : 'QR Code found';
+    }
     this.callbackController.setQrCode(normalizedUrl);
     if (!this.root.open) this.root.showModal();
   }

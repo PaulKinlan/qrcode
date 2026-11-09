@@ -249,8 +249,8 @@ self.addEventListener('activate', function(event) {
   event.waitUntil((async () => {
     // Never take over documents from the release that is being replaced (bead qrcode-kkh).
     //
-    // A window client this registration already controls was loaded from the PRECACHE_CACHE of the
-    // worker we are replacing. Two things would go wrong if we proceeded with one still open:
+    // A window client controlled by the predecessor may have loaded from its PRECACHE_CACHE.
+    // Two things would go wrong if we proceeded with one still open:
     //   1. claiming it hands it to THIS worker, whose fetch route only ever reads PRECACHE_CACHE by
     //      name, so every asset the old document asks for by its old URL is a miss; and
     //   2. deleting the predecessor's cache is what made those misses fatal offline - the old worker
@@ -258,23 +258,27 @@ self.addEventListener('activate', function(event) {
     // Either alone breaks the document, and together they produced a tab running one build's module
     // graph against another build's cache. The predecessor cache and its clients are left alone; the
     // next activation (once those documents are gone) cleans up. install() below no longer calls
-    // skipWaiting(), so the normal path never reaches here with a controlled client - this is the
-    // guard for a browser that force-activates a waiting worker anyway.
-    const controlledClients = await self.clients.matchAll({type: 'window'});
-    if (controlledClients.length > 0) {
-      return;
+    // skipWaiting(), so the normal path never reaches here with a predecessor's client - this is
+    // the guard for a browser that force-activates a waiting worker anyway.
+    // A newly activated worker does not control the predecessor's windows yet: the default
+    // matchAll() filter would omit precisely the clients whose cache must survive. Query all
+    // windows when a predecessor cache exists. On a first install there is no old cache, so
+    // an uncontrolled first-visit window must still be claimed for immediate offline use.
+    const keys = await caches.keys();
+    const stale = keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== PRECACHE_CACHE);
+    if (stale.length > 0) {
+      const windows = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
+      if (windows.length > 0) return;
     }
 
     // A versioned cache name means every release would otherwise leave its predecessor behind.
     // Only OUR caches may be removed: CacheStorage is per origin, and other applications or user
     // storage on the same origin must survive this worker activating (review finding qrcode-kr4 -
     // deleting every key not equal to this release's name was over-broad).
-    const keys = await caches.keys();
-    const stale = keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== PRECACHE_CACHE);
     await Promise.all(stale.map(key => caches.delete(key)));
 
     // Claiming is what makes a FIRST visit offline-capable in its first document: with no controlled
-    // client there is no other build in the picture (see the guard above), so taking over is safe.
+    // predecessor cache in the picture (see the guard above), so taking over is safe.
     await self.clients.claim();
   })());
 });

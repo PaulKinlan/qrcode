@@ -26,7 +26,7 @@ export class QRCodeCallbackController {
         const callbackUrl = new URL(this.callbackUrl);
         const qrCode = String(this.qrcodeUrl);
         const characters = Array.from(qrCode); // Keep surrogate pairs intact at the preview boundary.
-        const show = (part) => JSON.stringify(part.join('')).replace(/[\u202a-\u202e\u2066-\u2069]/g,
+        const show = (part) => JSON.stringify(part.join('')).replace(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,
           (char) => `\\u${char.codePointAt(0).toString(16).padStart(4, '0')}`);
         const preview = characters.length <= 120
           ? show(characters)

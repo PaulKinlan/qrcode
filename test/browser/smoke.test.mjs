@@ -470,16 +470,36 @@ test(
         { timeoutMs: phaseTimeout(15_000), message: 'App to load and CameraFallback to become visible' }
       );
 
-      // Click the upload control like a user would
-      await cdp.eval('document.querySelector(\'label[for="qrcode-input"]\')?.click()');
-
-      // Set the file input to test/fixtures/qr-upload-smoke.png via CDP
+      // The icon-only upload path must be present in the accessibility tree, reachable with Tab,
+      // and show focus on its visible label (not the nearly zero-sized file input).
       const doc = await cdp.send('DOM.getDocument');
       const inputNode = await cdp.send('DOM.querySelector', {
         nodeId: doc.root.nodeId,
         selector: '#qrcode-input',
       });
       assert.ok(inputNode?.nodeId > 0, 'expected #qrcode-input element to be found in DOM');
+      await cdp.send('Accessibility.enable');
+      const { nodes } = await cdp.send('Accessibility.getPartialAXTree', {
+        nodeId: inputNode.nodeId, fetchRelatives: false,
+      });
+      assert.equal(nodes[0]?.ignored, false, 'upload input must appear in the accessibility tree');
+      assert.equal(nodes[0]?.name?.value, 'Upload a QR code image');
+      let uploadTabbed = false;
+      for (let i = 0; i < 10 && !uploadTabbed; i++) {
+        await cdp.send('Input.dispatchKeyEvent', {
+          type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
+        });
+        await cdp.send('Input.dispatchKeyEvent', {
+          type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9,
+        });
+        uploadTabbed = await cdp.eval('document.activeElement?.id === "qrcode-input"');
+      }
+      assert.ok(uploadTabbed, 'upload input must be reachable with a real Tab key');
+      assert.match(await cdp.eval('getComputedStyle(document.querySelector(\'label[for="qrcode-input"]\')).boxShadow'),
+        /inset/, 'upload label must display a visible focus ring');
+
+      // Click the upload control like a user would, then feed the QR fixture through CDP.
+      await cdp.eval('document.querySelector(\'label[for="qrcode-input"]\')?.click()');
 
       await cdp.send('DOM.setFileInputFiles', {
         nodeId: inputNode.nodeId,

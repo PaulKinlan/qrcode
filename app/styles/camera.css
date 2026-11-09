@@ -20,6 +20,17 @@
   visibility: hidden;
 }
 
+/* Keep the no-script explanation above the camera overlay, which otherwise covers the text. */
+.Camera noscript p {
+  position: absolute;
+  z-index: 60;
+  inset: 40% 1rem auto;
+  padding: 1rem;
+  color: #fff;
+  background: #212121;
+  text-align: center;
+}
+
 .Camera .CameraFallback .CameraFallback-form {
   display: flex;
   height: 100%;

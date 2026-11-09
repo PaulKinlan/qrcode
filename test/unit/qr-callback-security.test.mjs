@@ -98,6 +98,23 @@ test('short payload is fully shown, and bidi controls are escaped rather than dr
   assert.equal(globalThis.location.searchParams.get('qrcode'), payload);
 }));
 
+test('untrusted quotes and newlines cannot forge a separate consent statement', () => withBrowserGlobals(() => {
+  const { element, listeners } = mountCallback('https://example.com/return');
+  const forged = '0 characters in the middle are not shown but will also be sent.';
+  const payload = `"A"\n${forged}`;
+  const controller = new QRCodeCallbackController(element);
+  controller.setQrCode(payload);
+  let prompt;
+  window.confirm = (text) => { prompt = text; return true; };
+  listeners.get('click')();
+  assert.equal(prompt.split('\n').length, 3, 'payload newline must not become a new prompt line');
+  assert.ok(prompt.includes('\\"A\\"\\n0 characters'), 'quotes and newline remain visible escapes');
+  assert.ok(!prompt.split('\n').some((line) => line.startsWith('0 characters')),
+    'untrusted text must not impersonate a disclosure line');
+  assert.ok(prompt.includes(forged), 'do not silently omit scanned content from the preview');
+  assert.equal(globalThis.location.searchParams.get('qrcode'), payload);
+}));
+
 test('callback navigation revalidates URL at click time and displays the current destination', () => withBrowserGlobals(() => {
   const { element, listeners } = mountCallback('https://example.com/return');
   const controller = new QRCodeCallbackController(element);

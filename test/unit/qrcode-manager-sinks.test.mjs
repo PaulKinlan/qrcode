@@ -45,10 +45,17 @@ function mountManager({ share = true, clipboard = true } = {}) {
     ['.QRCodeSuccessDialog-share', button('share')],
     ['.QRCodeSuccessDialog-copy', button('copy')],
     ['.QRCodeSuccessDialog-callback', button('callback')],
+    ['.wsk-card--heading-text', { textContent: '' }],
   ]);
 
+  // The result panel is a native <dialog> (bead qrcode-zzq), so the harness has to model one:
+  // open/showModal()/close() plus the root 'close' listener the manager registers for Escape and
+  // light dismiss. Without them the constructor throws and the sinks are never even wired.
   const root = {
-    style: {},
+    open: false,
+    addEventListener: () => {},
+    showModal() { this.open = true; },
+    close() { this.open = false; },
     querySelector: (selector) => nodes.get(selector) ?? null,
   };
 
@@ -93,10 +100,10 @@ test('an unsafe decoded payload never reaches navigator.share', async () => {
   for (const payload of UNSAFE) {
     await withManager({}, ({ manager, listeners, shared, root }) => {
       manager.currentUrl = new URL(payload);
-      root.style.display = 'block';
+      root.open = true;
       listeners.get('share')();
       assert.deepEqual(shared, [], `${payload} must not be shared`);
-      assert.equal(root.style.display, 'none', 'the dialog closes like the blocked Open path');
+      assert.equal(root.open, false, 'the dialog closes like the blocked Open path');
     });
   }
 });
@@ -105,10 +112,10 @@ test('an unsafe decoded payload never reaches the clipboard', async () => {
   for (const payload of UNSAFE) {
     await withManager({}, ({ manager, listeners, copied, root }) => {
       manager.currentUrl = new URL(payload);
-      root.style.display = 'block';
+      root.open = true;
       listeners.get('copy')();
       assert.deepEqual(copied, [], `${payload} must not be copied`);
-      assert.equal(root.style.display, 'none', 'the dialog closes like the blocked Open path');
+      assert.equal(root.open, false, 'the dialog closes like the blocked Open path');
     });
   }
 });

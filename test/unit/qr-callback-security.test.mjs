@@ -41,6 +41,25 @@ test('script, data and non-web callback URLs cannot receive a scanned payload', 
   }
 }));
 
+test('a plaintext http callback off this machine is refused, so the payload cannot leave in clear', () => withBrowserGlobals(() => {
+  // The scanned value is the user's data; sending it over http: exposes it to anything on the path.
+  for (const payload of ['http://attacker.example/collect', 'http://example.com/return', 'http://localhost.attacker.example/return', 'http://127.0.0.1.attacker.example/return']) {
+    const { element, classes, listeners } = mountCallback(payload);
+    new QRCodeCallbackController(element).setQrCode('SECRET-token-123');
+    assert.equal(classes.has('hidden'), true, payload);
+    assert.equal(listeners.has('click'), false, payload);
+  }
+}));
+
+test('plaintext http is still accepted for a loopback target, where nothing leaves the device', () => withBrowserGlobals(() => {
+  for (const callback of ['http://localhost:8080/return', 'http://127.0.0.1:8080/return', 'http://127.0.0.2/return', 'http://[::1]:8080/return']) {
+    const { element, classes, listeners } = mountCallback(callback);
+    new QRCodeCallbackController(element).setQrCode('https://example.com/qr');
+    assert.equal(classes.has('hidden'), false, callback);
+    assert.equal(listeners.has('click'), true, callback);
+  }
+}));
+
 test('even a matching referrer cannot bypass explicit consent; refusal sends nothing', () => withBrowserGlobals(() => {
   const { element, classes, listeners, domain } = mountCallback('https://attacker.example/collect', 'https://attacker.example/lure');
   const controller = new QRCodeCallbackController(element);

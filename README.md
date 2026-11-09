@@ -10,7 +10,25 @@ QR Snapper offers a seamless QR code scanning experience directly in your browse
 
 * **Real-time QR Code Scanning:** Instantly decode QR codes using your device's camera.
 * **Cross-Platform Compatibility:** Tested and optimized for major browsers (Chrome, Firefox, Safari) and mobile devices.
-* **x-callback-url support:** Allows other applications to receive decoded QR code data after you confirm the callback destination and scanned content. Callback destinations must use HTTP(S).
+* **x-callback-url support:** Allows other applications to receive decoded QR code data after you confirm the callback destination and scanned content. Callback destinations must be HTTPS, or plain HTTP when the target is on this machine (see below).
+
+### x-callback-url
+
+Open the app with a `x-callback-url` query parameter naming the URL that should receive the scan:
+
+```
+https://qr-snapper.example/?x-callback-url=https%3A%2F%2Fexample.com%2Freturn
+```
+
+After a code is scanned the app shows a **Return** button naming the callback destination. It does not
+send anything until you confirm, and the confirmation shows what will be sent (the whole value, or its
+start and end plus the count of characters omitted from the preview for long values). On confirm the
+scanned value is added as `?qrcode=...` and the browser navigates to the callback URL.
+
+The destination must be `https:`. A plaintext `http:` destination is rejected, because the scanned
+payload would travel in the clear and be readable by anything on the path. The one exception is a
+destination on this machine - `http://localhost`, `http://127.0.0.1`, `http://[::1]` - where the
+request never leaves the device; that keeps local development and desktop-app round trips working.
 
 ## Build Instructions
 

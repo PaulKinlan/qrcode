@@ -14,9 +14,12 @@ export class WebCamManager {
     this.cameraVideo = cameraRoot.querySelector('.Camera-video');
     
     this.source = new CameraSource(this.cameraVideo);
-    
+    this.initializationStarted = false;
+    this.camerasLoaded = false;
+
     this.setupEventListeners();
-    this.initializeCamera();
+    // A background tab must not request a camera before it becomes visible.
+    if (document.visibilityState !== 'hidden') this.initializeCamera();
   }
 
   setupEventListeners() {
@@ -31,6 +34,8 @@ export class WebCamManager {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         this.stop();
+      } else if (!this.initializationStarted) {
+        this.initializeCamera();
       } else {
         this.start();
       }
@@ -38,6 +43,8 @@ export class WebCamManager {
   }
 
   async initializeCamera() {
+    if (this.initializationStarted) return;
+    this.initializationStarted = true;
     // Set up source callbacks
     this.source.onDimensionsChanged = () => {
       this.onDimensionsChanged();
@@ -54,9 +61,9 @@ export class WebCamManager {
         // Hide camera toggle if only one camera
         this.cameraToggle.style.display = 'none';
       }
-      
-      // Start with first camera
-      this.source.setCamera(0);
+      this.camerasLoaded = true;
+      // Enumeration can finish after the tab was hidden; start only while visible.
+      if (document.visibilityState !== 'hidden') this.start();
     });
   }
 
@@ -104,9 +111,14 @@ export class WebCamManager {
   /**
    * Start the camera
    */
-  start() {
+  async start() {
+    if (document.visibilityState === 'hidden') return;
+    if (!this.initializationStarted) return this.initializeCamera();
+    if (!this.camerasLoaded) return;
     const cameraIdx = this.cameraToggleInput.checked ? 1 : 0;
-    this.source.setCamera(cameraIdx);
+    await this.source.setCamera(cameraIdx);
+    // If the tab hid while getUserMedia was pending, release its result too.
+    if (document.visibilityState === 'hidden') this.stop();
   }
 
   // Callback methods to be overridden

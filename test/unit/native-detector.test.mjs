@@ -54,7 +54,7 @@ test('native miss falls back for this frame without disabling native detection',
     async detect(input) {
       assert.equal(input, image);
       nativeCalls++;
-      return nativeCalls === 1 ? [] : [{ rawValue: 'https://example.com/native' }];
+      return nativeCalls === 1 ? [] : [{ format: 'qr_code', rawValue: 'https://example.com/native' }];
     },
   }, async (width, height, input) => {
     assert.equal(width, 1);
@@ -68,6 +68,36 @@ test('native miss falls back for this frame without disabling native detection',
   assert.equal(await detect(1, 1, image), 'https://example.com/native');
   assert.equal(nativeCalls, 2);
   assert.equal(fallbackCalls, 1);
+});
+
+test('non-QR native results use the QR-only fallback without disabling native detection', async () => {
+  let nativeCalls = 0;
+  let fallbackCalls = 0;
+  const detect = createNativeDetector({
+    async detect() {
+      nativeCalls++;
+      return [{ format: 'aztec', rawValue: 'https://example.com/not-a-qr' }];
+    },
+  }, async () => {
+    fallbackCalls++;
+    return 'https://example.com/qr-fallback';
+  });
+
+  assert.equal(await detect(1, 1, {}), 'https://example.com/qr-fallback');
+  assert.equal(await detect(1, 1, {}), 'https://example.com/qr-fallback');
+  assert.equal(nativeCalls, 2);
+  assert.equal(fallbackCalls, 2);
+});
+
+test('native detection selects a QR even if another symbol appears first', async () => {
+  const detect = createNativeDetector({
+    async detect() {
+      return [null, { format: 'ean_13', rawValue: 'not-a-qr' },
+        { format: 'qr_code', rawValue: 'https://example.com/qr' }];
+    },
+  }, () => { throw new Error('fallback should not run for a QR result'); });
+
+  assert.equal(await detect(1, 1, {}), 'https://example.com/qr');
 });
 
 test('native miss passes a real QR frame through to the ZBar WASM decoder', async () => {
@@ -97,7 +127,7 @@ test('native detector success returns its QR value without invoking the fallback
     async detect(input) {
       assert.equal(input, image);
       nativeCalls++;
-      return [{ rawValue: 'https://example.com/native' }];
+      return [{ format: 'qr_code', rawValue: 'https://example.com/native' }];
     },
   }, () => { throw new Error('fallback should not run'); });
 

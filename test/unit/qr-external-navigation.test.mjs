@@ -106,11 +106,11 @@ test('a missing heading does not lose the scanned content or callback state', ()
   } finally { mounted.restore(); }
 });
 
-test('web URLs still open immediately and keep the usual heading', () => {
+test('HTTPS and loopback HTTP still open immediately and keep the usual heading', () => {
   const mounted = mount();
   try {
-    for (const scheme of ['http:', 'https:']) {
-      const url = new URL(`${scheme}//example.com/path`);
+    for (const href of ['https://example.com/path', 'http://localhost/path']) {
+      const url = new URL(href);
       mounted.manager.currentUrl = url;
       mounted.manager.showDialog(url);
       assert.equal(mounted.heading.textContent, 'QR Code found');

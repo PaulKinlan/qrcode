@@ -46,9 +46,20 @@ test('the document responses gain no header CSP (the meta stays the only documen
   assert.deepEqual(cspLines, ["  Content-Security-Policy: frame-ancestors 'none'"]);
 });
 
-test('the worker CSP blocks are scoped to paths the build actually ships workers at', () => {
-  // The SW lives at /sw.js and the worker bundle at /scripts/qrworker.js (vite
-  // entryFileNames); /scripts/* must therefore cover the worker and its chunks.
-  const html = readFileSync(new URL('../../app/index.html', import.meta.url), 'utf8');
-  assert.match(html, /qrworker/, 'the worker registration must reference the scripts/ tree');
+test('the worker CSP blocks are scoped to the paths the build actually ships workers at', () => {
+  // The shipped worker paths are decided in two places; both must agree with the header scopes
+  // in app/_headers, or a worker moves outside the policed tree and runs unpoliced.
+  // 1. qrclient constructs the worker RELATIVE to its own bundle ('./qrworker.js'), and main.js
+  //    is emitted at scripts/main.js, so the worker lands at /scripts/qrworker.js.
+  const qrclient = readFileSync(new URL('../../app/scripts/qrclient.js', import.meta.url), 'utf8');
+  assert.match(
+    qrclient,
+    /new Worker\(new URL\('\.\/qrworker\.js', import\.meta\.url\)/,
+    'the worker URL must stay relative to the scripts/ tree (bead qrcode-16d)'
+  );
+  // 2. Vite emits the worker entry (and any chunks) into scripts/.
+  const vite = readFileSync(new URL('../../vite.config.js', import.meta.url), 'utf8');
+  assert.match(vite, /worker:\s*\{[\s\S]*?entryFileNames:\s*'scripts\/\[name\]\.js'/, 'worker output must stay in scripts/ (bead qrcode-16d)');
+  assert.match(headers, /^\/scripts\/\*$/m, 'the /scripts/* block is the scope both facts rely on');
+  assert.match(headers, /^\/sw\.js$/m, 'the /sw.js block must exist (the SW ships at the origin root)');
 });

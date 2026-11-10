@@ -33,6 +33,11 @@
   user-select: text;
 }
 
+.QRCodeSuccessDialog .wsk-card--bottom {
+  height: auto;
+  min-height: 50px;
+}
+
 .QRCodeSuccessDialog .QRCodeSuccessDialog-status {
   margin: 0;
   overflow-wrap: anywhere;

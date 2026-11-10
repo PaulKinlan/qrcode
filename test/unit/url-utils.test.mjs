@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeUrl, isSafeUrl } from '../../app/scripts/utils/url-utils.js';
+import { normalizeUrl, isSafeUrl, isCleartextOffDevice, isTransportSafeUrl } from '../../app/scripts/utils/url-utils.js';
 
 // isSafeUrl() logs a warning for every unsafe protocol; keep the test output readable.
 const quiet = (t) => t.mock.method(console, 'warn', () => {});
@@ -51,6 +51,32 @@ test('isSafeUrl accepts the allowed navigation schemes', () => {
     'sms:+441234567890',
   ]) {
     assert.equal(isSafeUrl(new URL(href)), true, `expected ${href} to be safe`);
+  }
+});
+
+test('transport check refuses plaintext off-device but retains exact loopback and safe schemes', (t) => {
+  quiet(t);
+  for (const href of [
+    'http://example.com', 'http://attacker.example/collect',
+    'http://localhost.attacker.example', 'http://127.0.0.1.attacker.example',
+    'http://localhost@evil.example',
+  ]) {
+    const url = new URL(href);
+    assert.equal(isCleartextOffDevice(url), true, href);
+    assert.equal(isTransportSafeUrl(url), false, href);
+    assert.equal(isSafeUrl(url), true, 'protocol gate remains separate from transport');
+  }
+  for (const href of [
+    'https://example.com', 'http://localhost:8080', 'http://127.0.0.1',
+    'http://127.0.0.2', 'http://[::1]:8080',
+    'mailto:hello@example.com', 'tel:+15551234', 'sms:+15551234',
+  ]) {
+    const url = new URL(href);
+    assert.equal(isCleartextOffDevice(url), false, href);
+    assert.equal(isTransportSafeUrl(url), true, href);
+  }
+  for (const value of [undefined, null, 'https://example.com', 42, new URL('javascript:alert(1)'), new URL('file:///etc/passwd')]) {
+    assert.equal(isTransportSafeUrl(value), false, String(value));
   }
 });
 

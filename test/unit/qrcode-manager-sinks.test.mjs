@@ -9,6 +9,7 @@
 // the button listeners.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { isTransportSafeUrl } from '../../app/scripts/utils/url-utils.js';
 
 globalThis.Worker = class {
   addEventListener() {}
@@ -40,6 +41,7 @@ function mountManager({ share = true, clipboard = true } = {}) {
 
   const nodes = new Map([
     ['.QRCodeSuccessDialog-data', { innerText: '' }],
+    ['.QRCodeSuccessDialog-status', { textContent: '' }],
     ['.QRCodeSuccessDialog-navigate', button('navigate')],
     ['.QRCodeSuccessDialog-ignore', button('ignore')],
     ['.QRCodeSuccessDialog-share', button('share')],
@@ -84,7 +86,7 @@ function mountManager({ share = true, clipboard = true } = {}) {
     }
   };
 
-  return { manager, listeners, root, shared, copied, restore, classes };
+  return { manager, listeners, root, shared, copied, restore, classes, status: nodes.get('.QRCodeSuccessDialog-status') };
 }
 
 const withManager = async (options, run) => {
@@ -118,6 +120,59 @@ test('an unsafe decoded payload never reaches the clipboard', async () => {
       assert.equal(root.open, false, 'the dialog closes like the blocked Open path');
     });
   }
+});
+
+test('off-device plain HTTP never reaches Open, Share or Copy and visibly explains why', async () => {
+  for (const href of ['http://example.com/qr', 'http://localhost.attacker.example/qr', 'http://127.0.0.1.attacker.example/qr']) {
+    for (const [action, buttonName] of [['shared', 'share'], ['copied', 'copy'], ['opened', 'navigate']]) {
+      await withManager({}, async ({ manager, listeners, root, shared, copied, status }) => {
+        const url = new URL(href);
+        manager.currentUrl = url;
+        manager.showDialog(url);
+        const originalLocation = window.location;
+        window.confirm = () => { throw new Error('plain HTTP must be refused without a consent override'); };
+        await listeners.get(buttonName)();
+        assert.deepEqual(shared, [], href);
+        assert.deepEqual(copied, [], href);
+        assert.equal(window.location, originalLocation, href);
+        assert.equal(root.open, true, 'staying open prevents camera re-detection flicker');
+        assert.match(status.textContent, new RegExp(`Plain HTTP link not ${action}\\.`));
+        assert.match(status.textContent, /Use HTTPS or a link on this device/);
+        manager.closeDialog();
+        assert.equal(status.textContent, '', 'status must clear when the result closes');
+      });
+    }
+  }
+});
+
+test('loopback plain HTTP still reaches Open, Share and Copy unchanged', async () => {
+  for (const href of ['http://localhost:8080/qr', 'http://127.0.0.2/qr', 'http://[::1]:8080/qr']) {
+    await withManager({}, async ({ manager, listeners, root, shared, copied, status }) => {
+      const url = new URL(href);
+      manager.currentUrl = url;
+      manager.showDialog(url);
+      window.confirm = () => { throw new Error('loopback web links do not need external-app consent'); };
+      await listeners.get('share')();
+      assert.deepEqual(shared.map((data) => String(data.url)), [href]);
+      manager.showDialog(url);
+      await listeners.get('copy')();
+      assert.deepEqual(copied.map(String), [href]);
+      manager.showDialog(url);
+      listeners.get('navigate')();
+      assert.equal(String(window.location), href);
+      assert.equal(root.open, false);
+      assert.equal(status.textContent, '');
+    });
+  }
+});
+
+test('callback and result sinks agree on HTTPS-or-loopback web targets', async () => {
+  await withManager({}, ({ manager }) => {
+    for (const href of ['https://example.com/', 'http://example.com/', 'http://localhost:8080/', 'http://127.0.0.2/', 'http://[::1]/', 'http://localhost.attacker.example/']) {
+      const url = new URL(href);
+      assert.equal(isTransportSafeUrl(url), manager.callbackController.isWebCallback(url), href);
+    }
+  });
 });
 
 test('a safe decoded payload is still shared and copied unchanged', async () => {

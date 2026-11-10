@@ -1,6 +1,6 @@
 import { decode } from '../../qrclient.js';
 import { QRCodeCallbackController } from './QRCodeCallbackController.js';
-import { isSafeUrl, normalizeUrl } from '../../utils/url-utils.js';
+import { isCleartextOffDevice, isSafeUrl, isTransportSafeUrl, normalizeUrl } from '../../utils/url-utils.js';
 
 const EXTERNAL_APPS = {
   'mailto:': 'email app',
@@ -21,6 +21,7 @@ export class QRCodeManager {
     this.qrcodeShare = this.root.querySelector('.QRCodeSuccessDialog-share');
     this.qrcodeCopy = this.root.querySelector('.QRCodeSuccessDialog-copy');
     this.qrcodeCallback = this.root.querySelector('.QRCodeSuccessDialog-callback');
+    this.qrcodeStatus = this.root.querySelector('.QRCodeSuccessDialog-status');
     
     this.callbackController = new QRCodeCallbackController(this.qrcodeCallback);
     this.currentUrl = undefined;
@@ -41,10 +42,18 @@ export class QRCodeManager {
     }
   }
 
+  blockCleartext(action) {
+    console.error(`Plain HTTP link not ${action}`);
+    if (this.qrcodeStatus) {
+      this.qrcodeStatus.textContent = `Plain HTTP link not ${action}. Use HTTPS or a link on this device.`;
+    }
+  }
+
   setupEventListeners() {
     // Escape, back and light-dismiss bypass closeDialog().
     this.root.addEventListener('close', () => {
       this.qrcodeData.innerText = '';
+      if (this.qrcodeStatus) this.qrcodeStatus.textContent = '';
     });
 
     // Ignore button - close dialog
@@ -58,7 +67,11 @@ export class QRCodeManager {
       // scanned payload: handing it a javascript:/data:/file: value the app itself refuses to
       // navigate to is an inconsistency, not a policy, and the user picking the target
       // application does not make the value safe.
-      if (!isSafeUrl(this.currentUrl)) {
+      if (!isTransportSafeUrl(this.currentUrl)) {
+        if (isCleartextOffDevice(this.currentUrl)) {
+          this.blockCleartext('shared');
+          return;
+        }
         console.error('Unsafe URL detected, share blocked');
         this.closeDialog();
         return;
@@ -86,7 +99,11 @@ export class QRCodeManager {
     this.qrcodeCopy?.addEventListener('click', async () => {
       // Gated for the same reason as Share (bead qrcode-4ow): the clipboard is a sink, and a
       // refused scheme must not leave the app by another route.
-      if (!isSafeUrl(this.currentUrl)) {
+      if (!isTransportSafeUrl(this.currentUrl)) {
+        if (isCleartextOffDevice(this.currentUrl)) {
+          this.blockCleartext('copied');
+          return;
+        }
         console.error('Unsafe URL detected, copy blocked');
         this.closeDialog();
         return;
@@ -105,7 +122,11 @@ export class QRCodeManager {
     // Navigate button
     this.qrcodeNavigate.addEventListener('click', () => {
       // Validate URL for security
-      if (!isSafeUrl(this.currentUrl)) {
+      if (!isTransportSafeUrl(this.currentUrl)) {
+        if (isCleartextOffDevice(this.currentUrl)) {
+          this.blockCleartext('opened');
+          return;
+        }
         console.error('Unsafe URL detected, navigation blocked');
         this.closeDialog();
         return;
@@ -159,6 +180,7 @@ export class QRCodeManager {
    */
   showDialog(normalizedUrl) {
     this.qrcodeData.innerText = normalizedUrl;
+    if (this.qrcodeStatus) this.qrcodeStatus.textContent = '';
     const heading = this.root.querySelector('.wsk-card--heading-text');
     if (heading) {
       const isAllowedExternalApp = !isWebProtocol(normalizedUrl.protocol) && isSafeUrl(normalizedUrl);
@@ -177,5 +199,6 @@ export class QRCodeManager {
   closeDialog() {
     if (this.root.open) this.root.close();
     this.qrcodeData.innerText = '';
+    if (this.qrcodeStatus) this.qrcodeStatus.textContent = '';
   }
 }

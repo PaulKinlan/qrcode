@@ -33,3 +33,18 @@ export function isSafeUrl(url) {
 
   return true;
 }
+
+// Keep this loopback definition aligned with QRCodeCallbackController until its
+// existing callback policy can be shared without changing that separate path.
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '[::1]']);
+
+export function isCleartextOffDevice(url) {
+  return url instanceof URL && url.protocol === 'http:' &&
+    !LOOPBACK_HOSTNAMES.has(url.hostname) && !/^127(?:\.\d{1,3}){3}$/.test(url.hostname);
+}
+
+// isSafeUrl remains the protocol/XSS gate; transport is an additional check for
+// result actions that hand the scanned URL to a browser, share sheet or clipboard.
+export function isTransportSafeUrl(url) {
+  return isSafeUrl(url) && !isCleartextOffDevice(url);
+}

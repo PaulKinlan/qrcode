@@ -34,13 +34,17 @@ export function isSafeUrl(url) {
   return true;
 }
 
-// Keep this loopback definition aligned with QRCodeCallbackController until its
-// existing callback policy can be shared without changing that separate path.
+// Shared by QR result handoffs and x-callback destinations. WHATWG URL normalizes
+// numeric IPv4 forms; its hostname retains IPv6 brackets. Keep the allowlist narrow.
 const LOOPBACK_HOSTNAMES = new Set(['localhost', '[::1]']);
 
+export function isLoopbackHost(hostname) {
+  // 127.0.0.0/8 is loopback (RFC 1122); do not accept lookalike host suffixes.
+  return LOOPBACK_HOSTNAMES.has(hostname) || /^127(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
 export function isCleartextOffDevice(url) {
-  return url instanceof URL && url.protocol === 'http:' &&
-    !LOOPBACK_HOSTNAMES.has(url.hostname) && !/^127(?:\.\d{1,3}){3}$/.test(url.hostname);
+  return url instanceof URL && url.protocol === 'http:' && !isLoopbackHost(url.hostname);
 }
 
 // isSafeUrl remains the protocol/XSS gate; transport is an additional check for

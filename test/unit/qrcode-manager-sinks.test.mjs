@@ -166,9 +166,19 @@ test('loopback plain HTTP still reaches Open, Share and Copy unchanged', async (
   }
 });
 
-test('callback and result sinks agree on HTTPS-or-loopback web targets', async () => {
+test('callback and result sinks share one loopback rule across normalized and spoofed hosts', async () => {
   await withManager({}, ({ manager }) => {
-    for (const href of ['https://example.com/', 'http://example.com/', 'http://localhost:8080/', 'http://127.0.0.2/', 'http://[::1]/', 'http://localhost.attacker.example/']) {
+    const hrefs = [
+      'https://example.com/', 'http://example.com/', 'http://example.com.:8080/',
+      'http://localhost:8080/', 'http://localhost./', 'http://localhost.attacker.example/',
+      'http://localhost:8080@evil.example/', 'http://0.0.0.0/', 'http://2130706433/',
+      'http://[::1]/', 'http://[::ffff:127.0.0.1]/', 'http://[::ffff:7f00:1]/',
+      'http://127.0.0.1.attacker.example/',
+    ];
+    for (const octet of [0, 1, 2, 9, 255]) {
+      hrefs.push(`http://127.${octet}.0.1/`, `http://128.${octet}.0.1/`);
+    }
+    for (const href of hrefs) {
       const url = new URL(href);
       assert.equal(isTransportSafeUrl(url), manager.callbackController.isWebCallback(url), href);
     }

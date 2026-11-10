@@ -2,16 +2,10 @@
  * QRCodeCallbackController - Handles x-callback-url integration
  * Allows other applications to receive decoded QR code data
  */
-import { isSafeUrl } from '../../utils/url-utils.js';
+import { isSafeUrl, isLoopbackHost } from '../../utils/url-utils.js';
 
-// A plaintext http: callback is only tolerated for a target on this machine, where the request
-// never leaves the device. The scanned payload is the user's data and must not go out in clear.
-const LOOPBACK_HOSTNAMES = new Set(['localhost', '[::1]']);
-
-function isLoopbackHost(hostname) {
-  // 127.0.0.0/8 is loopback (RFC 1122); WHATWG URL keeps IPv6 brackets in hostname.
-  return LOOPBACK_HOSTNAMES.has(hostname) || /^127(?:\.\d{1,3}){3}$/.test(hostname);
-}
+// A plaintext http: callback is only tolerated on this machine. Share the
+// loopback definition with QR result actions so their transport rules cannot drift.
 
 export class QRCodeCallbackController {
   constructor(element) {

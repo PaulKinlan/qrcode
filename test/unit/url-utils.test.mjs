@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeUrl, isSafeUrl, isCleartextOffDevice, isTransportSafeUrl } from '../../app/scripts/utils/url-utils.js';
+import { normalizeUrl, isSafeUrl, isLoopbackHost, isCleartextOffDevice, isTransportSafeUrl } from '../../app/scripts/utils/url-utils.js';
 
 // isSafeUrl() logs a warning for every unsafe protocol; keep the test output readable.
 const quiet = (t) => t.mock.method(console, 'warn', () => {});
@@ -51,6 +51,15 @@ test('isSafeUrl accepts the allowed navigation schemes', () => {
     'sms:+441234567890',
   ]) {
     assert.equal(isSafeUrl(new URL(href)), true, `expected ${href} to be safe`);
+  }
+});
+
+test('shared loopback helper accepts only the original narrow host set', () => {
+  for (const host of ['localhost', '127.0.0.1', '127.0.0.2', '127.255.255.255', '[::1]']) {
+    assert.equal(isLoopbackHost(new URL(`http://${host}/`).hostname), true, host);
+  }
+  for (const host of ['localhost.', 'localhost.attacker.example', '127.0.0.1.attacker.example', '0.0.0.0', '[::ffff:127.0.0.1]', '[::ffff:7f00:1]']) {
+    assert.equal(isLoopbackHost(new URL(`http://${host}/`).hostname), false, host);
   }
 });
 

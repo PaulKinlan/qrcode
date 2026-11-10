@@ -123,7 +123,14 @@ test('the drift-set palette is declared once and not re-typed in any bundled rul
   // must reference the tokens; comments may still cite hex values (they document measured
   // contrast ratios), and the :root declarations are the single source - that is the fix.
   const appCss = readFileSync(join(root, 'app', 'styles', 'app.css'), 'utf8');
-  const bundled = [...appCss.matchAll(/@import\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  // Parse BOTH @import forms (quoted and url()); an @import line this guard cannot parse must
+  // fail the test instead of silently escaping the derived list (bead qrcode-37j).
+  const importLines = appCss.split('\n').filter((line) => /@import/i.test(line));
+  const bundled = importLines.map((line) => {
+    const m = line.match(/@import\s+(?:url\()?['"]?([^'")\s;]+)/i);
+    assert.ok(m, `app.css has an @import this guard cannot parse - extend the guard: ${line.trim()}`);
+    return m[1];
+  });
   assert.ok(bundled.includes('all.css'), 'all.css must stay bundled (it declares the tokens)');
   for (const file of bundled) {
     const css = readFileSync(join(root, 'app', 'styles', file), 'utf8');

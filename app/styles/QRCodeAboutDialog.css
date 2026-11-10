@@ -19,13 +19,35 @@
 }
 
 /* Modality affordance: showModal makes the rest of the page inert; dim it so that is
-   visible, not silent. */
+   visible, not silent. overflow:hidden + overscroll-behavior:contain stop scroll gestures
+   on the backdrop from scrolling (or chaining to) the page behind the modal; where the
+   properties are unsupported the backdrop simply behaves as it always has, so this is
+   progressive enhancement with no fallback path to remove. */
 .QRCodeAboutDialog::backdrop {
   background: rgba(33, 33, 33, 0.5);
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
+/* Scroll containment for the modal itself: the About body is a real scroll container at
+   narrow widths (below), and without containment a scroll gesture inside it chains to the
+   page behind the modal. Progressive enhancement like the backdrop rule above. */
+.QRCodeAboutDialog:modal {
+  overscroll-behavior: contain;
+}
+
+/* The About body must grow with its copy, not clip it (bead qrcode-0tp): the inherited
+   .wsk-card--lower height:108px + overflow:hidden cut the second paragraph off at narrow
+   widths, where the paragraphs wrap taller than 108px. height:auto shows everything; the
+   viewport-relative cap keeps the whole dialog (heading 96px + bottom 50px + 20px body
+   margins = 166px of chrome) inside the screen, and overflow-y:auto makes the scrollbar an
+   affordance that appears only when the cap actually binds (dvh tracks mobile browser
+   chrome; the vh line stands in for engines without dvh). */
 .QRCodeAboutDialog-data {
-  overflow-y: scroll;
+  height: auto;
+  max-height: calc(100vh - 166px);
+  max-height: calc(100dvh - 166px);
+  overflow-y: auto;
 }
 
 /* Focus visibility for .wsk-button now lives on the class in app/styles/all.css (bead qrcode-9nf),

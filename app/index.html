@@ -118,7 +118,11 @@
         <div class="wsk-card--heading">
           <span class="wsk-card--heading-text" id="about-heading">About QR Snapper</span>
         </div>
-        <div class="wsk-card--lower QRCodeAboutDialog-data">
+        <!-- The body is a scroll container once the viewport-relative cap binds (narrow/
+             short screens, bead qrcode-0tp). tabindex="0" keeps keyboard-only users able to
+             scroll it (WCAG scrollable-region-focusable); role="region" + aria-labelledby
+             name what they landed in. -->
+        <div class="wsk-card--lower QRCodeAboutDialog-data" role="region" aria-labelledby="about-heading" tabindex="0">
           <p>QR Snapper is the simplest to use QR Scanner available on the web.</p>
           <p>If you would like to learn how it was built, visit <a
               href="https://paul.kinlan.me/projects/qrsnapper/">Paul Kinlan's site</a>.</p>

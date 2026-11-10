@@ -25,11 +25,15 @@ export function parseImports(css, file) {
     .filter((line) => /@import/i.test(line))
     .map((line) => {
       const trimmed = line.trim();
-      // Each form must match the WHOLE line: a loose match would silently capture a prefix
+      // Each form must match the WHOLE statement: a loose match would silently capture a prefix
       // of an unparseable import (e.g. `@import whatever all.css` -> "whatever") instead of
-      // failing loudly (bead qrcode-37j).
-      const quoted = trimmed.match(/^@import\s+(['"])([^'"]+)\1\s*;?\s*$/i);
-      const urlForm = trimmed.match(/^@import\s+url\(\s*(['"]?)([^'" )]+)\1\s*\)\s*;?\s*$/i);
+      // failing loudly (bead qrcode-37j). The tail after the target is the optional
+      // layer()/supports()/media-query clause - valid CSS that names the SAME file, so it is
+      // absorbed rather than rejected (bead qrcode-g7j); it cannot contain a top-level `;`
+      // because that ends the statement. A missing statement-final `;` (EOF form) stays
+      // accepted, as the parent tree accepted it.
+      const quoted = trimmed.match(/^@import\s+(['"])([^'"]+)\1(?:\s+[^;]*)?;?\s*$/i);
+      const urlForm = trimmed.match(/^@import\s+url\(\s*(['"]?)([^'" )]+)\1\s*\)(?:\s+[^;]*)?;?\s*$/i);
       const m = quoted ?? urlForm;
       assert.ok(m, `${file} has an @import this guard cannot parse - extend the guard: ${trimmed}`);
       return m[2];
@@ -49,8 +53,11 @@ export function bundledStylesheets(readCss, entry = 'app.css') {
     if (seen.has(file)) continue; // duplicate import: already in the list
     seen.add(file);
     const css = readCss(file);
+    // Comments may legitimately mention @import in prose (they document the bundle); strip
+    // them like the hex scan does, so only a REAL nested import is rejected (bead qrcode-g7j).
+    const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
     assert.ok(
-      !/@import/i.test(css),
+      !/@import/i.test(withoutComments),
       `${file} contains an @import - ${entry} is the bundle's only import root; declare it in ${entry} instead (bead qrcode-4bw), or extend this helper to recurse`
     );
     files.push(file);

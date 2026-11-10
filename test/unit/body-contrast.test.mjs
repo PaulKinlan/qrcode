@@ -167,6 +167,28 @@ test('the bundle derivation parses the url() import form and fails on unparseabl
   );
 });
 
+test('imports with trailing media-query / layer() clauses are derived, not rejected (bead qrcode-g7j)', () => {
+  // A media query or cascade layer names the SAME file; the parent tree guarded it, so the
+  // whole-statement anchor must absorb the tail rather than throw on valid CSS.
+  const tree = {
+    'app.css': "@import 'all.css' screen;\n@import url('camera.css') layer(base) supports(display: grid);",
+    'all.css': ':root { --wsk-grey-800: #424242; }',
+    'camera.css': ':root { --wsk-indigo-900: #0d47a1; }',
+  };
+  assert.deepEqual(bundledStylesheets((file) => tree[file]), ['app.css', 'all.css', 'camera.css']);
+});
+
+test('an @import mentioned in a comment is prose, not a nested import (bead qrcode-g7j)', () => {
+  const tree = {
+    'app.css': "@import 'all.css';",
+    // Documents the bundle; must not trip the nested-import rejection...
+    'all.css': '/* prev bundle had: @import "camera.css"; */\n:root { --wsk-grey-800: #424242; }',
+    // ...but a real nested import inside a comment still must not smuggle the file in.
+    'camera.css': '.y { color: #424242; }',
+  };
+  assert.deepEqual(bundledStylesheets((file) => tree[file]), ['app.css', 'all.css']);
+});
+
 test('dialog card text keeps an explicit AA colour over the white card surface', () => {
   // .wsk-card is white; p carries an explicit dark colour. Pin both so inheritance or a
   // palette change cannot turn the About/Success dialog copy light-on-light.

@@ -245,6 +245,10 @@ export default defineConfig({
     rollupOptions: {
       output: {
         entryFileNames: 'scripts/[name].js',
+        // Dynamic-import chunks stay under /scripts/* too: the worker CSP in app/_headers
+        // is scoped to that tree. Without this pin the Vite default drops chunks into
+        // assets/, outside the policed paths (bead qrcode-aa0); worker-csp.test.mjs pins it.
+        chunkFileNames: 'scripts/[name].js',
         assetFileNames: (assetInfo) => assetInfo.name.endsWith('.wasm')
           ? 'scripts/[name].[ext]'
           : 'assets/[name]-[hash].[ext]'

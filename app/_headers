@@ -9,7 +9,9 @@
 # only, so /sw.js and the decoder worker would otherwise run with no policy at all. The policies
 # are scoped to the worker paths, NOT to /* on purpose: a document response CSP would COMBINE
 # with the meta policy and silently kill scanning (bead qrcode-2pt). /scripts/* covers the
-# worker bundle and any future worker chunk; classic scripts served from /scripts/ (main.js,
+# worker bundle; worker dynamic-import chunks are pinned to the same tree by vite.config.js
+# (worker.rollupOptions.output.chunkFileNames, guarded by test/unit/worker-csp.test.mjs -
+# bead qrcode-aa0); classic scripts served from /scripts/ (main.js,
 # sw-register.js) ignore their own response CSP, so the scope is inert for the document.
 #
 #   - /sw.js: install fetches only same-origin assets (manifest + precache), so

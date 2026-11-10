@@ -37,5 +37,5 @@
   font-style: italic;
   text-transform: lowercase;
   font-size: x-small;
-  color: #424242;
+  color: var(--wsk-grey-800);
 }

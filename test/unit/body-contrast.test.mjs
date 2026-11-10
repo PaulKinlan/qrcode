@@ -116,18 +116,21 @@ test('the colour tokens resolve to the exact values the contrast guarantees were
   assert.equal(cssTokens['--wsk-white'], '#fff');
 });
 
-test('the drift-set palette is declared once and not re-typed in rule bodies', () => {
-  // qrcode-79p: the same greys/indigo were re-typed by hand across all.css and camera.css.
-  // Rule bodies must reference the tokens; comments may still cite hex values (they document
-  // measured contrast ratios).
-  for (const file of ['app/styles/all.css', 'app/styles/camera.css']) {
-    const css = readFileSync(join(root, file), 'utf8');
+test('the drift-set palette is declared once and not re-typed in any bundled rule body', () => {
+  // qrcode-79p: the same greys/indigo were re-typed by hand across the stylesheets app.css
+  // bundles. The file list is derived from app.css's @imports (the bundle's source of truth,
+  // bead qrcode-bib), so a newly imported stylesheet is guarded automatically. Rule bodies
+  // must reference the tokens; comments may still cite hex values (they document measured
+  // contrast ratios), and the :root declarations are the single source - that is the fix.
+  const appCss = readFileSync(join(root, 'app', 'styles', 'app.css'), 'utf8');
+  const bundled = [...appCss.matchAll(/@import\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  assert.ok(bundled.includes('all.css'), 'all.css must stay bundled (it declares the tokens)');
+  for (const file of bundled) {
+    const css = readFileSync(join(root, 'app', 'styles', file), 'utf8');
     const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
-    // The :root declarations are the single source of the values - that is the fix. Everything
-    // outside them must reference tokens.
     const withoutTokenDeclarations = withoutComments.replace(/:root\s*\{[^}]*\}/, '');
-    for (const hex of ['#212121', '#424242', '#bdbdbd', '#0d47a1']) {
-      assert.ok(!withoutTokenDeclarations.includes(hex), `${file} re-types ${hex} in a rule body; use the --wsk token`);
+    for (const hex of ['#212121', '#424242', '#bdbdbd', '#0d47a1', '#fff', '#ffffff']) {
+      assert.ok(!withoutTokenDeclarations.includes(hex), `app/styles/${file} re-types ${hex} in a rule body; use the --wsk token`);
     }
   }
 });

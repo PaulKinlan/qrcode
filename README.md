@@ -12,6 +12,11 @@ QR Snapper offers a seamless QR code scanning experience directly in your browse
 * **Cross-Platform Compatibility:** Tested and optimized for major browsers (Chrome, Firefox, Safari) and mobile devices.
 * **x-callback-url support:** Allows other applications to receive decoded QR code data after you confirm the callback destination and scanned content. Callback destinations must be HTTPS, or plain HTTP when the target is on this machine (see below).
 
+The **Open**, **Share** and **Copy** buttons refuse scanned plain-HTTP URLs pointing off this device,
+so the app does not hand an unencrypted destination to another browser or app (or the clipboard for
+later pasting). HTTPS and HTTP loopback destinations such as `localhost`, `127.0.0.1` and `[::1]`
+remain available. The result dialog stays open and explains the refusal.
+
 ### x-callback-url
 
 Open the app with a `x-callback-url` query parameter naming the URL that should receive the scan:

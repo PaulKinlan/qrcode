@@ -33,3 +33,22 @@ export function isSafeUrl(url) {
 
   return true;
 }
+
+// Shared by QR result handoffs and x-callback destinations. WHATWG URL normalizes
+// numeric IPv4 forms; its hostname retains IPv6 brackets. Keep the allowlist narrow.
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '[::1]']);
+
+export function isLoopbackHost(hostname) {
+  // 127.0.0.0/8 is loopback (RFC 1122); do not accept lookalike host suffixes.
+  return LOOPBACK_HOSTNAMES.has(hostname) || /^127(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
+export function isCleartextOffDevice(url) {
+  return url instanceof URL && url.protocol === 'http:' && !isLoopbackHost(url.hostname);
+}
+
+// isSafeUrl remains the protocol/XSS gate; transport is an additional check for
+// result actions that hand the scanned URL to a browser, share sheet or clipboard.
+export function isTransportSafeUrl(url) {
+  return isSafeUrl(url) && !isCleartextOffDevice(url);
+}

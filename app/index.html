@@ -22,6 +22,15 @@
        even though the image picker no longer uses a form (beads qrcode-4b9, qrcode-9kf). -->
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; form-action 'self'; img-src 'self' data: blob:; connect-src 'self'">
+  <!-- Unlike frame-ancestors, the referrer policy IS honoured from a <meta> tag, so the
+       document pins it itself (bead qrcode-igx): the app URL can carry the x-callback-url
+       destination or the kill-switch consent token, and the browser default
+       (strict-origin-when-cross-origin) hands the full URL to any same-origin receiver.
+       'same-origin' matches the discipline the service worker already pins on its
+       synthesised kill/ask pages (app/sw.js): cross-origin receivers get no Referer at all.
+       app/_headers and the vite dev/preview servers send the same policy as a header for
+       hosts that read them; a host that reads neither still gets this meta. -->
+  <meta name="referrer" content="same-origin">
   <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
   <!-- Add to homescreen -->

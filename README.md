@@ -178,6 +178,25 @@ fixed while doing nothing. The policy ships in three places instead:
 
   `X-Frame-Options` is there for engines that do not implement `frame-ancestors`.
 
+### Referrer-Policy
+
+The app URL itself can carry sensitive query values: the `x-callback-url` destination handed in
+when another app opens the scanner, and the service-worker kill-switch consent token
+(`?kill-sw=true&confirm=1&consent=<32 hex>`). The browser default
+(`strict-origin-when-cross-origin`) sends the full URL - query included - to any same-origin
+receiver, so the document pins `Referrer-Policy: same-origin`: same-origin receivers keep the
+URL, cross-origin receivers get no `Referer` at all. It ships in three places:
+
+* `app/_headers` and `server.headers` / `preview.headers` in `vite.config.js` - the same
+  surfaces as the framing policy above.
+* a `<meta name="referrer" content="same-origin">` in `app/index.html` - unlike
+  `frame-ancestors`, the referrer policy **is** honoured from a `<meta>` tag, so a host that
+  reads neither header file still gets the policy. Any other host or reverse proxy should send
+  `Referrer-Policy: same-origin` itself for defence in depth.
+
+The x-callback integration does not depend on this: the callback destination confirms every
+transfer from the `qrcode` parameter on its own URL and never trusts the referrer.
+
 ### Development Notes
 
 * The project uses Vite as the build tool (replaced Gulp)

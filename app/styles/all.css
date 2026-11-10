@@ -1,3 +1,17 @@
+/* Colour tokens (bead qrcode-79p): the values that used to be re-typed by hand across
+   app/styles/all.css, app/styles/camera.css and the synthesised pages in app/sw.js. The names
+   carry the VALUE (Material grey/indigo scale numbers), not a role: #424242 is both a surface
+   and a text colour here, so a role name like --surface-800 would lie about half its uses.
+   app/sw.js keeps its literals on purpose - its kill/ask pages are dependency-free synthesised
+   responses and must not lean on a stylesheet. */
+:root {
+  --wsk-grey-900: #212121;
+  --wsk-grey-800: #424242;
+  --wsk-grey-400: #bdbdbd;
+  --wsk-indigo-900: #0d47a1;
+  --wsk-white: #fff;
+}
+
 .wsk-shadow--z1 {
   box-shadow: 0 1px 1.5px 0 rgba(0, 0, 0, 0.12), 0 1px 1px 0 rgba(0, 0, 0, 0.24); }
 
@@ -30,8 +44,8 @@ html, body {
      qrcode-6pr). #bdbdbd (material grey 400) on the same background is 5.35:1. Every
      currently-painted surface sets its own colour (see test/unit/body-contrast.test.mjs,
      which pins this pair); this fixes the default anything inheriting body colour gets. */
-  color: #bdbdbd;
-  background-color: #424242;
+  color: var(--wsk-grey-400);
+  background-color: var(--wsk-grey-800);
   height: 100%;
   font-family: "Helvetica", "Arial", sans-serif;
   font-size: 14px;
@@ -40,7 +54,7 @@ html, body {
 }
 
 h1, h2, h3, h4, h5, h6, p {
-  color: #424242;
+  color: var(--wsk-grey-800);
   margin: 0;
   padding: 0;
 }
@@ -138,7 +152,7 @@ dt {
           flex-wrap: nowrap; }
 
 .wsk-navigation__link {
-  color: #424242;
+  color: var(--wsk-grey-800);
   text-decoration: none;
   font-weight: 700;
   font-size: 14px;
@@ -451,7 +465,7 @@ dt {
   width: 90%; }
 
 .wsk-card--caption {
-  background: #0d47a1 none repeat scroll 0 0/auto padding-box border-box;
+  background: var(--wsk-indigo-900) none repeat scroll 0 0/auto padding-box border-box;
   border: 0 none white;
   color: white;
   font-size: 12px;
@@ -466,7 +480,7 @@ dt {
 
 .wsk-card--lower {
   border: 0 none #444444;
-  color: #0d47a1;
+  color: var(--wsk-indigo-900);
   font-size: 13px;
   height: 108px;
   line-height: 18px;
@@ -489,7 +503,7 @@ dt {
   border-right: 0 none #303f9f;
   border-top: 1px solid #ebebeb;
   box-sizing: border-box;
-  color: #0d47a1;
+  color: var(--wsk-indigo-900);
   cursor: pointer;
   display: inline-block;
   font-size: 13px;
@@ -570,7 +584,7 @@ dt {
     background-color: rgba(153, 153, 153, 0.4); }
   .wsk-button--raised.wsk-button--colored {
     background: #2196f3;
-    color: #fff; }
+    color: var(--wsk-white); }
     .wsk-button--raised.wsk-button--colored:hover {
       background-color: #1e88e5; }
     .wsk-button--raised.wsk-button--colored:active {
@@ -610,7 +624,7 @@ dt {
     background-color: rgba(153, 153, 153, 0.4); }
   .wsk-button--fab.wsk-button--colored {
     background: #42a5f5;
-    color: #fff; }
+    color: var(--wsk-white); }
     .wsk-button--fab.wsk-button--colored:hover {
       background-color: #2196f3; }
     .wsk-button--fab.wsk-button--colored:focus:not(:active) {

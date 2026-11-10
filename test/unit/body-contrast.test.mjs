@@ -14,6 +14,14 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const allCss = readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8');
 
+// Colour tokens (bead qrcode-79p): the drift-set palette declared once in the :root block of
+// app/styles/all.css. Parsed from the stylesheet (not hard-coded here) so this test reads the
+// shipped source of truth - and pinned to exact values below so the contrast guarantees
+// survive the token refactor.
+const cssTokens = Object.fromEntries(
+  [...allCss.matchAll(/(--wsk-[a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)].map((m) => [m[1], m[2]])
+);
+
 /**
  * WCAG 2.x relative luminance of an sRGB channel triple.
  * @param {{ r: number, g: number, b: number }} rgb
@@ -61,9 +69,17 @@ function shippedColor(css, selector, property) {
     const blockStart = css.indexOf('{', start);
     const blockEnd = css.indexOf('}', blockStart);
     const block = css.slice(blockStart, blockEnd);
-    const match = block.match(new RegExp(`${property}:\\s*(#[0-9a-fA-F]{6}|white|black)`));
+    const match = block.match(new RegExp(`${property}:\\s*(#[0-9a-fA-F]{6}|white|black|var\\(--wsk-[a-z0-9-]+\\))`));
     if (match) {
-      const hex = NAMED_COLORS[match[1]] ?? match[1];
+      let value = match[1];
+      if (value.startsWith('var(')) {
+        // Resolve the token through the :root block; a token that is declared but missing from
+        // the map means the parser above drifted from the declarations - fail loudly.
+        const name = value.slice(4, -1);
+        value = cssTokens[name];
+        assert.ok(value, `${name} is used in a rule but not declared in the :root block`);
+      }
+      const hex = NAMED_COLORS[value] ?? value;
       return {
         r: parseInt(hex.slice(1, 3), 16),
         g: parseInt(hex.slice(3, 5), 16),
@@ -87,6 +103,33 @@ test('the historical failure values stay out of the stylesheet', () => {
   // Guard against a revert to the shipped 3.75:1 pair specifically.
   assert.ok(!/#9e9e9e\s*;\s*[^}]*background-color:\s*#424242/.test(allCss.replace(/\n/g, '')),
     'the #9e9e9e-on-#424242 body pair (3.75:1) must not return');
+});
+
+test('the colour tokens resolve to the exact values the contrast guarantees were verified against', () => {
+  // The contrast pairs below were computed from these literals (bead qrcode-6pr, qrcode-e4c
+  // camera button, qrcode-79p noscript panel). A token rename or value change must show up
+  // here, not silently shift a verified ratio.
+  assert.equal(cssTokens['--wsk-grey-900'], '#212121');
+  assert.equal(cssTokens['--wsk-grey-800'], '#424242');
+  assert.equal(cssTokens['--wsk-grey-400'], '#bdbdbd');
+  assert.equal(cssTokens['--wsk-indigo-900'], '#0d47a1');
+  assert.equal(cssTokens['--wsk-white'], '#fff');
+});
+
+test('the drift-set palette is declared once and not re-typed in rule bodies', () => {
+  // qrcode-79p: the same greys/indigo were re-typed by hand across all.css and camera.css.
+  // Rule bodies must reference the tokens; comments may still cite hex values (they document
+  // measured contrast ratios).
+  for (const file of ['app/styles/all.css', 'app/styles/camera.css']) {
+    const css = readFileSync(join(root, file), 'utf8');
+    const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    // The :root declarations are the single source of the values - that is the fix. Everything
+    // outside them must reference tokens.
+    const withoutTokenDeclarations = withoutComments.replace(/:root\s*\{[^}]*\}/, '');
+    for (const hex of ['#212121', '#424242', '#bdbdbd', '#0d47a1']) {
+      assert.ok(!withoutTokenDeclarations.includes(hex), `${file} re-types ${hex} in a rule body; use the --wsk token`);
+    }
+  }
 });
 
 test('dialog card text keeps an explicit AA colour over the white card surface', () => {

@@ -26,8 +26,8 @@
   z-index: 60;
   inset: 40% 1rem auto;
   padding: 1rem;
-  color: #fff;
-  background: #212121;
+  color: var(--wsk-white);
+  background: var(--wsk-grey-900);
   text-align: center;
 }
 
@@ -48,11 +48,11 @@
 }
 
 .Camera .CameraFallback .CameraFallback-input:focus-visible + label {
-  box-shadow: inset 0 0 0 3px #fff;
+  box-shadow: inset 0 0 0 3px var(--wsk-white);
 }
 
 .Camera .CameraFallback .CameraFallback-input + label {
-  background-color: #0d47a1;
+  background-color: var(--wsk-indigo-900);
   border-radius: 50% 50%;
   width: 20vmin;
   height: 20vmin;
@@ -205,7 +205,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #0d47a1;
+  background-color: var(--wsk-indigo-900);
   padding: 0;
   border: none;
   cursor: pointer;
@@ -217,7 +217,7 @@
 
 /* Keyboard focus must be visible where the pointer cursor is not enough (WCAG 2.4.7). */
 .Camera .about:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--wsk-white);
   outline-offset: 2px;
 }
 
@@ -234,7 +234,7 @@
    qrcode-e45). A shadow inset into the label's own box is clipped to the fab's circle instead, so
    the visible result is a white rim inside the flip button. Same white as the .about ring above. */
 .Camera .CameraRealtime .Camera-toggle-input:focus-visible + label {
-  box-shadow: inset 0 0 0 3px #fff;
+  box-shadow: inset 0 0 0 3px var(--wsk-white);
 }
 
 /* Decoder-failure alert (beads qrcode-j75/qrcode-sze): absolute over the camera view so a

@@ -73,11 +73,19 @@ function hexToRgb(value) {
 
 test('the camera flip toggle gets a visible inset focus ring on the label the user sees', () => {
   const block = ruleBlock(cameraCss, TOGGLE_FOCUS_SELECTOR);
-  const shadow = block.match(/box-shadow:\s*inset\s+0\s+0\s+0\s+([0-9.]+)px\s+(#[0-9a-f]{3,6});/i);
+  // The ring colour may be the literal or the shared --wsk-white token (bead qrcode-79p);
+  // resolve the token so the contrast check still sees the shipped value.
+  const tokens = Object.fromEntries(
+    [...allCss.matchAll(/(--wsk-[a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)].map((m) => [m[1], m[2]])
+  );
+  const shadow = block.match(/box-shadow:\s*inset\s+0\s+0\s+0\s+([0-9.]+)px\s+(#[0-9a-f]{3,6}|var\(--wsk-[a-z0-9-]+\));/i);
   assert.ok(
     shadow,
     'the ring must be an inset box-shadow on the label: an outline is clipped by .wsk-button--fab overflow:hidden (qrcode-e45)'
   );
+  const ringColor = shadow[2].startsWith('var(')
+    ? (assert.ok(tokens[shadow[2].slice(4, -1)], 'ring token must be declared in the :root block'), tokens[shadow[2].slice(4, -1)])
+    : shadow[2];
 
   const width = Number(shadow[1]);
   assert.ok(
@@ -85,10 +93,10 @@ test('the camera flip toggle gets a visible inset focus ring on the label the us
     `focus ring width is ${width}px - it needs to be at least ${MIN_WIDTH_PX}px to be a visible indicator`
   );
 
-  const ratio = contrast(hexToRgb(shadow[2]), TOGGLE);
+  const ratio = contrast(hexToRgb(ringColor), TOGGLE);
   assert.ok(
     ratio >= MIN_RATIO,
-    `focus ring ${shadow[2]} on the toggle surface is ${ratio}:1 - below the ${MIN_RATIO}:1 non-text minimum (bead qrcode-a96)`
+    `focus ring ${ringColor} on the toggle surface is ${ratio}:1 - below the ${MIN_RATIO}:1 non-text minimum (bead qrcode-a96)`
   );
 });
 

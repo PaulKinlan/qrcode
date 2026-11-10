@@ -46,7 +46,16 @@ test('the About button surface is an opaque #0d47a1 circle and the pair clears 3
   const start = cameraCss.indexOf('.Camera .about {');
   assert.notEqual(start, -1, 'expected a .Camera .about rule in camera.css');
   const block = cameraCss.slice(cameraCss.indexOf('{', start), cameraCss.indexOf('}', start));
-  assert.match(block, /background-color:\s*#0d47a1/, 'the .about surface must stay #0d47a1');
+  // The surface may be the literal or the shared token (bead qrcode-79p); either way the
+  // shipped value must still be #0d47a1 - the 6.13:1 pair was verified against it.
+  const surface = block.match(/background-color:\s*(#0d47a1|var\(--wsk-indigo-900\))/);
+  assert.ok(surface, 'the .about surface must stay #0d47a1 (literal or --wsk-indigo-900 token)');
+  if (surface[1].startsWith('var(')) {
+    const tokens = Object.fromEntries(
+      [...readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8').matchAll(/(--wsk-[a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)].map((m) => [m[1], m[2]])
+    );
+    assert.equal(tokens['--wsk-indigo-900'], '#0d47a1');
+  }
   assert.match(block, /border-radius:\s*50%/, 'the surface must be circular (mini-FAB pattern)');
 
   const ratio = contrast('#ffffff', '#0d47a1');

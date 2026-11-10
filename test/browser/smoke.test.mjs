@@ -639,10 +639,14 @@ test(
         { timeoutMs: phaseTimeout(10_000), message: 'Enter on the About button to open the dialog with focus on Close' }
       );
 
-      // 4b-1 (bead qrcode-319, finding 1): a real pointer click on the dialog body moves focus
-      // off the Close button (inside a native modal dialog Chromium puts it on the dialog
-      // element itself - a synthetic .click() would not move focus at all and could never
-      // reproduce this) - and Escape must still close the dialog from wherever focus landed.
+      // 4b-1 (bead qrcode-319, finding 1; updated bead qrcode-0tp): a real pointer click on
+      // the dialog body moves focus off the Close button (a synthetic .click() would not move
+      // focus at all and could never reproduce this). The click lands inside the scrollable
+      // About body, which is now itself focusable (tabindex="0", bead qrcode-0tp), so
+      // Chromium focuses that region - the nearest focusable ancestor of the click point -
+      // rather than the dialog element. That is the desired contract: focus in the region
+      // means the arrow keys scroll the body from the first keystroke. Escape must still
+      // close the dialog from wherever focus landed.
       const paraRect = await cdp.eval(`
         (() => {
           const r = document.querySelector('.QRCodeAboutDialog-data p').getBoundingClientRect();
@@ -652,8 +656,8 @@ test(
       await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: paraRect.x, y: paraRect.y, button: 'left', clickCount: 1 });
       await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: paraRect.x, y: paraRect.y, button: 'left', clickCount: 1 });
       await pollUntil(
-        async () => cdp.eval('document.activeElement === document.querySelector("#about")'),
-        { timeoutMs: phaseTimeout(5_000), message: 'the pointer click on dialog copy to move focus to the dialog element' }
+        async () => cdp.eval('document.activeElement === document.querySelector(".QRCodeAboutDialog-data")'),
+        { timeoutMs: phaseTimeout(5_000), message: 'the pointer click on dialog copy to move focus to the scrollable body region' }
       );
       await cdp.send('Input.dispatchKeyEvent', {
         type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
@@ -666,12 +670,14 @@ test(
         { timeoutMs: phaseTimeout(10_000), message: 'Escape to close the dialog even with focus blurred to body' }
       );
 
-      // 4b-2 (bead qrcode-319, finding 2): forward Tab must reach the dialog's links, which sit
-      // before Close in DOM order. Chromium's canonical modal traversal (verified against a
-      // bare-page dialog with only an opener/input and two links: identical sequence) is:
-      // Tab from the last focusable steps to BODY for one hop, the next Tab RE-ENTERS the
-      // modal scope at its first focusable, and the cycle then stays inside the dialog -
-      // outside content is never reachable by forward Tab. Assert that contract, not a
+      // 4b-2 (bead qrcode-319, finding 2; updated bead qrcode-0tp): forward Tab must reach
+      // the dialog's links, which sit before Close in DOM order. Chromium's canonical modal
+      // traversal is: Tab from the last focusable steps to BODY for one hop, the next Tab
+      // RE-ENTERS the modal scope at its first focusable, and the cycle then stays inside
+      // the dialog - outside content is never reachable by forward Tab. With the About body
+      // now a focusable scroll region (tabindex="0", bead qrcode-0tp) that region is the
+      // dialog's first focusable and so the re-entry point, followed by the two links.
+      // Verified against real keystrokes in this suite; assert that contract, not a
       // single-step wrap no real modal dialog performs.
       await cdp.eval('document.querySelector(".about").focus()');
       await cdp.send('Input.dispatchKeyEvent', {
@@ -699,14 +705,24 @@ test(
         `Tab from Close must hop to body or stay inside the dialog, got ${JSON.stringify(firstHop)}`
       );
       await pressTab();
-      const secondHop = await focusState();
+      const regionHop = await focusState();
       assert.ok(
-        secondHop.inside && secondHop.tag === 'A',
-        `the next Tab must re-enter the dialog on its first link, got ${JSON.stringify(secondHop)}`
+        regionHop.inside && regionHop.tag === 'DIV' &&
+          (await cdp.eval('document.activeElement === document.querySelector(".QRCodeAboutDialog-data")')),
+        `the next Tab must re-enter the dialog on the focusable scroll region, got ${JSON.stringify(regionHop)}`
       );
       await pressTab();
-      const thirdHop = await focusState();
-      assert.ok(thirdHop.inside, `the Tab cycle must stay inside the dialog, got ${JSON.stringify(thirdHop)}`);
+      const linkHop = await focusState();
+      assert.ok(
+        linkHop.inside && linkHop.tag === 'A',
+        `the next Tab must reach the dialog's first link, got ${JSON.stringify(linkHop)}`
+      );
+      await pressTab();
+      const secondLinkHop = await focusState();
+      assert.ok(
+        secondLinkHop.inside && secondLinkHop.tag === 'A',
+        `the Tab cycle must continue to the second link, got ${JSON.stringify(secondLinkHop)}`
+      );
 
       // Escape (native cancel) closes; focus returns to the trigger.
       await cdp.send('Input.dispatchKeyEvent', {

@@ -119,6 +119,10 @@ const killPage = (title, heading, body) => new Response(`<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
+<!-- Colour literals, on purpose (bead qrcode-79p): these pages are synthesised responses with
+     no stylesheet dependency, so they must not lean on the app's :root tokens in
+     app/styles/all.css. If a palette value changes there, change it here too - the contrast
+     ratios below were verified against these exact values. -->
 <style>
   body { font-family: system-ui, sans-serif; line-height: 1.5; margin: 0 auto; max-width: 32rem; padding: 2rem 1rem; color: #212121; }
   h1 { font-size: 1.5rem; }

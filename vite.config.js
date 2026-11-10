@@ -178,6 +178,18 @@ export const FRAMING_HEADERS = {
   'X-Frame-Options': 'DENY'
 };
 
+// The app document also pins Referrer-Policy (bead qrcode-igx): its URL can carry an
+// x-callback-url destination or a kill-switch consent token, and the browser default
+// (strict-origin-when-cross-origin) hands the full URL - query included - to any same-origin
+// receiver. 'same-origin' is the discipline the service worker already pins on its
+// synthesised kill/ask pages (app/sw.js): same-origin receivers keep the URL, cross-origin
+// receivers get no Referer at all. The x-callback integration is unaffected: it confirms every
+// transfer from the ?qrcode= parameter and never trusts the referrer. Exported so the unit
+// test pins dev, preview and app/_headers to the same policy - one source of truth, not three.
+export const REFERRER_HEADERS = {
+  'Referrer-Policy': 'same-origin'
+};
+
 export default defineConfig({
   root: 'app',
   build: {
@@ -242,11 +254,11 @@ export default defineConfig({
   server: {
     port: 8080,
     strictPort: false,
-    headers: FRAMING_HEADERS
+    headers: { ...FRAMING_HEADERS, ...REFERRER_HEADERS }
   },
   preview: {
     port: 8080,
     strictPort: false,
-    headers: FRAMING_HEADERS
+    headers: { ...FRAMING_HEADERS, ...REFERRER_HEADERS }
   }
 });

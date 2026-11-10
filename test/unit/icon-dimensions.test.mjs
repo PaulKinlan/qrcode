@@ -69,7 +69,16 @@ test('the upload input is named, keyboard reachable, and its visible label shows
   const inputRule = cameraCss.match(/\.Camera \.CameraFallback \.CameraFallback-input\s*\{([^}]*)\}/)?.[1];
   assert.ok(inputRule, 'file-upload input must have a CSS rule');
   assert.doesNotMatch(inputRule, /visibility:\s*hidden|display:\s*none/, 'upload input must remain keyboard reachable');
-  assert.match(cameraCss, /\.Camera \.CameraFallback \.CameraFallback-input:focus-visible \+ label\s*\{[^}]*box-shadow:\s*inset\s+0\s+0\s+0\s+3px\s+#fff;/);
+  const focusRing = cameraCss.match(/\.Camera \.CameraFallback \.CameraFallback-input:focus-visible \+ label\s*\{[^}]*box-shadow:\s*inset\s+0\s+0\s+0\s+3px\s+(#fff|var\(--wsk-white\));/);
+  assert.ok(focusRing, 'the upload label focus ring must stay a 3px white inset shadow');
+  if (focusRing[1].startsWith('var(')) {
+    // The ring's white comes from the shared token (bead qrcode-79p); pin its value here so the
+    // ring cannot silently change shade with a token edit.
+    const tokens = Object.fromEntries(
+      [...readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8').matchAll(/(--wsk-[a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)].map((m) => [m[1], m[2]])
+    );
+    assert.equal(tokens['--wsk-white'], '#fff');
+  }
 });
 
 test('every image explicitly declares alt, including the decorative upload icon and dynamic preview', () => {

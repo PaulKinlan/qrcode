@@ -178,6 +178,47 @@ fixed while doing nothing. The policy ships in three places instead:
 
   `X-Frame-Options` is there for engines that do not implement `frame-ancestors`.
 
+### Referrer-Policy
+
+The app URL itself can carry sensitive query values: the `x-callback-url` destination handed in
+when another app opens the scanner, and the service-worker kill-switch consent token
+(`?kill-sw=true&confirm=1&consent=<32 hex>`). The browser default
+(`strict-origin-when-cross-origin`) sends the full URL - query included - to any same-origin
+receiver, so the document pins `Referrer-Policy: same-origin`: same-origin receivers keep the
+URL, cross-origin receivers get no `Referer` at all. It ships in three places:
+
+* `app/_headers` and `server.headers` / `preview.headers` in `vite.config.js` - the same
+  surfaces as the framing policy above.
+* a `<meta name="referrer" content="same-origin">` in `app/index.html` - unlike
+  `frame-ancestors`, the referrer policy **is** honoured from a `<meta>` tag, so a host that
+  reads neither header file still gets the policy. Any other host or reverse proxy should send
+  `Referrer-Policy: same-origin` itself for defence in depth.
+
+The x-callback integration does not depend on this: the callback destination confirms every
+transfer from the `qrcode` parameter on its own URL and never trusts the referrer.
+
+### Worker CSP
+
+A `<meta>` CSP applies to the document only, so the service worker (`/sw.js`) and the decoder
+worker run with no policy unless their script responses carry one. The header file scopes CSP
+blocks to the worker paths - and deliberately not to `/*`: a document response CSP would
+combine with the meta policy and strip `img-src data: blob:`, breaking the camera-fallback
+upload (bead qrcode-2pt). The two values, which must stay path-scoped:
+
+```
+/sw.js
+  Content-Security-Policy: default-src 'none'; script-src 'self'; connect-src 'self'
+/scripts/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'
+```
+
+The decoder policy must keep `'wasm-unsafe-eval'` and `connect-src 'self'`: the worker fetches
+`scripts/zbar.wasm` and compiles it, and dropping either directive fails every scan. On a host
+or reverse proxy that does not read `_headers`, add these two blocks yourself - without them
+the worker contexts run unpoliced (bead qrcode-7du). `vite dev`/`preview` cannot scope headers
+per path, so workers are unpoliced in local development; this is a recorded residual, not a
+gap to fill by widening the document policy.
+
 ### Development Notes
 
 * The project uses Vite as the build tool (replaced Gulp)

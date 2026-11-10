@@ -22,6 +22,15 @@
        even though the image picker no longer uses a form (beads qrcode-4b9, qrcode-9kf). -->
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; form-action 'self'; img-src 'self' data: blob:; connect-src 'self'">
+  <!-- Unlike frame-ancestors, the referrer policy IS honoured from a <meta> tag, so the
+       document pins it itself (bead qrcode-igx): the app URL can carry the x-callback-url
+       destination or the kill-switch consent token, and the browser default
+       (strict-origin-when-cross-origin) hands the full URL to any same-origin receiver.
+       'same-origin' matches the discipline the service worker already pins on its
+       synthesised kill/ask pages (app/sw.js): cross-origin receivers get no Referer at all.
+       app/_headers and the vite dev/preview servers send the same policy as a header for
+       hosts that read them; a host that reads neither still gets this meta. -->
+  <meta name="referrer" content="same-origin">
   <meta name="description" content="Instantly snap QR codes on mobile and desktop without installing an app.">
 
   <!-- Add to homescreen -->
@@ -118,7 +127,11 @@
         <div class="wsk-card--heading">
           <span class="wsk-card--heading-text" id="about-heading">About QR Snapper</span>
         </div>
-        <div class="wsk-card--lower QRCodeAboutDialog-data">
+        <!-- The body is a scroll container once the viewport-relative cap binds (narrow/
+             short screens, bead qrcode-0tp). tabindex="0" keeps keyboard-only users able to
+             scroll it (WCAG scrollable-region-focusable); role="region" + aria-labelledby
+             name what they landed in. -->
+        <div class="wsk-card--lower QRCodeAboutDialog-data" role="region" aria-labelledby="about-heading" tabindex="0">
           <p>QR Snapper is the simplest to use QR Scanner available on the web.</p>
           <p>If you would like to learn how it was built, visit <a
               href="https://paul.kinlan.me/projects/qrsnapper/">Paul Kinlan's site</a>.</p>

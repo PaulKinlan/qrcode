@@ -189,6 +189,17 @@ test('an @import mentioned in a comment is prose, not a nested import (bead qrco
   assert.deepEqual(bundledStylesheets((file) => tree[file]), ['app.css', 'all.css']);
 });
 
+test('comments never become imports, anywhere in the entry file (bead qrcode-2mu)', () => {
+  // A comment after the statement's ';' must not break the whole-statement match...
+  // ...and a comment-only line mentioning @import in the ENTRY file must not be parsed as one.
+  const tree = {
+    'app.css': "@import 'all.css'; /* camera capture */\n/* bundle note: @import 'camera.css'; */",
+    'all.css': ':root { --wsk-grey-800: #424242; }',
+    'camera.css': '.y { color: #424242; }',
+  };
+  assert.deepEqual(bundledStylesheets((file) => tree[file]), ['app.css', 'all.css']);
+});
+
 test('dialog card text keeps an explicit AA colour over the white card surface', () => {
   // .wsk-card is white; p carries an explicit dark colour. Pin both so inheritance or a
   // palette change cannot turn the About/Success dialog copy light-on-light.

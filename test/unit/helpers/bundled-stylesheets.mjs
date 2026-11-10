@@ -20,7 +20,12 @@ import assert from 'node:assert/strict';
  * @returns {string[]}
  */
 export function parseImports(css, file) {
-  return css
+  // Comments are prose: strip /*...*/ block comments from the whole text BEFORE filtering
+  // lines, so a comment-only line that mentions @import is not parsed as one, and a trailing
+  // comment after the statement's ';' does not break the whole-statement match - the same
+  // convention the nested-import check and the hex scan apply (bead qrcode-2mu).
+  const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  return withoutComments
     .split('\n')
     .filter((line) => /@import/i.test(line))
     .map((line) => {

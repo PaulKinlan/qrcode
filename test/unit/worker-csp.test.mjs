@@ -60,6 +60,10 @@ test('the worker CSP blocks are scoped to the paths the build actually ships wor
   // 2. Vite emits the worker entry (and any chunks) into scripts/.
   const vite = readFileSync(new URL('../../vite.config.js', import.meta.url), 'utf8');
   assert.match(vite, /worker:\s*\{[\s\S]*?entryFileNames:\s*'scripts\/\[name\]\.js'/, 'worker output must stay in scripts/ (bead qrcode-16d)');
+  // A chunk pin matters even though no dynamic import ships today: the Vite default puts
+  // chunks in assets/, outside the /scripts/* CSP scope, and nothing else fails on a config
+  // that never emits a chunk (bead qrcode-aa0).
+  assert.match(vite, /worker:\s*\{[\s\S]*?chunkFileNames:\s*'scripts\/\[name\]\.js'/, 'worker dynamic-import chunks must be pinned to scripts/ - the default ships them under assets/, outside the /scripts/* CSP scope (bead qrcode-aa0)');
   assert.match(headers, /^\/scripts\/\*$/m, 'the /scripts/* block is the scope both facts rely on');
   assert.match(headers, /^\/sw\.js$/m, 'the /sw.js block must exist (the SW ships at the origin root)');
 });

@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bundledStylesheets, parseImports } from './helpers/bundled-stylesheets.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const allCss = readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8');
@@ -118,19 +119,12 @@ test('the colour tokens resolve to the exact values the contrast guarantees were
 
 test('the drift-set palette is declared once and not re-typed in any bundled rule body', () => {
   // qrcode-79p: the same greys/indigo were re-typed by hand across the stylesheets app.css
-  // bundles. The file list is derived from app.css's @imports (the bundle's source of truth,
-  // bead qrcode-bib), so a newly imported stylesheet is guarded automatically. Rule bodies
-  // must reference the tokens; comments may still cite hex values (they document measured
-  // contrast ratios), and the :root declarations are the single source - that is the fix.
-  const appCss = readFileSync(join(root, 'app', 'styles', 'app.css'), 'utf8');
-  // Parse BOTH @import forms (quoted and url()); an @import line this guard cannot parse must
-  // fail the test instead of silently escaping the derived list (bead qrcode-37j).
-  const importLines = appCss.split('\n').filter((line) => /@import/i.test(line));
-  const bundled = importLines.map((line) => {
-    const m = line.match(/@import\s+(?:url\()?['"]?([^'")\s;]+)/i);
-    assert.ok(m, `app.css has an @import this guard cannot parse - extend the guard: ${line.trim()}`);
-    return m[1];
-  });
+  // bundles. The file list is derived by bundledStylesheets() (the bundle's source of truth is
+  // app.css, bead qrcode-bib), so a newly imported stylesheet is guarded automatically - and a
+  // nested @import below app.css fails loudly instead of escaping the scan (bead qrcode-4bw).
+  // Rule bodies must reference the tokens; comments may still cite hex values (they document
+  // measured contrast ratios), and the :root declarations are the single source - that is the fix.
+  const bundled = bundledStylesheets((file) => readFileSync(join(root, 'app', 'styles', file), 'utf8'));
   assert.ok(bundled.includes('all.css'), 'all.css must stay bundled (it declares the tokens)');
   for (const file of bundled) {
     const css = readFileSync(join(root, 'app', 'styles', file), 'utf8');
@@ -140,6 +134,70 @@ test('the drift-set palette is declared once and not re-typed in any bundled rul
       assert.ok(!withoutTokenDeclarations.includes(hex), `app/styles/${file} re-types ${hex} in a rule body; use the --wsk token`);
     }
   }
+});
+
+test('the bundle derivation covers the entry file itself', () => {
+  // app.css is part of the bundle; a hex re-typed in its own rule body must be scanned too
+  // (same escape class as qrcode-4bw, one file earlier in the chain).
+  const files = bundledStylesheets((file) =>
+    file === 'app.css' ? "@import 'all.css';\n.x { color: #424242; }" : ':root { --wsk-grey-800: #424242; }'
+  );
+  assert.deepEqual(files, ['app.css', 'all.css']);
+});
+
+test('the bundle derivation rejects a nested @import below the entry file (bead qrcode-4bw)', () => {
+  // The reviewer's mutant: all.css imports deep.css, whose rule body re-types a palette hex.
+  // The derivation must fail loudly instead of returning a file list that skips deep.css.
+  const tree = {
+    'app.css': "@import 'all.css';",
+    'all.css': "@import 'deep.css';\n:root { --wsk-grey-800: #424242; }",
+    'deep.css': '.y { color: #424242; }',
+  };
+  assert.throws(() => bundledStylesheets((file) => tree[file]), /all\.css contains an @import/);
+});
+
+test('the bundle derivation parses the url() import form and fails on unparseable lines (bead qrcode-37j)', () => {
+  const urlForm = bundledStylesheets((file) =>
+    file === 'app.css' ? "@import url('all.css');" : ':root { --wsk-grey-800: #424242; }'
+  );
+  assert.deepEqual(urlForm, ['app.css', 'all.css']);
+  assert.throws(
+    () => parseImports("@import whatever all.css", 'app.css'),
+    /app.css has an @import this guard cannot parse/
+  );
+});
+
+test('imports with trailing media-query / layer() clauses are derived, not rejected (bead qrcode-g7j)', () => {
+  // A media query or cascade layer names the SAME file; the parent tree guarded it, so the
+  // whole-statement anchor must absorb the tail rather than throw on valid CSS.
+  const tree = {
+    'app.css': "@import 'all.css' screen;\n@import url('camera.css') layer(base) supports(display: grid);",
+    'all.css': ':root { --wsk-grey-800: #424242; }',
+    'camera.css': ':root { --wsk-indigo-900: #0d47a1; }',
+  };
+  assert.deepEqual(bundledStylesheets((file) => tree[file]), ['app.css', 'all.css', 'camera.css']);
+});
+
+test('an @import mentioned in a comment is prose, not a nested import (bead qrcode-g7j)', () => {
+  const tree = {
+    'app.css': "@import 'all.css';",
+    // Documents the bundle; must not trip the nested-import rejection...
+    'all.css': '/* prev bundle had: @import "camera.css"; */\n:root { --wsk-grey-800: #424242; }',
+    // ...but a real nested import inside a comment still must not smuggle the file in.
+    'camera.css': '.y { color: #424242; }',
+  };
+  assert.deepEqual(bundledStylesheets((file) => tree[file]), ['app.css', 'all.css']);
+});
+
+test('comments never become imports, anywhere in the entry file (bead qrcode-2mu)', () => {
+  // A comment after the statement's ';' must not break the whole-statement match...
+  // ...and a comment-only line mentioning @import in the ENTRY file must not be parsed as one.
+  const tree = {
+    'app.css': "@import 'all.css'; /* camera capture */\n/* bundle note: @import 'camera.css'; */",
+    'all.css': ':root { --wsk-grey-800: #424242; }',
+    'camera.css': '.y { color: #424242; }',
+  };
+  assert.deepEqual(bundledStylesheets((file) => tree[file]), ['app.css', 'all.css']);
 });
 
 test('dialog card text keeps an explicit AA colour over the white card surface', () => {

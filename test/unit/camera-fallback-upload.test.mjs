@@ -10,7 +10,7 @@ function setup() {
   const errors = [];
   let created = 0;
   let change;
-  const input = { addEventListener(type, callback) {
+  const input = { value: '', addEventListener(type, callback) {
     assert.equal(type, 'change');
     change = callback;
   } };
@@ -24,9 +24,15 @@ function setup() {
   const alert = { hidden: true };
   manager.onFailure = () => { alert.hidden = false; };
   return {
-    manager, alert, errors, revoked,
+    manager, alert, errors, revoked, input,
     get created() { return created; },
-    select(file) { change({ target: { files: file ? [file] : [] } }); },
+    select(file) {
+      const value = file ? 'C:\\fakepath\\selected.png' : '';
+      if (input.value === value) return;
+      input.value = value;
+      input.files = file ? [file] : [];
+      change({ target: input });
+    },
     restore() {
       globalThis.Image = previousImage;
       globalThis.URL = previousURL;
@@ -67,6 +73,17 @@ test('failed image decode revokes URL once and shows error; successful retry sti
     env.manager.image.onload();
     assert.deepEqual(env.revoked, ['blob:test-1', 'blob:test-2']);
     assert.equal(frames, 1);
+  } finally { env.restore(); }
+});
+
+test('choosing the identical file again after a failed decode starts another attempt', () => {
+  const env = setup();
+  try {
+    env.select(imageFile);
+    assert.equal(env.input.value, '', 'file input re-armed after the selection');
+    env.manager.image.onerror();
+    env.select(imageFile);
+    assert.equal(env.created, 2, 'same file selection must dispatch a new change');
   } finally { env.restore(); }
 });
 

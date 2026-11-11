@@ -23,6 +23,8 @@ export class CameraFallbackManager {
       }
 
       const file = e.target.files?.[0];
+      // Re-arm the control even when decoding fails, so choosing the same file retries.
+      e.target.value = '';
       if (!file) return;
       if (!file.type.startsWith('image/')) {
         this.reportFailure(new Error('Choose a supported image file.'));

@@ -44,10 +44,12 @@ test('invalid type or oversized upload is rejected before object URL creation an
     assert.equal(env.created, 0);
     assert.equal(env.alert.hidden, false);
     assert.equal(env.errors.length, 1, 'failure leaves a console trail');
+    assert.match(env.errors[0][1].message, /supported image file/);
     env.alert.hidden = true;
     env.select({ type: 'image/png', size: 10 * 1024 * 1024 + 1 });
     assert.equal(env.created, 0);
     assert.equal(env.alert.hidden, false);
+    assert.match(env.errors[1][1].message, /smaller than 10 MiB/);
   } finally { env.restore(); }
 });
 

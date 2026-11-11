@@ -3,7 +3,8 @@
 # clickjackable once the document can be framed. Referrer-Policy (bead qrcode-igx) keeps the app
 # URL - which can carry an x-callback-url destination or a kill-switch consent token - away from
 # cross-origin receivers entirely; the document also pins it in a <meta> tag for hosts that do
-# not read this file.
+# not read this file. The catch-all block also disables MIME sniffing and pins HTTPS on
+# production hosts; do not set HSTS on the local HTTP development server.
 #
 # The worker responses get their own CSP (bead qrcode-7du): a <meta> CSP applies to the document
 # only, so /sw.js and the decoder worker would otherwise run with no policy at all. The policies
@@ -29,6 +30,8 @@
   Content-Security-Policy: frame-ancestors 'none'
   X-Frame-Options: DENY
   Referrer-Policy: same-origin
+  X-Content-Type-Options: nosniff
+  Strict-Transport-Security: max-age=31536000
 /sw.js
   Content-Security-Policy: default-src 'none'; script-src 'self'; connect-src 'self'
 /scripts/*

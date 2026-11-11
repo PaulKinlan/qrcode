@@ -122,6 +122,7 @@ export class CameraManager {
 
     // Set up dimensions changed callback
     this.sourceManager.onDimensionsChanged = () => this.resize();
+    this.sourceManager.onFailure = (error) => this.onFailure(error);
   }
 
   /**
@@ -195,6 +196,7 @@ export class CameraManager {
     this.drawOverlay(overlaySize);
   }
 
-  // Callback to be overridden
+  // Callbacks to be overridden
   onframe() {}
+  onFailure() {}
 }

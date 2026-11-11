@@ -7,6 +7,7 @@ export class CameraFallbackManager {
     this.element = element;
     this.inputElement = element.querySelector('.CameraFallback-input');
     this.image = new Image();
+    this.pendingObjectURL = null;
 
     this.setupEventListeners();
   }
@@ -14,16 +15,46 @@ export class CameraFallbackManager {
   setupEventListeners() {
     // Handle image file selection
     this.inputElement.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        const objectURL = URL.createObjectURL(e.target.files[0]);
-        
+      // A new choice supersedes any decode still in progress.
+      this.image.onload = this.image.onerror = null;
+      if (this.pendingObjectURL) {
+        URL.revokeObjectURL(this.pendingObjectURL);
+        this.pendingObjectURL = null;
+      }
+
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+        this.reportFailure(new Error('Choose an image smaller than 10 MiB.'));
+        return;
+      }
+
+      try {
+        const objectURL = URL.createObjectURL(file);
+        this.pendingObjectURL = objectURL;
+        const settle = () => {
+          if (this.pendingObjectURL !== objectURL) return false;
+          this.pendingObjectURL = null;
+          this.image.onload = this.image.onerror = null;
+          URL.revokeObjectURL(objectURL);
+          return true;
+        };
         this.image.onload = () => {
+          if (!settle()) return;
           this.onDimensionsChanged();
           this.onframeready(this.image);
-          URL.revokeObjectURL(objectURL);
         };
-
+        this.image.onerror = () => {
+          if (settle()) this.reportFailure(new Error('Unable to load the selected image.'));
+        };
         this.image.src = objectURL;
+      } catch (error) {
+        if (this.pendingObjectURL) {
+          URL.revokeObjectURL(this.pendingObjectURL);
+          this.pendingObjectURL = null;
+        }
+        this.image.onload = this.image.onerror = null;
+        this.reportFailure(error);
       }
     });
   }
@@ -43,7 +74,13 @@ export class CameraFallbackManager {
   // No-op methods for API compatibility with CameraSource
   resize() {}
 
+  reportFailure(error) {
+    console.error('Camera upload failed:', error);
+    this.onFailure(error);
+  }
+
   // Callback methods to be overridden
   onDimensionsChanged() {}
   onframeready() {}
+  onFailure() {}
 }

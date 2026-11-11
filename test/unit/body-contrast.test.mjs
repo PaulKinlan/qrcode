@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bundledStylesheets, parseImports } from './helpers/bundled-stylesheets.mjs';
+import { bundledStylesheets, parseImports, stripCssComments } from './helpers/bundled-stylesheets.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const allCss = readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8');
@@ -176,6 +176,34 @@ test('imports with trailing media-query / layer() clauses are derived, not rejec
     'camera.css': ':root { --wsk-indigo-900: #0d47a1; }',
   };
   assert.deepEqual(bundledStylesheets((file) => tree[file]), ['app.css', 'all.css', 'camera.css']);
+});
+
+test('comment stripping blanks the prose but keeps the comment line count (bead qrcode-4fs)', () => {
+  const stripped = stripCssComments('a { color: red; } /* one\ntwo\nthree */ b { color: blue; }');
+  assert.equal(stripped.split('\n').length, 3, "the comment's own newlines must survive, not be deleted with the prose");
+  assert.ok(!stripped.includes('one'), 'the prose itself must be gone');
+  assert.ok(stripped.includes('b { color: blue; }'), 'the declaration after the comment survives');
+});
+
+test('stripping a comment keeps the line breaks inside it (bead qrcode-4fs)', () => {
+  // The strip exists so comment PROSE never parses as an import. Deleting the comment text with
+  // its newlines merged the import that follows a multi-line comment onto the line the comment
+  // started on, so valid CSS hard-redded with "an @import this guard cannot parse".
+  const tree = {
+    'app.css': [
+      "@import 'camera.css'; /* note",
+      "continues */ @import 'all.css';",
+      "@import 'x.css';",
+    ].join('\n'),
+    'camera.css': ':root { --wsk-grey-800: #424242; }',
+    'all.css': ':root { --wsk-indigo-900: #0d47a1; }',
+    'x.css': '.x { color: #bdbdbd; }',
+  };
+  assert.deepEqual(
+    bundledStylesheets((file) => tree[file]),
+    ['app.css', 'camera.css', 'all.css', 'x.css'],
+    'both imports around a multi-line comment must derive; the comment must not glue them together'
+  );
 });
 
 test('an @import mentioned in a comment is prose, not a nested import (bead qrcode-g7j)', () => {

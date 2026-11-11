@@ -24,7 +24,11 @@ export class CameraFallbackManager {
 
       const file = e.target.files?.[0];
       if (!file) return;
-      if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+      if (!file.type.startsWith('image/')) {
+        this.reportFailure(new Error('Choose a supported image file.'));
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
         this.reportFailure(new Error('Choose an image smaller than 10 MiB.'));
         return;
       }

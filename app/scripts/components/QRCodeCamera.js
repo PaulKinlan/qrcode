@@ -29,6 +29,9 @@ export class QRCodeCamera {
   }
 
   setupCameraCallback() {
+    this.cameraManager.onFailure = () => {
+      if (this.scanError) this.scanError.hidden = false;
+    };
     let isDecoding = false;
     this.cameraManager.onframe = async (context) => {
       // Keep the camera preview running, but do not decode or vibrate behind a modal result.

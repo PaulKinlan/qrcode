@@ -23,6 +23,8 @@ export class CameraFallbackManager {
       }
 
       const file = e.target.files?.[0];
+      // Re-arm the control even when decoding fails, so choosing the same file retries.
+      e.target.value = '';
       if (!file) return;
       if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
         this.reportFailure(new Error('Choose an image smaller than 10 MiB.'));

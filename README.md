@@ -202,6 +202,17 @@ URL, cross-origin receivers get no `Referer` at all. It ships in three places:
 The x-callback integration does not depend on this: the callback destination confirms every
 transfer from the `qrcode` parameter on its own URL and never trusts the referrer.
 
+### Transport and content-type headers
+
+The production static-host `app/_headers` catch-all block also sends
+`X-Content-Type-Options: nosniff` so browsers use the declared content type rather than
+sniffing a different one, and `Strict-Transport-Security: max-age=31536000` to keep
+subsequent visits on HTTPS. Deploy behind HTTPS before enabling HSTS. The policy does not
+include subdomains, which may host unrelated services. The local Vite HTTP dev/preview
+server deliberately does not send HSTS. Hosts that do not consume `_headers` must configure
+both headers on their HTTPS responses themselves (including static assets); they should
+also send `nosniff` in development where appropriate.
+
 ### Worker CSP
 
 A `<meta>` CSP applies to the document only, so the service worker (`/sw.js`) and the decoder

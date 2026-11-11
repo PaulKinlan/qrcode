@@ -13,6 +13,22 @@
 import assert from 'node:assert/strict';
 
 /**
+ * Remove CSS block comments while keeping the line structure they occupied.
+ *
+ * Comments are prose: they must not parse as imports, and they must not trip the nested-import
+ * rejection. But replacing a comment with the empty string also deletes the newlines INSIDE it,
+ * which glues whatever followed the comment onto the line the comment started on - so a valid
+ * `@import` after a multi-line comment ended up on a line with the comment's prefix and the
+ * whole-statement anchor failed on it (bead qrcode-4fs). Blanking every comment character except
+ * the newlines strips the prose and leaves the line numbering the parser depends on.
+ * @param {string} css
+ * @returns {string}
+ */
+export function stripCssComments(css) {
+  return css.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ''));
+}
+
+/**
  * Parse the stylesheet's @import lines. Both CSS forms (quoted and url()), case-insensitive;
  * an @import line that matches neither form throws with the offending line.
  * @param {string} css
@@ -23,8 +39,10 @@ export function parseImports(css, file) {
   // Comments are prose: strip /*...*/ block comments from the whole text BEFORE filtering
   // lines, so a comment-only line that mentions @import is not parsed as one, and a trailing
   // comment after the statement's ';' does not break the whole-statement match - the same
-  // convention the nested-import check and the hex scan apply (bead qrcode-2mu).
-  const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  // convention the nested-import check and the hex scan apply (bead qrcode-2mu). The strip keeps
+  // the comment's newlines, so it cannot merge an import onto the comment's first line
+  // (bead qrcode-4fs).
+  const withoutComments = stripCssComments(css);
   return withoutComments
     .split('\n')
     .filter((line) => /@import/i.test(line))
@@ -60,7 +78,7 @@ export function bundledStylesheets(readCss, entry = 'app.css') {
     const css = readCss(file);
     // Comments may legitimately mention @import in prose (they document the bundle); strip
     // them like the hex scan does, so only a REAL nested import is rejected (bead qrcode-g7j).
-    const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const withoutComments = stripCssComments(css);
     assert.ok(
       !/@import/i.test(withoutComments),
       `${file} contains an @import - ${entry} is the bundle's only import root; declare it in ${entry} instead (bead qrcode-4bw), or extend this helper to recurse`

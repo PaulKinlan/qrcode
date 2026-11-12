@@ -2,6 +2,32 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CameraFallbackManager } from '../../app/scripts/components/camera/CameraFallbackManager.js';
 
+/**
+ * The parts of HTMLInputElement the manager depends on. A real file input is
+ * not two independent fields: assigning '' to its value also empties its
+ * FileList. Modelling that coupling is what makes the capture-before-clear
+ * ordering in CameraFallbackManager observable - with independent fields a
+ * handler that re-arms the input before reading files[0] would still pass.
+ */
+class MockFileInput {
+  #value = '';
+  files = [];
+
+  addEventListener(type, callback) {
+    assert.equal(type, 'change');
+    this.onchange = callback;
+  }
+
+  get value() {
+    return this.#value;
+  }
+
+  set value(next) {
+    this.#value = next;
+    if (next === '') this.files = [];
+  }
+}
+
 function setup() {
   const previousImage = globalThis.Image;
   const previousURL = globalThis.URL;
@@ -9,11 +35,7 @@ function setup() {
   const revoked = [];
   const errors = [];
   let created = 0;
-  let change;
-  const input = { value: '', addEventListener(type, callback) {
-    assert.equal(type, 'change');
-    change = callback;
-  } };
+  const input = new MockFileInput();
   globalThis.Image = class { naturalWidth = 100; naturalHeight = 100; };
   globalThis.URL = {
     createObjectURL() { return `blob:test-${++created}`; },
@@ -27,11 +49,12 @@ function setup() {
     manager, alert, errors, revoked, input,
     get created() { return created; },
     select(file) {
+      // Simulates the picker: it populates value and files, then fires change.
       const value = file ? 'C:\\fakepath\\selected.png' : '';
       if (input.value === value) return;
       input.value = value;
       input.files = file ? [file] : [];
-      change({ target: input });
+      input.onchange({ target: input });
     },
     restore() {
       globalThis.Image = previousImage;
@@ -81,6 +104,7 @@ test('choosing the identical file again after a failed decode starts another att
   try {
     env.select(imageFile);
     assert.equal(env.input.value, '', 'file input re-armed after the selection');
+    assert.deepEqual(env.input.files, [], 're-arming empties files, as a browser does');
     env.manager.image.onerror();
     env.select(imageFile);
     assert.equal(env.created, 2, 'same file selection must dispatch a new change');

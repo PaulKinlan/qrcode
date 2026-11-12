@@ -10,6 +10,12 @@ const indexHtml = readFileSync(new URL('../../app/index.html', import.meta.url),
 // paragraphs wrap taller than the inherited fixed 108px.
 const bodyRule = css.match(/\.QRCodeAboutDialog-data\s*\{([^}]*)\}/)?.[1];
 
+test('the About card overrides the UA bottom inset so its footer remains visible', () => {
+  const dialogRule = css.match(/\.QRCodeAboutDialog\s*\{([^}]*)\}/)?.[1];
+  assert.ok(dialogRule, '.QRCodeAboutDialog rule must exist');
+  assert.match(dialogRule, /\bbottom:\s*auto\s*;/, 'top:50% + the UA bottom:0 shrinks the card to half the viewport');
+});
+
 test('the About body grows with its copy instead of inheriting the fixed 108px', () => {
   assert.ok(bodyRule, '.QRCodeAboutDialog-data rule must exist');
   assert.match(bodyRule, /\bheight:\s*auto\s*;/, 'fixed height clips wrapped copy');
@@ -17,8 +23,8 @@ test('the About body grows with its copy instead of inheriting the fixed 108px',
 
 test('the body scrolls only as a visible fallback, not as a silent clip', () => {
   assert.ok(bodyRule, '.QRCodeAboutDialog-data rule must exist');
-  assert.match(bodyRule, /\bmax-height:\s*calc\(100vh\s*-\s*166px\)\s*;/, 'vh fallback cap keeps the dialog on screen');
-  assert.match(bodyRule, /\bmax-height:\s*calc\(100dvh\s*-\s*166px\)\s*;/, 'dvh cap must win over the vh fallback');
+  assert.match(bodyRule, /\bmax-height:\s*calc\(100vh\s*-\s*220px\)\s*;/, 'vh fallback reserves heading, footer, margins and UA max-height allowance');
+  assert.match(bodyRule, /\bmax-height:\s*calc\(100dvh\s*-\s*220px\)\s*;/, 'dvh cap must win over the vh fallback');
   assert.match(bodyRule, /\boverflow-y:\s*auto\s*;/, 'scrollbar appears only when the cap binds');
   assert.doesNotMatch(bodyRule, /\boverflow:\s*hidden/, 'overflow hidden is the silent clip this fix removes');
 });

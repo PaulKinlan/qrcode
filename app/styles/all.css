@@ -228,6 +228,8 @@ dt {
   font-size: 16px;
   height: 508px;
   overflow: hidden;
+  overflow: clip;
+  overflow-clip-margin: 0;
   width: 330px;
   z-index: 1;
   position: relative;

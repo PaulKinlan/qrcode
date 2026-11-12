@@ -1,5 +1,8 @@
 .QRCodeAboutDialog {
   height: auto !important;
+  /* The UA's bottom:0 with top:50% limits the card to half the viewport,
+     clipping the Close button even though the body has its own scroll region. */
+  bottom: auto;
   /* No author display rule: #about is a <dialog> (bead qrcode-319). A closed dialog is
      display:none by the UA stylesheet, and an author display:none would override the UA's
      open display (author styles beat UA styles). showModal()/close() manage visibility. */
@@ -39,14 +42,14 @@
 /* The About body must grow with its copy, not clip it (bead qrcode-0tp): the inherited
    .wsk-card--lower height:108px + overflow:hidden cut the second paragraph off at narrow
    widths, where the paragraphs wrap taller than 108px. height:auto shows everything; the
-   viewport-relative cap keeps the whole dialog (heading 96px + bottom 50px + 20px body
-   margins = 166px of chrome) inside the screen, and overflow-y:auto makes the scrollbar an
-   affordance that appears only when the cap actually binds (dvh tracks mobile browser
-   chrome; the vh line stands in for engines without dvh). */
+   viewport-relative cap keeps the whole dialog (heading 112px including padding + footer
+   50px + body margins 20px + the UA dialog max-height allowance of 38px = 220px) inside
+   the screen, and overflow-y:auto makes the scrollbar an affordance only when the cap
+   binds (dvh tracks mobile browser chrome; vh stands in for engines without dvh). */
 .QRCodeAboutDialog-data {
   height: auto;
-  max-height: calc(100vh - 166px);
-  max-height: calc(100dvh - 166px);
+  max-height: calc(100vh - 220px);
+  max-height: calc(100dvh - 220px);
   overflow-y: auto;
 }
 

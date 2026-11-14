@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cssTokens } from './helpers/css-colors.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const indexHtml = readFileSync(join(root, 'app', 'index.html'), 'utf8');
@@ -74,9 +75,7 @@ test('the upload input is named, keyboard reachable, and its visible label shows
   if (focusRing[1].startsWith('var(')) {
     // The ring's white comes from the shared token (bead qrcode-79p); pin its value here so the
     // ring cannot silently change shade with a token edit.
-    const tokens = Object.fromEntries(
-      [...readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8').matchAll(/(--wsk-[a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)].map((m) => [m[1], m[2]])
-    );
+    const tokens = cssTokens(readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8'));
     assert.equal(tokens['--wsk-white'], '#fff');
   }
 });

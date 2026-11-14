@@ -36,7 +36,21 @@ function setup() {
   const errors = [];
   let created = 0;
   const input = new MockFileInput();
-  globalThis.Image = class { naturalWidth = 100; naturalHeight = 100; };
+  // Models the parts of HTMLImageElement the manager touches. Detaching the source is how
+  // a browser unloads a decoded image, so the fake reproduces the consequence (no source,
+  // reported size 0x0) instead of absorbing the call: that is what makes "the rejected
+  // bitmap was released" something this suite can assert.
+  globalThis.Image = class {
+    naturalWidth = 0;
+    naturalHeight = 0;
+    src = '';
+    removeAttribute(name) {
+      assert.equal(name, 'src');
+      this.src = '';
+      this.naturalWidth = 0;
+      this.naturalHeight = 0;
+    }
+  };
   globalThis.URL = {
     createObjectURL() { return `blob:test-${++created}`; },
     revokeObjectURL(url) { revoked.push(url); },
@@ -104,8 +118,19 @@ test('decoded image over 40 megapixels is rejected before canvas/frame callbacks
   try {
     let dimensionsChanged = 0;
     let frames = 0;
+    const seenByFailureHandler = [];
     env.manager.onDimensionsChanged = () => { dimensionsChanged += 1; };
     env.manager.onframeready = () => { frames += 1; };
+    env.manager.onFailure = () => {
+      env.alert.hidden = false;
+      // Snapshot inside the handler: releasing before reporting means even a handler
+      // that inspects (or throws in) the manager cannot keep the bitmap alive.
+      seenByFailureHandler.push({
+        src: env.manager.image.src,
+        width: env.manager.image.naturalWidth,
+        height: env.manager.image.naturalHeight,
+      });
+    };
     env.select(imageFile); // compressed size is only 1 KiB; decoded pixels are the hazard
     env.manager.image.naturalWidth = 8000;
     env.manager.image.naturalHeight = 5001;
@@ -115,9 +140,20 @@ test('decoded image over 40 megapixels is rejected before canvas/frame callbacks
     assert.match(env.errors[0][1].message, /no larger than 40 megapixels/);
     assert.equal(dimensionsChanged, 0);
     assert.equal(frames, 0);
+    // Revoking the URL is not enough: the element keeps a fully decoded image alive, and
+    // it is reused for later selections. The rejection must release the decoded bitmap.
+    assert.equal(env.manager.image.src, '', 'rejected source detached');
+    assert.equal(env.manager.image.naturalWidth, 0, 'width released');
+    assert.equal(env.manager.image.naturalHeight, 0, 'height released');
+    assert.deepEqual(
+      seenByFailureHandler,
+      [{ src: '', width: 0, height: 0 }],
+      'released before the failure is reported',
+    );
 
     env.alert.hidden = true;
     env.select(imageFile);
+    env.manager.image.naturalWidth = 8000;
     env.manager.image.naturalHeight = 5000; // exactly 40 MP is allowed
     env.manager.image.onload();
     assert.deepEqual(env.revoked, ['blob:test-1', 'blob:test-2']);

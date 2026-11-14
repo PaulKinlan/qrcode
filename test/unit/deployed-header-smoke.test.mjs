@@ -9,7 +9,7 @@ const framing = { 'content-security-policy': "frame-ancestors 'none'", 'x-frame-
 const serviceCsp = "default-src 'none'; script-src 'self'; connect-src 'self'";
 const decoderCsp = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'";
 
-async function run(headers = {}) {
+async function run(headers = {}, bodies = {}) {
   const server = createServer((req, res) => {
     const path = req.url;
     const [type, body, policy] = path === '/sw.js'
@@ -22,7 +22,7 @@ async function run(headers = {}) {
       ...(policy ? { 'content-security-policy': policy } : framing),
       ...headers[path],
     });
-    res.end(body);
+    res.end(bodies[path] ?? body);
   });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -62,6 +62,20 @@ test('deployed smoke fails when service-worker response lacks its scoped CSP', a
   assert.equal(code, 1);
   assert.match(output, /GET \/sw\.js Content-Security-Policy missing default-src/);
 });
+
+test('deployed smoke rejects a document response without the app title', async () => {
+  const { code, output } = await run({}, { '/': '<html><body>Not the app</body></html>' });
+  assert.equal(code, 1);
+  assert.match(output, /GET \/ is not the app document/);
+});
+
+for (const path of ['/sw.js', '/scripts/qrworker.js']) {
+  test(`deployed smoke rejects a ${path} SPA fallback mislabeled as JavaScript`, async () => {
+    const { code, output } = await run({}, { [path]: '<html><title>QR Snapper</title></html>' });
+    assert.equal(code, 1);
+    assert.ok(output.includes(`GET ${path} is not the built worker`), output);
+  });
+}
 
 test('deployed smoke rejects an HTML SPA fallback on the worker path', async () => {
   const { code, output } = await run({ '/sw.js': { 'content-type': 'text/html' } });

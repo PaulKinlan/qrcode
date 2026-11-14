@@ -55,6 +55,10 @@ export class WebCamManager {
       this.onframeready(imageData);
     };
 
+    // A camera that cannot start must reach the user, not just the console: CameraManager
+    // forwards this to the coordinator, which shows it on the scan alert.
+    this.source.onFailure = (error) => this.onFailure(error);
+
     // Get available cameras
     await this.source.getCameras((cameras) => {
       if (cameras.length <= 1) {
@@ -124,4 +128,5 @@ export class WebCamManager {
   // Callback methods to be overridden
   onDimensionsChanged() {}
   onframeready() {}
+  onFailure() {}
 }

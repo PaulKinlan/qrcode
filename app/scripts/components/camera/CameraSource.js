@@ -2,6 +2,43 @@
  * CameraSource - Manages camera access and video streaming
  * Modernized to use only standard getUserMedia APIs (no deprecated prefixes)
  */
+
+// getUserMedia rejects with a DOMException whose name is stable but whose message is
+// browser- and locale-specific, so the names we can explain get our own words and anything
+// else falls back to the browser's message. Every reason names the way out (upload instead),
+// because a camera fault leaves the scanning screen looking like it is still working.
+const CAMERA_FAILURE_REASONS = {
+  NotAllowedError:
+    'Camera access is blocked. Allow the camera for this site, or upload an image instead.',
+  PermissionDeniedError:
+    'Camera access is blocked. Allow the camera for this site, or upload an image instead.',
+  NotFoundError:
+    'No camera was found on this device. Upload an image instead.',
+  DevicesNotFoundError: 'No camera was found on this device. Upload an image instead.',
+  NotReadableError:
+    'The camera could not be started - another app may be using it. Upload an image instead.',
+  TrackStartError:
+    'The camera could not be started - another app may be using it. Upload an image instead.',
+  OverconstrainedError:
+    'This camera does not support the resolution QR Snapper asked for. Upload an image instead.',
+  SecurityError: 'The browser blocked camera access on this page. Upload an image instead.',
+};
+
+/**
+ * Explain a getUserMedia failure in words the user can act on.
+ * @param {unknown} error
+ * @returns {string}
+ */
+export function cameraFailureReason(error) {
+  const name = error?.name;
+  if (name && Object.hasOwn(CAMERA_FAILURE_REASONS, name)) return CAMERA_FAILURE_REASONS[name];
+  const message = typeof error?.message === 'string' ? error.message.trim() : '';
+  if (!message) return 'The camera could not be started. Upload an image instead.';
+  // Browser messages have no guaranteed punctuation; join them as their own sentence.
+  const sentence = /[.!?]$/.test(message) ? message : `${message}.`;
+  return `${sentence} Upload an image instead.`;
+}
+
 export class CameraSource {
   constructor(videoElement) {
     this.videoElement = videoElement;
@@ -122,6 +159,9 @@ export class CameraSource {
       await this.videoElement.play();
     } catch (error) {
       console.error("Camera access error:", error);
+      // Surface it: a silent catch leaves a blank panel and "Point at a QR code" on screen
+      // while nothing is scanning, which is the failure mode this catch used to create.
+      this.onFailure(new Error(cameraFailureReason(error)));
     }
   }
 
@@ -152,4 +192,5 @@ export class CameraSource {
   // Callback methods to be overridden
   onDimensionsChanged() {}
   onframeready() {}
+  onFailure() {}
 }

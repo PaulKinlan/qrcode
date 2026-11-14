@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { readFileSync } from 'node:fs';
 
 const cli = new URL('../../tools/deployed-header-smoke.mjs', import.meta.url);
 const framing = { 'content-security-policy': "frame-ancestors 'none'", 'x-frame-options': 'DENY' };
@@ -71,11 +72,20 @@ test('deployed smoke rejects a document response without the app title', async (
 
 for (const path of ['/sw.js', '/scripts/qrworker.js']) {
   test(`deployed smoke rejects a ${path} SPA fallback mislabeled as JavaScript`, async () => {
-    const { code, output } = await run({}, { [path]: '<html><title>QR Snapper</title></html>' });
+    // The actual document says 'kill-switch' and used to fool the sw.js marker check.
+    const appDocument = readFileSync(new URL('../../app/index.html', import.meta.url), 'utf8');
+    const { code, output } = await run({}, { [path]: appDocument });
     assert.equal(code, 1);
     assert.ok(output.includes(`GET ${path} is not the built worker`), output);
   });
 }
+
+test('deployed smoke allows a real worker with embedded consent-page HTML', async () => {
+  const worker = readFileSync(new URL('../../app/sw.js', import.meta.url), 'utf8');
+  const { code, output } = await run({}, { '/sw.js': worker });
+  assert.equal(code, 0, output);
+  assert.match(output, /PASS/);
+});
 
 test('deployed smoke rejects an HTML SPA fallback on the worker path', async () => {
   const { code, output } = await run({ '/sw.js': { 'content-type': 'text/html' } });

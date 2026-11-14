@@ -76,8 +76,8 @@ const PRECACHE_MANIFEST_URL = '/sw-manifest.json';
   The list used to be built by string concatenation (`/${file}`), so an entry such as
   `//evil.com/x.js` - or `/\evil.com/x.js`, which the URL parser reads the same way - became a
   third-party URL, and cache.addAll() would fetch and store that response for the fetch handler to
-  serve on same-origin requests (bead qrcode-g3y, threat-model invariant 6: every manifest entry is
-  a same-origin relative path). The manifest is generated from dist/ at build time, so this is
+  serve on same-origin requests (bead qrcode-g3y, THREAT_MODEL.md §6, invariant 6: every manifest
+  entry is a same-origin relative path). The manifest is generated from dist/ at build time, so this is
   defence in depth: a violating entry fails the install loudly instead of caching a foreign file.
 */
 const toPrecacheUrl = (entry) => {

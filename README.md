@@ -235,6 +235,18 @@ the worker contexts run unpoliced (bead qrcode-7du). `vite dev`/`preview` cannot
 per path, so workers are unpoliced in local development; this is a recorded residual, not a
 gap to fill by widening the document policy.
 
+### Threat model
+
+[`THREAT_MODEL.md`](THREAT_MODEL.md) is the tracked source of the security invariants this repo
+cites. It maps the trust boundaries (scanned payload, camera frames, service worker, x-callback
+destination, upload path), lists the numbered invariants in §6, and records the accepted risks in
+§7. Code comments, tests and `app/_headers` cite it as `THREAT_MODEL.md §6, invariant N`, so a fresh
+clone can resolve every claim without any external report.
+
+If you change behaviour that an invariant describes, update the document in the same commit.
+`test/unit/threat-model-invariants.test.mjs` fails when a cited invariant number is missing from the
+document, when a citation omits the section, or when the file stops being tracked.
+
 ### Development Notes
 
 * The project uses Vite as the build tool (replaced Gulp)

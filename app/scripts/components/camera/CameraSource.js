@@ -39,12 +39,18 @@ export class CameraSource {
 
       this.cameras = [];
       videoDevices.forEach((device) => {
-        // Prefer rear/environment facing cameras (better for QR scanning)
-        if (
+        const isRearFacing =
           device.label.toLowerCase().includes("back") ||
           device.label.toLowerCase().includes("rear") ||
-          device.label.toLowerCase().includes("environment")
-        ) {
+          device.label.toLowerCase().includes("environment");
+        // Tag the facing mode so setCamera can request the camera by
+        // `facingMode`. This is the cross-platform-reliable selector and works
+        // even when `deviceId` is unavailable (e.g. iOS Safari before the user
+        // grants camera permission, and the selfie-camera failure in #58 where
+        // selecting the front camera by `deviceId` alone does not open it).
+        device.facing = isRearFacing ? "environment" : "user";
+        // Prefer rear/environment facing cameras (better for QR scanning)
+        if (isRearFacing) {
           // Move rear-facing cameras to the front of the list
           this.cameras.unshift(device);
         } else {
@@ -82,16 +88,22 @@ export class CameraSource {
       // No source information, assume user-facing
       params = { video: true, audio: false };
     } else {
-      // Use modern constraint syntax with ideal deviceId to avoid OverconstrainedError
-      params = {
-        video: {
-          deviceId: { ideal: videoSource.deviceId },
-          // Prefer higher resolution for QR code scanning
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
+      // Select the camera by facingMode rather than by deviceId alone.
+      // iOS Safari does not reliably expose stable deviceIds and selecting the
+      // selfie (front) camera via a deviceId constraint fails to open it
+      // (issue #58). facingMode is the portable way to pick a camera, so it is
+      // the primary selector; deviceId stays only as a best-effort hint for
+      // platforms with several same-facing cameras.
+      const video = {
+        facingMode: { ideal: videoSource.facing || "environment" },
+        // Prefer higher resolution for QR code scanning
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
       };
+      if (videoSource.deviceId) {
+        video.deviceId = { ideal: videoSource.deviceId };
+      }
+      params = { video, audio: false };
     }
 
     try {

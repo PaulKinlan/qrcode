@@ -44,7 +44,10 @@ if (!originSetting) {
     ]) {
       const worker = await request(path, 'javascript');
       const body = await worker.text();
-      if (path === '/sw.js' ? !body.includes('kill-sw') : !body.includes('zbar')) {
+      // The app document itself mentions 'kill-sw'; reject HTML at the start before
+      // checking worker markers. The real service worker embeds HTML later for consent.
+      if (body.trimStart().startsWith('<') ||
+          (path === '/sw.js' ? !body.includes('kill-sw') : !body.includes('zbar'))) {
         throw new Error(`GET ${path} is not the built worker (possible SPA fallback)`);
       }
       const csp = worker.headers.get('content-security-policy');

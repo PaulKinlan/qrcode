@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { readFileSync } from 'node:fs';
 
 const cli = new URL('../../tools/deployed-header-smoke.mjs', import.meta.url);
 const framing = { 'content-security-policy': "frame-ancestors 'none'", 'x-frame-options': 'DENY' };
 const serviceCsp = "default-src 'none'; script-src 'self'; connect-src 'self'";
 const decoderCsp = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'";
 
-async function run(headers = {}) {
+async function run(headers = {}, bodies = {}) {
   const server = createServer((req, res) => {
     const path = req.url;
     const [type, body, policy] = path === '/sw.js'
@@ -22,7 +23,7 @@ async function run(headers = {}) {
       ...(policy ? { 'content-security-policy': policy } : framing),
       ...headers[path],
     });
-    res.end(body);
+    res.end(bodies[path] ?? body);
   });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -61,6 +62,37 @@ test('deployed smoke fails when service-worker response lacks its scoped CSP', a
   const { code, output } = await run({ '/sw.js': { 'content-security-policy': "frame-ancestors 'none'" } });
   assert.equal(code, 1);
   assert.match(output, /GET \/sw\.js Content-Security-Policy missing default-src/);
+});
+
+test('deployed smoke rejects a document response without the app title', async () => {
+  const { code, output } = await run({}, { '/': '<html><body>Not the app</body></html>' });
+  assert.equal(code, 1);
+  assert.match(output, /GET \/ is not the app document/);
+});
+
+for (const path of ['/sw.js', '/scripts/qrworker.js']) {
+  test(`deployed smoke rejects a ${path} SPA fallback mislabeled as JavaScript`, async () => {
+    // The actual document says 'kill-switch' and used to fool the sw.js marker check.
+    const appDocument = readFileSync(new URL('../../app/index.html', import.meta.url), 'utf8');
+    const { code, output } = await run({}, { [path]: appDocument });
+    assert.equal(code, 1);
+    assert.ok(output.includes(`GET ${path} is not the built worker`), output);
+  });
+}
+
+for (const path of ['/sw.js', '/scripts/qrworker.js']) {
+  test(`deployed smoke rejects unrelated JavaScript at ${path} despite valid worker CSP`, async () => {
+    const { code, output } = await run({}, { [path]: 'self.addEventListener("message", () => {});' });
+    assert.equal(code, 1);
+    assert.ok(output.includes(`GET ${path} is not the built worker`), output);
+  });
+}
+
+test('deployed smoke allows a real worker with embedded consent-page HTML', async () => {
+  const worker = readFileSync(new URL('../../app/sw.js', import.meta.url), 'utf8');
+  const { code, output } = await run({}, { '/sw.js': worker });
+  assert.equal(code, 0, output);
+  assert.match(output, /PASS/);
 });
 
 test('deployed smoke rejects an HTML SPA fallback on the worker path', async () => {

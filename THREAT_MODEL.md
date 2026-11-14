@@ -139,10 +139,12 @@ Numbered for citation. Invariants 6 and 12 are the ones the code and tests cite 
    `/sw.js` policy, where nothing compiles (§7).
 10. Decode is time-bounded (`DECODE_TIMEOUT_MS`); a wedged worker is terminated and replaced after
     `MAX_CONSECUTIVE_DECODE_TIMEOUTS`, and failures surface in the UI.
-11. Uploads enforce an `image/*` MIME type and a 10 MiB cap before the image is decoded. There is
-    no pixel-dimension cap: the draw path clamps the pixels handed to the decoder to the
-    viewport-sized canvas, but the browser's image decoder still allocates the file's natural
-    dimensions first - accepted risk, §7.
+11. Uploads enforce an `image/*` MIME type and a 10 MiB cap before the image is decoded, then a
+    pixel cap of 40 megapixels (40,000,000 natural pixels) on the image's `load` event, before any
+    canvas work or decoder hand-off. The pixel cap runs after the browser has already decoded and
+    allocated the file's natural dimensions, so it bounds what reaches the canvas and ZBar rather
+    than the decode allocation itself; pre-decode, the 10 MiB file cap is the only control -
+    accepted risk, §7.
 12. Header-only protections (`frame-ancestors`, `X-Frame-Options`, `Referrer-Policy`, `nosniff`,
     HSTS, worker CSP) are asserted on the served response, never assumed from a `<meta>` tag or a
     config file.
@@ -167,9 +169,11 @@ Do not "fix" these without changing this section first:
 - **`'wasm-unsafe-eval'` is required** for the ZBar decoder, in the app-document meta CSP and in
   the `/scripts/*` worker header; removing either fails scans with a `CompileError` (qrcode-2pt). It
   stays out of the `/sw.js` policy, where no WASM is compiled.
-- **Image decode is bounded by the 10 MiB file cap only.** No pixel-dimension cap exists before the
-  image is decoded; the canvas clamp happens after the browser has already allocated the file's
-  natural dimensions. The size cap is the accepted control (invariant 11).
+- **Image decode is bounded before decode by the 10 MiB file cap only.** Setting the image's `src`
+  starts the browser decode, so the 40-megapixel check (invariant 11) runs on the `load` event,
+  after the file's natural dimensions have already been allocated, and before the canvas clamp and
+  the decoder hand-off. It bounds post-decode work - what is drawn and handed to ZBar - and does not
+  remove the decode-allocation risk; the 10 MiB file cap is the accepted control.
 - **The expired 2018 `<meta http-equiv="origin-trial">` tag** in `app/index.html` is inert, not a
   policy bypass.
 - **ZBar WASM is LGPL-2.1-or-later**, shipped as a separately replaceable binary with its licence;

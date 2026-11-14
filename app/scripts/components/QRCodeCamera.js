@@ -29,8 +29,11 @@ export class QRCodeCamera {
   }
 
   setupCameraCallback() {
-    this.cameraManager.onFailure = () => {
-      if (this.scanError) this.scanError.hidden = false;
+    // A source failure carries the reason (unsupported file, the size/decoded-pixel limits, a
+    // camera fault). Showing the markup's fixed "try again" hides the one thing the user can
+    // act on, because re-selecting the same file fails identically.
+    this.cameraManager.onFailure = (error) => {
+      this.showScanError(error?.message);
     };
     let isDecoding = false;
     this.cameraManager.onframe = async (context) => {
@@ -46,7 +49,7 @@ export class QRCodeCamera {
         let failed = false;
         const url = await this.qrCodeManager.detectQRCode(context, () => {
           failed = true;
-          if (this.scanError) this.scanError.hidden = false;
+          this.showScanError();
         });
         if (!failed && this.scanError) this.scanError.hidden = true;
         
@@ -64,5 +67,24 @@ export class QRCodeCamera {
         isDecoding = false;
       }
     };
+  }
+
+  /**
+   * Surface a failure on the alert, preferring the specific reason over the markup's
+   * generic text. The markup's own text is captured once so a later failure without a
+   * reason can fall back to it instead of leaving a stale, unrelated reason on screen.
+   * @param {string} [reason]
+   */
+  showScanError(reason) {
+    if (!this.scanError) return;
+    if (reason) {
+      this.scanErrorDefaultText ??= this.scanError.textContent;
+      // textContent, never innerHTML: the alert shows a failure reason, not authored markup.
+      this.scanError.textContent = reason;
+    } else if (this.scanErrorDefaultText !== undefined) {
+      // Nothing specific to say: put back the markup's own text rather than leave a stale reason.
+      this.scanError.textContent = this.scanErrorDefaultText;
+    }
+    this.scanError.hidden = false;
   }
 }

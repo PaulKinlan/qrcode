@@ -111,8 +111,11 @@ any new code, not a settled issue:
 
 Numbered for citation. Invariants 6 and 12 are the ones the code and tests cite explicitly.
 
-1. Every decoded payload passes `normalizeUrl` then `isSafeUrl` before any sink, and `http:` off
-   loopback is additionally refused by `isTransportSafeUrl` for Open, Share, Copy and Return.
+1. Every decoded payload is normalised once (`normalizeUrl`) before it is displayed, and every sink
+   re-gates at click time. Open, Share and Copy require `isTransportSafeUrl` - the `isSafeUrl`
+   protocol allowlist, plus no cleartext `http:` off loopback. Return requires its *destination* to
+   pass `isWebCallback` (`https:`, or `http:` on loopback) and appends the payload to that validated
+   destination instead of navigating to the payload itself.
 2. The x-callback destination must be `https:` or `http:` loopback, is revalidated at click time,
    and nothing is sent without an explicit confirm that names the destination origin and previews
    the payload.
@@ -131,13 +134,15 @@ Numbered for citation. Invariants 6 and 12 are the ones the code and tests cite 
    with a string. No DOM HTML sinks (`innerHTML`, `document.write`) - all payload rendering is
    `textContent` / `innerText`.
 9. The document CSP keeps `'unsafe-inline'` out and sets `object-src 'none'`, `base-uri 'none'`
-   and `form-action 'self'`; `'wasm-unsafe-eval'` appears only where ZBar (or the camera-fallback
-   upload) needs it, never in the document policy.
+   and `form-action 'self'`. `'wasm-unsafe-eval'` appears only where ZBar must compile: the app
+   document (the camera-fallback upload path) and the `/scripts/*` worker header - never in the
+   `/sw.js` policy, where nothing compiles (§7).
 10. Decode is time-bounded (`DECODE_TIMEOUT_MS`); a wedged worker is terminated and replaced after
     `MAX_CONSECUTIVE_DECODE_TIMEOUTS`, and failures surface in the UI.
-11. Uploads enforce an `image/*` MIME type and a 10 MiB cap before the image is decoded, and the
-    pixels handed to the decoder are bounded by the display canvas rather than the file's natural
-    dimensions.
+11. Uploads enforce an `image/*` MIME type and a 10 MiB cap before the image is decoded. There is
+    no pixel-dimension cap: the draw path clamps the pixels handed to the decoder to the
+    viewport-sized canvas, but the browser's image decoder still allocates the file's natural
+    dimensions first - accepted risk, §7.
 12. Header-only protections (`frame-ancestors`, `X-Frame-Options`, `Referrer-Policy`, `nosniff`,
     HSTS, worker CSP) are asserted on the served response, never assumed from a `<meta>` tag or a
     config file.
@@ -159,11 +164,12 @@ Do not "fix" these without changing this section first:
 - **Host-side header deployment is the operator's responsibility** for hosts that do not read
   `_headers`. README documents the exact values to copy.
 - **HSTS deliberately omits `includeSubDomains`**, and the local HTTP server never sends HSTS.
-- **`'wasm-unsafe-eval'`** in the worker script policy is required for the ZBar decoder; removing it
-  fails every scan with a `CompileError`.
-- **Image decode is bounded by the 10 MiB file cap, not by pixel dimensions.** Oversized-dimension
-  images are still decoded by the browser's image decoder before the canvas clamps them; the size
-  cap is the accepted control (invariant 11).
+- **`'wasm-unsafe-eval'` is required** for the ZBar decoder, in the app-document meta CSP and in
+  the `/scripts/*` worker header; removing either fails scans with a `CompileError` (qrcode-2pt). It
+  stays out of the `/sw.js` policy, where no WASM is compiled.
+- **Image decode is bounded by the 10 MiB file cap only.** No pixel-dimension cap exists before the
+  image is decoded; the canvas clamp happens after the browser has already allocated the file's
+  natural dimensions. The size cap is the accepted control (invariant 11).
 - **The expired 2018 `<meta http-equiv="origin-trial">` tag** in `app/index.html` is inert, not a
   policy bypass.
 - **ZBar WASM is LGPL-2.1-or-later**, shipped as a separately replaceable binary with its licence;

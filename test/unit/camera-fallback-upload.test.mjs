@@ -99,6 +99,34 @@ test('failed image decode revokes URL once and shows error; successful retry sti
   } finally { env.restore(); }
 });
 
+test('decoded image over 40 megapixels is rejected before canvas/frame callbacks', () => {
+  const env = setup();
+  try {
+    let dimensionsChanged = 0;
+    let frames = 0;
+    env.manager.onDimensionsChanged = () => { dimensionsChanged += 1; };
+    env.manager.onframeready = () => { frames += 1; };
+    env.select(imageFile); // compressed size is only 1 KiB; decoded pixels are the hazard
+    env.manager.image.naturalWidth = 8000;
+    env.manager.image.naturalHeight = 5001;
+    env.manager.image.onload();
+    assert.deepEqual(env.revoked, ['blob:test-1']);
+    assert.equal(env.alert.hidden, false);
+    assert.match(env.errors[0][1].message, /no larger than 40 megapixels/);
+    assert.equal(dimensionsChanged, 0);
+    assert.equal(frames, 0);
+
+    env.alert.hidden = true;
+    env.select(imageFile);
+    env.manager.image.naturalHeight = 5000; // exactly 40 MP is allowed
+    env.manager.image.onload();
+    assert.deepEqual(env.revoked, ['blob:test-1', 'blob:test-2']);
+    assert.equal(env.alert.hidden, true);
+    assert.equal(dimensionsChanged, 1);
+    assert.equal(frames, 1);
+  } finally { env.restore(); }
+});
+
 test('choosing the identical file again after a failed decode starts another attempt', () => {
   const env = setup();
   try {

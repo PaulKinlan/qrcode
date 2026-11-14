@@ -23,6 +23,7 @@ import { createServer } from 'node:net';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hasFrameAncestorsNone, hasXFrameOptionsDeny } from './framing-policy.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -207,10 +208,10 @@ async function smoke() {
         fail(`GET / is missing the ${header} header: the document is framable`);
       }
     }
-    if (!/frame-ancestors 'none'/.test(indexPage.headers.get('content-security-policy'))) {
+    if (!hasFrameAncestorsNone(indexPage.headers.get('content-security-policy'))) {
       fail(`GET / Content-Security-Policy has no frame-ancestors 'none' (got '${indexPage.headers.get('content-security-policy')}')`);
     }
-    if (indexPage.headers.get('x-frame-options') !== 'DENY') {
+    if (!hasXFrameOptionsDeny(indexPage.headers.get('x-frame-options'))) {
       fail(`GET / X-Frame-Options expected DENY, got '${indexPage.headers.get('x-frame-options')}'`);
     }
     log("GET / -> frame-ancestors 'none' + X-Frame-Options: DENY (not framable)");

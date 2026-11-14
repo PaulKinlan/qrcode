@@ -28,6 +28,13 @@ export function stripCssComments(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ''));
 }
 
+/** Find blocks for an exact, standalone selector (not a suffix or comment mention). */
+export function ruleBlocks(css, selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rule = new RegExp(`(?:^|[}])\\s*${escaped}\\s*\\{([^}]*)\\}`, 'g');
+  return [...stripCssComments(css).matchAll(rule)].map((match) => match[1]);
+}
+
 /**
  * Parse the stylesheet's @import lines. Both CSS forms (quoted and url()), case-insensitive;
  * an @import line that matches neither form throws with the offending line.

@@ -80,6 +80,14 @@ for (const path of ['/sw.js', '/scripts/qrworker.js']) {
   });
 }
 
+for (const path of ['/sw.js', '/scripts/qrworker.js']) {
+  test(`deployed smoke rejects unrelated JavaScript at ${path} despite valid worker CSP`, async () => {
+    const { code, output } = await run({}, { [path]: 'self.addEventListener("message", () => {});' });
+    assert.equal(code, 1);
+    assert.ok(output.includes(`GET ${path} is not the built worker`), output);
+  });
+}
+
 test('deployed smoke allows a real worker with embedded consent-page HTML', async () => {
   const worker = readFileSync(new URL('../../app/sw.js', import.meta.url), 'utf8');
   const { code, output } = await run({}, { '/sw.js': worker });

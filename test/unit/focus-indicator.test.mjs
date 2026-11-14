@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { contrast, hexToRgb } from './helpers/css-colors.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const allCss = readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8');
@@ -20,19 +21,6 @@ const allCss = readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8');
 const CARD = { r: 255, g: 255, b: 255 };
 const MIN_RATIO = 3; // WCAG 1.4.11 non-text contrast / 2.4.11 focus appearance
 const MIN_WIDTH_PX = 2; // WCAG 2.4.13 wants a ring big enough to see; the class now uses 2px
-
-function luminance({ r, g, b }) {
-  const channel = (c) => {
-    c /= 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
-function contrast(a, b) {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
-}
 
 /** The declaration block for exactly this selector, or null. Throws if the selector is absent. */
 function ruleBlock(css, selector) {
@@ -55,16 +43,6 @@ function parseOutline(block) {
     ? shorthand[2].trim()
     : (block.match(/outline-color:\s*([^;]+);/) || [])[1]?.trim();
   return { width, colour };
-}
-
-function hexToRgb(value) {
-  const match = String(value).match(/^#([0-9a-f]{6})$/i);
-  assert.ok(match, `expected a 6-digit hex colour for the focus ring, got ${JSON.stringify(value)}`);
-  return {
-    r: parseInt(match[1].slice(0, 2), 16),
-    g: parseInt(match[1].slice(2, 4), 16),
-    b: parseInt(match[1].slice(4, 6), 16),
-  };
 }
 
 test('every .wsk-button gets a focus ring of at least 3:1 against the card surface', () => {

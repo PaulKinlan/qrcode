@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bundledStylesheets, parseImports, stripCssComments } from './helpers/bundled-stylesheets.mjs';
+import { contrast, cssTokens, hexToRgb } from './helpers/css-colors.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const allCss = readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8');
@@ -19,33 +20,7 @@ const allCss = readFileSync(join(root, 'app', 'styles', 'all.css'), 'utf8');
 // app/styles/all.css. Parsed from the stylesheet (not hard-coded here) so this test reads the
 // shipped source of truth - and pinned to exact values below so the contrast guarantees
 // survive the token refactor.
-const cssTokens = Object.fromEntries(
-  [...allCss.matchAll(/(--wsk-[a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)].map((m) => [m[1], m[2]])
-);
-
-/**
- * WCAG 2.x relative luminance of an sRGB channel triple.
- * @param {{ r: number, g: number, b: number }} rgb
- * @returns {number}
- */
-function luminance({ r, g, b }) {
-  const channel = (c) => {
-    c /= 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
-/**
- * WCAG 2.x contrast ratio between two colours, rounded to 2 decimals.
- * @param {{ r: number, g: number, b: number }} a
- * @param {{ r: number, g: number, b: number }} b
- * @returns {number}
- */
-function contrast(a, b) {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
-}
+const tokens = cssTokens(allCss);
 
 /**
  * Pull the first `color:` / `background(-color):` value from the rule block that starts with
@@ -77,15 +52,11 @@ function shippedColor(css, selector, property) {
         // Resolve the token through the :root block; a token that is declared but missing from
         // the map means the parser above drifted from the declarations - fail loudly.
         const name = value.slice(4, -1);
-        value = cssTokens[name];
+        value = tokens[name];
         assert.ok(value, `${name} is used in a rule but not declared in the :root block`);
       }
       const hex = NAMED_COLORS[value] ?? value;
-      return {
-        r: parseInt(hex.slice(1, 3), 16),
-        g: parseInt(hex.slice(3, 5), 16),
-        b: parseInt(hex.slice(5, 7), 16),
-      };
+      return hexToRgb(hex);
     }
   }
 }
@@ -110,11 +81,11 @@ test('the colour tokens resolve to the exact values the contrast guarantees were
   // The contrast pairs below were computed from these literals (bead qrcode-6pr, qrcode-e4c
   // camera button, qrcode-79p noscript panel). A token rename or value change must show up
   // here, not silently shift a verified ratio.
-  assert.equal(cssTokens['--wsk-grey-900'], '#212121');
-  assert.equal(cssTokens['--wsk-grey-800'], '#424242');
-  assert.equal(cssTokens['--wsk-grey-400'], '#bdbdbd');
-  assert.equal(cssTokens['--wsk-indigo-900'], '#0d47a1');
-  assert.equal(cssTokens['--wsk-white'], '#fff');
+  assert.equal(tokens['--wsk-grey-900'], '#212121');
+  assert.equal(tokens['--wsk-grey-800'], '#424242');
+  assert.equal(tokens['--wsk-grey-400'], '#bdbdbd');
+  assert.equal(tokens['--wsk-indigo-900'], '#0d47a1');
+  assert.equal(tokens['--wsk-white'], '#fff');
 });
 
 test('the drift-set palette is declared once and not re-typed in any bundled rule body', () => {

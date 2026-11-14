@@ -19,6 +19,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { contrast, cssTokens, hexToRgb, resolveColor } from './helpers/css-colors.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const cameraCss = readFileSync(join(root, 'app', 'styles', 'camera.css'), 'utf8');
@@ -31,19 +32,6 @@ const MIN_RATIO = 3; // WCAG 1.4.11 non-text contrast / 2.4.11 focus appearance
 const MIN_WIDTH_PX = 2;
 
 const TOGGLE_FOCUS_SELECTOR = '.Camera .CameraRealtime .Camera-toggle-input:focus-visible + label';
-
-function luminance({ r, g, b }) {
-  const channel = (c) => {
-    c /= 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
-function contrast(a, b) {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
-}
 
 /** The declaration block for exactly this selector, or null. Throws if the selector is absent. */
 function ruleBlock(css, selector, file = 'app/styles/camera.css') {
@@ -58,34 +46,17 @@ function ruleBlock(css, selector, file = 'app/styles/camera.css') {
   return css.slice(blockStart + 1, blockEnd);
 }
 
-function hexToRgb(value) {
-  // #fff and #ffffff are both valid here: the repo's existing ring (.Camera .about:focus-visible)
-  // uses the short form, and this rule deliberately matches it.
-  const match = String(value).match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-  assert.ok(match, `expected a hex colour for the focus ring, got ${JSON.stringify(value)}`);
-  const hex = match[1].length === 3 ? [...match[1]].map((c) => c + c).join('') : match[1];
-  return {
-    r: parseInt(hex.slice(0, 2), 16),
-    g: parseInt(hex.slice(2, 4), 16),
-    b: parseInt(hex.slice(4, 6), 16),
-  };
-}
-
 test('the camera flip toggle gets a visible inset focus ring on the label the user sees', () => {
   const block = ruleBlock(cameraCss, TOGGLE_FOCUS_SELECTOR);
   // The ring colour may be the literal or the shared --wsk-white token (bead qrcode-79p);
   // resolve the token so the contrast check still sees the shipped value.
-  const tokens = Object.fromEntries(
-    [...allCss.matchAll(/(--wsk-[a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)].map((m) => [m[1], m[2]])
-  );
+  const tokens = cssTokens(allCss);
   const shadow = block.match(/box-shadow:\s*inset\s+0\s+0\s+0\s+([0-9.]+)px\s+(#[0-9a-f]{3,6}|var\(--wsk-[a-z0-9-]+\));/i);
   assert.ok(
     shadow,
     'the ring must be an inset box-shadow on the label: an outline is clipped by .wsk-button--fab overflow:hidden (qrcode-e45)'
   );
-  const ringColor = shadow[2].startsWith('var(')
-    ? (assert.ok(tokens[shadow[2].slice(4, -1)], 'ring token must be declared in the :root block'), tokens[shadow[2].slice(4, -1)])
-    : shadow[2];
+  const ringColor = resolveColor(shadow[2], tokens);
 
   const width = Number(shadow[1]);
   assert.ok(

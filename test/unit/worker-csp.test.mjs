@@ -8,6 +8,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const headers = readFileSync(new URL('../../app/_headers', import.meta.url), 'utf8');
+const expectedWorkerCsp = new Map([
+  ['/sw.js', "default-src 'none'; script-src 'self'; connect-src 'self'"],
+  ['/scripts/*', "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'"],
+]);
 
 const blockFor = (path) => {
   // A block starts with a path line and owns the indented header lines after it.
@@ -25,15 +29,27 @@ test('the service worker response is policed without breaking the install fetche
   assert.doesNotMatch(block, /worker-src/);
 });
 
-test('the decoder worker keeps the policy that lets zbar load and compile', () => {
+test('the decoder worker keeps exactly the policy that lets zbar load and compile', () => {
   const block = blockFor('/scripts/*');
   assert.ok(block, 'a /scripts/* block must exist in app/_headers');
-  // The worker fetches scripts/zbar.wasm (connect-src) and compiles it (WebAssembly.
-  // instantiateStreaming/instantiate are gated by script-src 'wasm-unsafe-eval'). Dropping
-  // 'wasm-unsafe-eval' fails every scan with CompileError - the qrcode-2pt regression class.
-  assert.match(block, /script-src 'self' 'wasm-unsafe-eval'/);
-  assert.match(block, /connect-src 'self'/);
-  assert.match(block, /default-src 'none'/);
+  // Pin the WHOLE value: substring checks miss added data:/remote script sources, which
+  // weaken the decoder's policy even though wasm-unsafe-eval and connect-src remain.
+  const policies = [...block.matchAll(/^  Content-Security-Policy:\s*(.+)$/gm)].map((m) => m[1]);
+  assert.deepEqual(policies, [expectedWorkerCsp.get('/scripts/*')]);
+});
+
+test('the README worker policies copied to other hosts match the guarded shipped values', () => {
+  const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
+  const section = readme.match(/^### Worker CSP\s*\n([\s\S]*?)(?=^### |$(?![\s\S]))/m)?.[1];
+  assert.ok(section, 'README must document the worker CSP for other hosts');
+  const example = section.match(/```\s*\n([^`]+)```/)?.[1];
+  assert.ok(example, 'Worker CSP section must include a copyable fenced example');
+  for (const [path, expected] of expectedWorkerCsp) {
+    const documented = example.match(new RegExp(`^${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n  Content-Security-Policy: (.+)$`, 'm'))?.[1];
+    assert.equal(documented, expected, `README policy for ${path} must match the secure shipped value`);
+    const shipped = [...blockFor(path).matchAll(/^  Content-Security-Policy:\s*(.+)$/gm)].map((m) => m[1]);
+    assert.deepEqual(shipped, [expected], `app/_headers policy for ${path} must match the README`);
+  }
 });
 
 test('the document responses gain no header CSP (the meta stays the only document policy)', () => {

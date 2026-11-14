@@ -46,6 +46,22 @@ test('deployed smoke verifies real HTTP responses on document and both worker pa
   assert.match(output, /PASS/);
 });
 
+test('deployed smoke accepts case-insensitive CSP directive names and XFO token', async () => {
+  const { code, output } = await run({
+    '/': { 'content-security-policy': "Frame-Ancestors 'none'", 'x-frame-options': 'deny' },
+    '/sw.js': { 'content-security-policy': "Default-Src 'none'; Script-Src 'self'; Connect-Src 'self'" },
+    '/scripts/qrworker.js': { 'content-security-policy': "DEFAULT-SRC 'none'; SCRIPT-SRC 'self' 'wasm-unsafe-eval'; CONNECT-SRC 'self'" },
+  });
+  assert.equal(code, 0, output);
+  assert.match(output, /PASS/);
+});
+
+test('deployed smoke still rejects a different frame-ancestors value', async () => {
+  const { code, output } = await run({ '/': { 'content-security-policy': "Frame-Ancestors 'self'" } });
+  assert.equal(code, 1);
+  assert.match(output, /needs frame-ancestors 'none'/);
+});
+
 test('deployed smoke fails when host omits document framing protection', async () => {
   const { code, output } = await run({ '/': { 'x-frame-options': 'SAMEORIGIN' } });
   assert.equal(code, 1);

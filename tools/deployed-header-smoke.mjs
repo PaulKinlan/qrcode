@@ -26,12 +26,17 @@ if (!originSetting) {
       return response;
     }
 
+    // CSP directive names are case-insensitive; keep values intact when comparing policies.
+    function directives(csp) {
+      return csp?.split(';').map((part) => part.trim().replace(/^[^\s]+/, (name) => name.toLowerCase())) ?? [];
+    }
+
     const document = await request('/', 'text/html');
     const documentCsp = document.headers.get('content-security-policy');
-    if (!documentCsp?.split(';').some((part) => part.trim() === "frame-ancestors 'none'")) {
+    if (!directives(documentCsp).includes("frame-ancestors 'none'")) {
       throw new Error(`GET / Content-Security-Policy needs frame-ancestors 'none' (got ${documentCsp})`);
     }
-    if (document.headers.get('x-frame-options') !== 'DENY') {
+    if (document.headers.get('x-frame-options')?.trim().toUpperCase() !== 'DENY') {
       throw new Error(`GET / X-Frame-Options expected DENY (got ${document.headers.get('x-frame-options')})`);
     }
     if (!/<title>[^<]+<\/title>/i.test(await document.text())) {
@@ -51,9 +56,9 @@ if (!originSetting) {
         throw new Error(`GET ${path} is not the built worker (possible SPA fallback)`);
       }
       const csp = worker.headers.get('content-security-policy');
-      const directives = csp?.split(';').map((part) => part.trim()) ?? [];
+      const workerDirectives = directives(csp);
       for (const required of ["default-src 'none'", scriptDirective, "connect-src 'self'"]) {
-        if (!directives.includes(required)) {
+        if (!workerDirectives.includes(required)) {
           throw new Error(`GET ${path} Content-Security-Policy missing ${required} (got ${csp})`);
         }
       }

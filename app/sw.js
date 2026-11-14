@@ -168,7 +168,8 @@ ${body}
   confirmation page. Its same-origin referrer is one proof; browsers that strip Referer use a
   worker-minted, single-use consent token stored until the form is submitted, even if the worker
   restarts. A public or forged URL without either proof only shows the ask page. The token is never
-  a static/documented URL parameter; used tokens are burned before destructive work.
+  a static/documented URL parameter, and any token a submission presents is burned before the
+  destructive work - on BOTH proof paths (qrcode-5hmu).
 */
 const isOwnConfirmationPage = (referrer) => {
   if (typeof referrer !== 'string' || referrer === '') return false;
@@ -208,7 +209,14 @@ router.get('/', function(event) {
     // A public confirm=1 URL is never consent. The form's unguessable, single-use token is
     // a fallback when Referer is stripped; an existing valid Referer still works unchanged.
     const fromAskPage = isOwnConfirmationPage(event.request.referrer);
-    const tokenValid = confirmed && !fromAskPage && await consumeConsent(url.searchParams.get('consent'))
+    // Burn whatever token the submission presented, whichever proof carried the consent
+    // (qrcode-5hmu). askPage() always embeds a token and the form always submits with this
+    // origin's ask page as its referrer, so the referrer path is the NORMAL path - burning only on
+    // the no-referrer path left the minted token live for its whole TTL, and a captured or replayed
+    // submission URL stayed usable after a cleanup that failed (the consent cache is only wiped by
+    // a cleanup that succeeds). Burning is not conditional on the token being the proof, because a
+    // single-use token's whole value is that it is spent, not that it was necessary.
+    const tokenValid = confirmed && await consumeConsent(url.searchParams.get('consent'))
       .catch(() => false);
     if (!confirmed || (!fromAskPage && !tokenValid)) return askPage();
 

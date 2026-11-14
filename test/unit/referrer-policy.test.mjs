@@ -1,7 +1,7 @@
 // The app document must pin Referrer-Policy (bead qrcode-igx): its URL can carry an
 // x-callback-url destination or a kill-switch consent token, and the browser default
 // (strict-origin-when-cross-origin) hands the full URL - query included - to any same-origin
-// receiver. THREAT_MODEL.md invariant 12: header-only protections must be asserted on the
+// receiver. THREAT_MODEL.md §6, invariant 12: header-only protections must be asserted on the
 // response. These tests pin every surface the repo controls to the same policy, the way the
 // framing headers are pinned in framing-headers.test.mjs.
 import test from 'node:test';

@@ -4,7 +4,7 @@
 // with '//' (or '/\', which the URL parser reads the same way) resolved to a third-party origin and
 // cache.addAll() would have stored that content - which the worker's fetch handler then serves for
 // same-origin requests. The manifest is generated from dist/ at build time, so this is defence in
-// depth for threat-model invariant 6: every entry is a same-origin relative path.
+// depth for THREAT_MODEL.md §6, invariant 6: every entry is a same-origin relative path.
 //
 // app/sw.js registers its listeners at import time, so the stubs are installed before each dynamic
 // import. Each case imports the module under its own query string: the module keeps its own route

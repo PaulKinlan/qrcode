@@ -22,7 +22,8 @@
 #     regression class qrcode-2pt recorded) and connect-src 'self' for the wasm fetch.
 #
 # Dev/preview (vite server.headers) cannot path-scope headers, so workers stay unpoliced there;
-# that residual is recorded in the stored threat model. This file is the static-host form of the
+# that residual is recorded as an accepted risk in THREAT_MODEL.md §7 - do not "fix" it by widening
+# the document policy. This file is the static-host form of the
 # policy (Netlify / Cloudflare Pages read `_headers`); any other host must send these headers
 # itself - see the "Framing", "Referrer-Policy" and "Worker CSP" sections in README.md, the last
 # of which carries the two path-scoped worker CSP values to copy.

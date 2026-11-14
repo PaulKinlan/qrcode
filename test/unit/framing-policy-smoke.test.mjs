@@ -1,13 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { hasFrameAncestorsNone, hasXFrameOptionsDeny } from '../../tools/framing-policy.mjs';
+import { hasCspDirective, hasFrameAncestorsNone, hasXFrameOptionsDeny } from '../../tools/framing-policy.mjs';
 
 test('preview framing policy accepts case-insensitive directive names and XFO tokens', () => {
   assert.equal(hasFrameAncestorsNone("default-src 'self'; Frame-Ancestors 'none'"), true);
   assert.equal(hasFrameAncestorsNone("FRAME-ANCESTORS 'none'"), true);
   assert.equal(hasXFrameOptionsDeny('deny'), true);
   assert.equal(hasXFrameOptionsDeny('  DeNy  '), true);
+});
+
+test('shared CSP parsing handles worker directives without changing required values', () => {
+  const workerCsp = "DEFAULT-SRC 'none'; SCRIPT-SRC 'self' 'wasm-unsafe-eval'";
+  assert.equal(hasCspDirective(workerCsp, "default-src 'none'"), true);
+  assert.equal(hasCspDirective(workerCsp, "script-src 'self' 'wasm-unsafe-eval'"), true);
+  assert.equal(hasCspDirective(workerCsp, "script-src 'self'"), false);
 });
 
 test('preview smoke uses case-tolerant helpers rather than inline case-sensitive checks', () => {

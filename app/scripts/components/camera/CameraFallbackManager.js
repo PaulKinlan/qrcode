@@ -1,4 +1,15 @@
 /**
+ * Uploads whose decoded bitmap exceeds this many natural pixels are rejected on the image's
+ * `load` event, and the rejected source is detached so the decoded bitmap is not kept resident by
+ * the reused element. Setting `src` has already started the browser decode by then, so this bounds
+ * the pixels handed to the canvas and ZBar, not the decode allocation itself - the 10 MiB file cap
+ * is the only pre-decode control (THREAT_MODEL.md §6, invariant 11).
+ */
+export const MAX_UPLOAD_PIXELS = 40_000_000;
+
+const MAX_UPLOAD_MEGAPIXELS = MAX_UPLOAD_PIXELS / 1_000_000;
+
+/**
  * CameraFallbackManager - Handles QR code scanning from uploaded images
  * Used when camera access is not available
  */
@@ -47,14 +58,16 @@ export class CameraFallbackManager {
         };
         this.image.onload = () => {
           if (!settle()) return;
-          if (this.image.naturalWidth * this.image.naturalHeight > 40_000_000) {
+          if (this.image.naturalWidth * this.image.naturalHeight > MAX_UPLOAD_PIXELS) {
             // Revoking the object URL does not unload an image that has already finished
             // decoding, and this element is reused for the next selection, so the oversized
             // bitmap would stay resident for the lifetime of the manager. Detach the source
             // first: that drops the decoded pixels and leaves a failure report unable to
             // keep them alive.
             this.image.removeAttribute('src');
-            this.reportFailure(new Error('Choose an image no larger than 40 megapixels.'));
+            this.reportFailure(
+              new Error(`Choose an image no larger than ${MAX_UPLOAD_MEGAPIXELS} megapixels.`),
+            );
             return;
           }
           this.onDimensionsChanged();

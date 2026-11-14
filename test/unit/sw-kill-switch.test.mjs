@@ -127,6 +127,12 @@ test('the confirmation page asks with a script-free same-origin GET form, and su
   assert.equal(headers.get('cache-control'), 'no-store');
   // The old referrer proof remains valid; privacy settings that strip it use the form token.
   assert.equal(headers.get('referrer-policy'), 'same-origin');
+  // Framing is header-only and this page is synthesised, so a <meta> tag cannot supply it: the
+  // response itself must refuse to be framed, or an attacker page can click the confirm form
+  // (bead qrcode-uasd). X-Frame-Options rides along for engines that ignore frame-ancestors.
+  assert.match(policy, /frame-ancestors 'none'/, 'the ask page must not be framable');
+  assert.equal(headers.get('x-frame-options'), 'DENY', 'frame-ancestors needs its X-Frame-Options pair');
+  assert.equal(headers.get('x-content-type-options'), 'nosniff');
 
   // The form the page renders must be the URL the route treats as confirmed. Deriving the
   // submission from the page (rather than writing it out again) is what keeps the two in step.
@@ -274,6 +280,10 @@ test('the confirmed kill switch cleans up before answering, and only for this ap
   assert.match(await response.text(), /Offline mode is off/);
   assert.equal(state.unregistered, 1);
   assert.deepEqual(state.deleted, ['qr-precache-old', 'qr-precache-9.9.9-test']);
+  // The done page comes from the same helper as the ask page, so its framing policy has to survive
+  // too: "you cannot wipe it from here" is not a signal to relax the headers.
+  assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.equal(response.headers.get('x-frame-options'), 'DENY');
 });
 
 test('only the literal confirm=1 arm the destructive step', async () => {

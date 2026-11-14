@@ -47,6 +47,10 @@ export class CameraFallbackManager {
         };
         this.image.onload = () => {
           if (!settle()) return;
+          if (this.image.naturalWidth * this.image.naturalHeight > 40_000_000) {
+            this.reportFailure(new Error('Choose an image no larger than 40 megapixels.'));
+            return;
+          }
           this.onDimensionsChanged();
           this.onframeready(this.image);
         };

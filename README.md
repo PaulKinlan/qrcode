@@ -183,6 +183,14 @@ fixed while doing nothing. The policy ships in three places instead:
 
   `X-Frame-Options` is there for engines that do not implement `frame-ancestors`.
 
+After deploying, run `DEPLOYED_ORIGIN=https://your-host.example npm run smoke:deployed` against
+**the public origin** (also useful for a hosted preview). It checks the document's framing
+headers and the path-scoped CSP on `/sw.js` and `/scripts/qrworker.js`, failing if any are
+missing or the worker paths return an HTML fallback. Run it after each host/config change;
+`npm run smoke:preview` and the offline fast gate only check local Vite responses and **do not
+prove that the deployed host applies `app/_headers`**. The deployed check is deliberately
+opt-in so builds and fast tests need no network access.
+
 ### Referrer-Policy
 
 The app URL itself can carry sensitive query values: the `x-callback-url` destination handed in

@@ -168,12 +168,15 @@ the attacker only needs one click.
 
 `frame-ancestors` is a response-header directive. A `<meta http-equiv="Content-Security-Policy">`
 is **ignored** for it, so it cannot be set from `app/index.html` - and adding it there would look
-fixed while doing nothing. The policy ships in three places instead:
+fixed while doing nothing. The policy ships in four places instead:
 
 * `app/_headers` - the static-host form (Netlify and Cloudflare Pages read `_headers`); it is
   copied into `dist/` by the build.
 * `server.headers` / `preview.headers` in `vite.config.js` - so `npm run dev`, `npm run preview`
   and every smoke run against them send the headers too.
+* `app/sw.js` - the kill/ask pages are responses the worker synthesises itself, so no host config
+  ever sees them; the worker sets both headers on those responses, and the unit suite asserts them
+  on the response it serves (THREAT_MODEL.md §6, invariant 12).
 * Any other host or reverse proxy - **you have to add them yourself.** The two headers are:
 
   ```

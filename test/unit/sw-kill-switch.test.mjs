@@ -80,7 +80,13 @@ function dispatch(url, mode = 'navigate', referrer = '') {
 }
 
 // A stubbed unregister never settles on its own, so every destructive path needs this to finish.
+// Wait for the call instead of assuming it has already happened: the worker burns the consent token
+// through CacheStorage first (qrcode-5hmu), and a dispatch that has to do that storage work reaches
+// unregister() a few ticks later than one that does not.
 async function settle() {
+  for (let tick = 0; tick < 20 && !state.pending; tick++) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
   assert.ok(state.pending, 'the kill switch should have called unregister()');
   state.pending.resolve(true);
   await Promise.resolve();
@@ -167,6 +173,49 @@ test('empty-Referer form submission completes with its single-use consent token'
   assert.match(await (await replay.response).text(), /Turn off offline mode\?/,
     'consumed token must not remove the offline copy a second time');
   assert.equal(state.unregistered, 1);
+});
+
+test('the referrer path burns the token it presented, so a replayed URL cannot retry (qrcode-5hmu)', async () => {
+  // askPage() always embeds a token and the form always submits with the ask page as its referrer,
+  // so the referrer is the NORMAL proof, not the fallback. Burning only on the no-referrer path
+  // left the minted token live for its whole TTL - and a cleanup that FAILS does not wipe the
+  // consent cache either, so the captured submission URL stayed fully usable. A second ask page is
+  // open here to prove the burn is scoped to the token the request presented.
+  resetState();
+  const first = (await (await dispatch(CONFIRMATION_PAGE).response).text())
+    .match(/name="consent" value="([0-9a-f]{32})"/)?.[1];
+  const second = (await (await dispatch(CONFIRMATION_PAGE).response).text())
+    .match(/name="consent" value="([0-9a-f]{32})"/)?.[1];
+  assert.ok(first && second && first !== second, 'each ask page must mint its own token');
+
+  const submitted = `${CONFIRMATION_PAGE}&confirm=1&consent=${first}`;
+  state.failWith = new Error('unregister failed');
+  const realError = console.error;
+  console.error = () => {};
+  try {
+    const failed = dispatch(submitted, 'navigate', CONFIRMATION_PAGE);
+    assert.match(await (await failed.response).text(), /could not be turned off/);
+  } finally { console.error = realError; }
+  state.failWith = null;
+  assert.equal(state.unregistered, 1, 'the referrer-proved submission ran the cleanup once');
+
+  // Replay from a history entry, a shared link or a captured URL: no referrer, same token. Assert on
+  // the unregister count BEFORE awaiting the response: a replay that wrongly reached the cleanup
+  // would hold an unregister that never settles, and a hang is a much worse failure signal than an
+  // assertion.
+  const replay = dispatch(submitted, 'navigate', '');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(state.unregistered, 1, 'the replay must not reach the cleanup');
+  assert.deepEqual(state.deleted, [], 'the replay must not delete anything');
+  assert.match(await (await replay.response).text(), /Turn off offline mode\?/,
+    'a token presented by the referrer path must be spent, not left replayable');
+
+  // The other open confirmation page still holds a usable token: the burn is per-token, not a wipe.
+  const other = dispatch(`${CONFIRMATION_PAGE}&confirm=1&consent=${second}`, 'navigate', '');
+  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
+  assert.match(await (await other.response).text(), /Offline mode is off/,
+    'burning must be scoped to the token the request presented');
 });
 
 test('consent tokens survive in CacheStorage and are scoped to a short lifetime', async () => {

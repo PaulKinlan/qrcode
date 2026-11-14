@@ -48,6 +48,12 @@ export class CameraFallbackManager {
         this.image.onload = () => {
           if (!settle()) return;
           if (this.image.naturalWidth * this.image.naturalHeight > 40_000_000) {
+            // Revoking the object URL does not unload an image that has already finished
+            // decoding, and this element is reused for the next selection, so the oversized
+            // bitmap would stay resident for the lifetime of the manager. Detach the source
+            // first: that drops the decoded pixels and leaves a failure report unable to
+            // keep them alive.
+            this.image.removeAttribute('src');
             this.reportFailure(new Error('Choose an image no larger than 40 megapixels.'));
             return;
           }
